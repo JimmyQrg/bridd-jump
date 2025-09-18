@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Neon Runner Grid</title>
+<title>Bridd Jump</title>
 <style>
   body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
   canvas { display:block; }
@@ -23,7 +23,7 @@
 <canvas id="gameCanvas"></canvas>
 <div id="ui">
   <div id="startScreen">
-    <h1>NEON RUNNER</h1>
+    <h1>BRIDD JUMP</h1>
     <div id="bestScore">Best Score: 0</div>
     <button id="startBtn">START</button>
   </div>
@@ -36,7 +36,9 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 const BLOCK_SIZE = 50;
-let gravity = 0.7;
+const JUMP_SPEED = -15;  // fixed jump velocity
+const GRAVITY = 0.7;     // fixed gravity
+
 let keys = {};
 let score = 0;
 let bestScore = 0;
@@ -48,7 +50,8 @@ let shakeIntensity = 0;
 let player = {
     x: 100, y: 0, width: 50, height: 50,
     color: "#0ff", vy: 0, speed: 5, trail: [],
-    glow: true, hitboxScale: 0.6
+    glow: true, hitboxScale: 0.6,
+    jumpsLeft: 2
 };
 
 // Effects
@@ -58,40 +61,11 @@ let particles = [];
 let backgroundParticles = [];
 let whiteLines = [];
 
-// Key and click handling
+// Input
 window.addEventListener("keydown", (e) => keys[e.code] = true);
 window.addEventListener("keyup", (e) => keys[e.code] = false);
 window.addEventListener("mousedown", ()=> jump());
 window.addEventListener("touchstart", ()=> jump());
-
-// Jump function
-function jump(){
-    if(player.vy === 0){
-        player.vy = -15;
-        for(let i=0;i<10;i++){ createTrail(player.x+player.width/2,player.y+player.height,"#0ff"); }
-    }
-}
-
-// Background particles
-for(let i=0;i<200;i++){
-    backgroundParticles.push({
-        x:Math.random()*canvas.width,
-        y:Math.random()*canvas.height,
-        size:Math.random()*2+1,
-        alpha:Math.random()*0.5+0.1
-    });
-}
-
-// White horizontal lines moving left
-for(let i=0;i<50;i++){
-    whiteLines.push({
-        x: canvas.width + Math.random()*500,
-        y: Math.random()*canvas.height,
-        speed: Math.random()*8+2,
-        length: Math.random()*200+50,
-        alpha: Math.random()*0.3+0.1
-    });
-}
 
 // Particle creation
 function createExplosion(x, y, color, amount=50){
@@ -106,207 +80,186 @@ function createExplosion(x, y, color, amount=50){
         });
     }
 }
-function createTrail(x,y,color){
-    player.trail.push({x,y,color,alpha:1,size:Math.random()*6+4});
+
+function createTrail(x,y,color,size){
+    particles.push({x,y,vx:0,vy:0,size,color,alpha:1,type:"trail"});
 }
 
-// Generate grid-based platform
-function generateBlockPlatform(lastX, lastY){
-    let blockCount = Math.floor(Math.random()*5+2); // 2–6 blocks
-    let x = lastX + Math.floor(Math.random()*3+2) * BLOCK_SIZE;
-    let y = lastY + (Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
-    y = Math.max(BLOCK_SIZE, Math.min(canvas.height - 3*BLOCK_SIZE, y));
-
-    for(let i=0;i<blockCount;i++){
-        platforms.push({
-            x: x + i*BLOCK_SIZE,
-            y: y,
-            width: BLOCK_SIZE,
-            height: BLOCK_SIZE,
-            color: `hsl(${Math.random()*360},100%,50%)`
+function createJumpEffect(x,y,type){
+    let color = type==="double"?"#f0f":"#0ff";
+    for(let i=0;i<15;i++){
+        let angle=Math.random()*Math.PI*2;
+        let speed=Math.random()*6+2;
+        particles.push({
+            x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,size:Math.random()*6+2,
+            color,alpha:1,type:type
         });
-
-        // Lowered chance for spike
-        if(Math.random() < 0.1){
-            spikes.push({
-                x: x + i*BLOCK_SIZE,
-                y: y - BLOCK_SIZE,
-                width: BLOCK_SIZE,
-                height: BLOCK_SIZE
-            });
-        }
     }
-    return {x: x + blockCount*BLOCK_SIZE, y};
 }
 
-// Reset game
+function createLandEffect(x,y){
+    for(let i=0;i<20;i++){
+        let angle=Math.random()*Math.PI;
+        let speed=Math.random()*6+2;
+        particles.push({
+            x,y,vx:Math.cos(angle)*speed,vy:-Math.sin(angle)*speed,size:Math.random()*6+2,
+            color:"#0ff",alpha:1,type:"land"
+        });
+    }
+}
+
+// Jump function with double jump
+function jump(){
+    if(player.jumpsLeft>0){
+        player.vy = JUMP_SPEED;
+        if(player.jumpsLeft===2) createJumpEffect(player.x+player.width/2,player.y+player.height,"single");
+        else createJumpEffect(player.x+player.width/2,player.y+player.height,"double");
+        player.jumpsLeft--;
+    }
+}
+
+// Background particles
+function initBackground(){
+    backgroundParticles = [];
+    for(let i=0;i<200;i++){
+        backgroundParticles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:Math.random()*2+1,alpha:Math.random()*0.5+0.1});
+    }
+}
+
+// White horizontal lines
+function initLines(){
+    whiteLines = [];
+    for(let i=0;i<50;i++){
+        whiteLines.push({x:canvas.width+Math.random()*500,y:Math.random()*canvas.height,speed:Math.random()*8+2,length:Math.random()*200+50,alpha:Math.random()*0.3+0.1});
+    }
+}
+
+// Generate platform
+function generateBlockPlatform(lastX, lastY){
+    let blockCount = Math.floor(Math.random()*5+2);
+    let x = lastX + Math.floor(Math.random()*3+2)*BLOCK_SIZE;
+    let y = lastY + (Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
+    y = Math.max(BLOCK_SIZE,Math.min(canvas.height-3*BLOCK_SIZE,y));
+    for(let i=0;i<blockCount;i++){
+        platforms.push({x:x+i*BLOCK_SIZE,y:y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:`hsl(${Math.random()*360},100%,50%)`});
+        if(Math.random()<0.1) spikes.push({x:x+i*BLOCK_SIZE,y:y-BLOCK_SIZE,width:BLOCK_SIZE,height:BLOCK_SIZE});
+    }
+    return {x:x+blockCount*BLOCK_SIZE,y};
+}
+
+// Reset everything
 function resetGame(){
-    score = 0;
-    player.x = 100; 
-    player.y = canvas.height/2 - player.height; 
-    player.vy = 0; 
-    player.speed = 5; 
-    player.trail = [];
-    platforms = [];
-    spikes = [];
-    particles = [];
-    
-    // Initial ground under player
-    platforms.push({
-        x: 0,
-        y: player.y + player.height,
-        width: canvas.width,
-        height: BLOCK_SIZE,
-        color: "#0ff"
-    });
-
-    lastPlatform = generateBlockPlatform(canvas.width, player.y);
+    score=0;
+    player.x=100; player.y=canvas.height/2-player.height; player.vy=0; player.speed=5; player.trail=[];
+    player.jumpsLeft=2;
+    platforms=[]; spikes=[]; particles=[];
+    initBackground(); initLines();
+    // Ground under player
+    platforms.push({x:0,y:player.y+player.height,width:canvas.width,height:BLOCK_SIZE,color:"#0ff"});
+    lastPlatform = generateBlockPlatform(canvas.width,player.y);
 }
 
-// Death
+// Die
 function die(){
-    createExplosion(player.x+player.width/2, player.y+player.height/2,"#0ff",150);
+    createExplosion(player.x+player.width/2,player.y+player.height/2,"#0ff",150);
     shakeIntensity=15;
     if(score>bestScore) bestScore=Math.floor(score);
-    document.getElementById("bestScore").innerText = "Best Score: "+bestScore;
+    document.getElementById("bestScore").innerText="Best Score: "+bestScore;
     showStartScreen();
     gameStarted=false;
 }
 
 // UI
-function showStartScreen(){ document.getElementById("startScreen").style.display="flex"; }
-function hideStartScreen(){ document.getElementById("startScreen").style.display="none"; }
+function showStartScreen(){document.getElementById("startScreen").style.display="flex";}
+function hideStartScreen(){document.getElementById("startScreen").style.display="none";}
 
-// Spike collision with smaller hitbox
+// Spike collision
 function checkSpikeCollision(spike){
     const hbWidth = player.width*player.hitboxScale;
     const hbHeight = player.height*player.hitboxScale;
     const hbX = player.x + (player.width - hbWidth)/2;
     const hbY = player.y + (player.height - hbHeight)/2;
-    return hbX+hbWidth>spike.x && hbX<spike.x+spike.width &&
-           hbY+hbHeight>spike.y && hbY<spike.y+spike.height;
+    return hbX+hbWidth>spike.x && hbX<spike.x+spike.width && hbY+hbHeight>spike.y && hbY<spike.y+spike.height;
 }
 
-// Main loop
+// Update loop
 function update(time){
     if(!gameStarted) return requestAnimationFrame(update);
-    let delta = (time-lastTime)/1000;
-    lastTime = time;
-
-    let camShakeX = (Math.random()-0.5)*shakeIntensity;
-    let camShakeY = (Math.random()-0.5)*shakeIntensity;
-    if(shakeIntensity>0) shakeIntensity *= 0.9;
-
-    let camX = player.x-150+camShakeX;
-
+    let delta=(time-lastTime)/1000; lastTime=time;
+    let camShakeX=(Math.random()-0.5)*shakeIntensity;
+    let camX=player.x-150+camShakeX; if(shakeIntensity>0) shakeIntensity*=0.9;
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // White horizontal lines
+    // White lines
     for(let line of whiteLines){
-        ctx.strokeStyle = `rgba(255,255,255,${line.alpha})`;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(line.x, line.y);
-        ctx.lineTo(line.x - line.length, line.y);
-        ctx.stroke();
-        line.x -= line.speed;
-        if(line.x + line.length < 0) line.x = canvas.width + Math.random()*500;
+        ctx.strokeStyle=`rgba(255,255,255,${line.alpha})`;
+        ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(line.x,line.y); ctx.lineTo(line.x-line.length,line.y); ctx.stroke();
+        line.x-=line.speed; if(line.x+line.length<0) line.x=canvas.width+Math.random()*500;
     }
 
-    // Background particles
+    // Background
     for(let bp of backgroundParticles){
-        ctx.fillStyle = `rgba(0,255,255,${bp.alpha})`;
-        ctx.fillRect(bp.x, bp.y, bp.size, bp.size);
+        ctx.fillStyle=`rgba(0,255,255,${bp.alpha})`; ctx.fillRect(bp.x,bp.y,bp.size,bp.size);
     }
 
     // Score
     ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
-    ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
-    ctx.fillText(Math.floor(score),20,50);
-    ctx.shadowBlur=0;
+    ctx.fillStyle="#fff"; ctx.font="40px sans-serif"; ctx.fillText(Math.floor(score),20,50); ctx.shadowBlur=0;
 
     // Player physics
-    player.y += player.vy;
-    player.vy += gravity;
+    player.y+=player.vy; player.vy+=GRAVITY;
+    player.x+=player.speed; player.speed+=0.00005;
 
-    // Horizontal movement
-    player.x += player.speed;
-    player.speed += 0.00005;
-
-    // Player trail
-    for(let i=player.trail.length-1;i>=0;i--){
-        let t = player.trail[i];
-        ctx.fillStyle=`rgba(0,255,255,${t.alpha})`;
-        ctx.fillRect(t.x-camX,t.y,t.size,t.size);
-        t.alpha-=0.05; t.y-=0.5;
-        if(t.alpha<=0) player.trail.splice(i,1);
+    // Update particles
+    for(let i=particles.length-1;i>=0;i--){
+        let p=particles[i]; p.x+=p.vx; p.y+=p.vy; if(p.type!=="trail") p.vy+=0.3; p.alpha-=0.03;
+        ctx.fillStyle=`rgba(0,255,255,${p.alpha})`; ctx.fillRect(p.x-camX,p.y,p.size,p.size);
+        if(p.alpha<=0) particles.splice(i,1);
     }
 
     // Platform collision
     let onGround=false;
     for(let plat of platforms){
-        if(player.x+player.width>plat.x && player.x<plat.x+plat.width &&
-           player.y+player.height>plat.y && player.y+player.height<plat.y+plat.height+player.vy){
-            player.y = plat.y - player.height;
-            player.vy = 0;
-            onGround=true;
+        if(player.x+player.width>plat.x && player.x<plat.x+plat.width && player.y+player.height>plat.y && player.y+player.height<plat.y+plat.height+player.vy){
+            if(!onGround && player.vy>=0) createLandEffect(player.x+player.width/2,player.y+player.height);
+            player.y=plat.y-player.height; player.vy=0; onGround=true; player.jumpsLeft=2;
         }
     }
     if(!onGround && player.y>canvas.height) die();
 
     // Draw platforms
     for(let plat of platforms){
-        let grad = ctx.createLinearGradient(plat.x-camX, plat.y, plat.x-camX+plat.width, plat.y);
-        grad.addColorStop(0, "#0ff");
-        grad.addColorStop(0.5, plat.color);
-        grad.addColorStop(1, "#0ff");
-        ctx.fillStyle = grad;
-        ctx.fillRect(plat.x-camX, plat.y, plat.width, plat.height);
+        let grad=ctx.createLinearGradient(plat.x-camX,plat.y,plat.x-camX+plat.width,plat.y);
+        grad.addColorStop(0,"#0ff"); grad.addColorStop(0.5,plat.color); grad.addColorStop(1,"#0ff");
+        ctx.fillStyle=grad; ctx.fillRect(plat.x-camX,plat.y,plat.width,plat.height);
     }
 
     // Spikes
     for(let spike of spikes){
-        ctx.fillStyle="red";
-        ctx.beginPath();
-        ctx.moveTo(spike.x-camX, spike.y+spike.height);
-        ctx.lineTo(spike.x-camX+spike.width/2, spike.y);
-        ctx.lineTo(spike.x-camX+spike.width, spike.y+spike.height);
-        ctx.closePath();
-        ctx.fill();
+        ctx.fillStyle="red"; ctx.beginPath();
+        ctx.moveTo(spike.x-camX,spike.y+spike.height); ctx.lineTo(spike.x-camX+spike.width/2,spike.y); ctx.lineTo(spike.x-camX+spike.width,spike.y+spike.height);
+        ctx.closePath(); ctx.fill();
         if(checkSpikeCollision(spike)) die();
     }
 
-    // Glowing player
+    // Draw player
     ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
-    ctx.fillStyle=player.color;
-    ctx.fillRect(player.x-camX, player.y, player.width, player.height);
+    ctx.fillStyle=player.color; ctx.fillRect(player.x-camX,player.y,player.width,player.height);
     ctx.shadowBlur=0;
 
-    // Particles update
-    for(let i=particles.length-1;i>=0;i--){
-        let p=particles[i];
-        p.x+=p.vx; p.y+=p.vy; p.vy+=0.3; p.alpha-=0.03;
-        ctx.fillStyle=`rgba(0,255,255,${p.alpha})`;
-        ctx.fillRect(p.x-camX,p.y,p.size,p.size);
-        if(p.alpha<=0) particles.splice(i,1);
-    }
-
-    // Dynamic platforms
+    // Generate new platforms dynamically
     let last = platforms[platforms.length-1];
     if(last.x < player.x + canvas.width) generateBlockPlatform(last.x,last.y);
 
-    score += delta*100;
+    score+=delta*100;
 
     requestAnimationFrame(update);
 }
 
 // Start button
 document.getElementById("startBtn").addEventListener("click", ()=>{
-    hideStartScreen();
-    resetGame();
-    gameStarted=true;
-    lastTime=performance.now();
-    requestAnimationFrame(update);
+    hideStartScreen(); resetGame();
+    gameStarted=true; lastTime=performance.now(); requestAnimationFrame(update);
 });
 
 showStartScreen();
