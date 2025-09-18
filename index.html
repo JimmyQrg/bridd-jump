@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fancy Platformer</title>
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: black;
+    font-family: sans-serif;
+  }
+  canvas {
+    display: block;
+  }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let gravity = 0.7;
+let keys = {};
+let score = 0;
+let lastTime = 0;
+
+// Player
+let player = {
+    x: 100,
+    y: 300,
+    width: 50,
+    height: 50,
+    color: "#0ff",
+    vy: 0,
+    speed: 3
+};
+
+// Particles for death effect
+let particles = [];
+
+// Platform generation
+let platforms = [];
+let spikes = [];
+
+function generatePlatform(lastX, lastY) {
+    let width = Math.random() * 200 + 100;
+    let height = 20;
+    let x = lastX + Math.random() * 300 + 150;
+    let y = lastY + (Math.random() - 0.5) * 200;
+    y = Math.max(50, Math.min(canvas.height - 100, y));
+    platforms.push({x, y, width, height, color: "#0f0"});
+
+    // Optional spikes on platform
+    if (Math.random() > 0.5 && width > 120) {
+        let spikeX = x + Math.random() * (width - 20);
+        spikes.push({x: spikeX, y: y - 20, width: 20, height: 20});
+    }
+
+    return {x, y};
+}
+
+// Initial platforms
+let lastPlatform = generatePlatform(0, canvas.height/2);
+for (let i = 0; i < 10; i++) {
+    lastPlatform = generatePlatform(lastPlatform.x, lastPlatform.y);
+}
+
+// Key handling
+window.addEventListener("keydown", (e) => keys[e.code] = true);
+window.addEventListener("keyup", (e) => keys[e.code] = false);
+
+// Particle effect
+function createParticles(x, y, color) {
+    for (let i = 0; i < 20; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 10,
+            vy: Math.random() * -5 - 2,
+            size: Math.random() * 5 + 2,
+            color: color,
+            alpha: 1
+        });
+    }
+}
+
+// Game loop
+function update(time) {
+    let delta = (time - lastTime) / 1000;
+    lastTime = time;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Update score
+    score += delta * 100;
+    ctx.fillStyle = "#fff";
+    ctx.font = "30px sans-serif";
+    ctx.fillText(Math.floor(score), 20, 40);
+
+    // Player physics
+    if ((keys["KeyW"] || keys["ArrowUp"] || keys["Space"]) && player.vy === 0) {
+        player.vy = -15;
+    }
+    player.vy += gravity;
+    player.y += player.vy;
+
+    // Move player forward slowly increasing speed
+    player.x += player.speed;
+    player.speed += 0.0005;
+
+    // Camera effect (scrolling)
+    let camX = player.x - 150;
+    
+    // Platforms collision
+    let onGround = false;
+    for (let plat of platforms) {
+        if (player.x + player.width > plat.x && player.x < plat.x + plat.width &&
+            player.y + player.height > plat.y && player.y + player.height < plat.y + plat.height + player.vy) {
+            player.y = plat.y - player.height;
+            player.vy = 0;
+            onGround = true;
+        }
+    }
+
+    if (!onGround && player.y > canvas.height) {
+        die();
+    }
+
+    // Draw platforms
+    for (let plat of platforms) {
+        ctx.fillStyle = plat.color;
+        ctx.fillRect(plat.x - camX, plat.y, plat.width, plat.height);
+    }
+
+    // Draw spikes
+    for (let spike of spikes) {
+        ctx.fillStyle = "red";
+        ctx.beginPath();
+        ctx.moveTo(spike.x - camX, spike.y + spike.height);
+        ctx.lineTo(spike.x - camX + spike.width/2, spike.y);
+        ctx.lineTo(spike.x - camX + spike.width, spike.y + spike.height);
+        ctx.closePath();
+        ctx.fill();
+
+        // Collision
+        if (player.x + player.width > spike.x && player.x < spike.x + spike.width &&
+            player.y + player.height > spike.y && player.y < spike.y + spike.height) {
+            die();
+        }
+    }
+
+    // Draw player
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x - camX, player.y, player.width, player.height);
+
+    // Particles update
+    for (let i = particles.length -1; i >=0; i--) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.5;
+        p.alpha -= 0.02;
+        ctx.fillStyle = `rgba(${p.color.slice(1,3)},${p.color.slice(3,5)},${p.color.slice(5,7)},${p.alpha})`;
+        ctx.fillRect(p.x - camX, p.y, p.size, p.size);
+        if (p.alpha <=0) particles.splice(i,1);
+    }
+
+    // Generate new platforms
+    let last = platforms[platforms.length-1];
+    if (last.x < player.x + canvas.width) {
+        lastPlatform = generatePlatform(last.x, last.y);
+    }
+
+    requestAnimationFrame(update);
+}
+
+// Death effect
+function die() {
+    createParticles(player.x + player.width/2, player.y + player.height/2, "#0ff");
+    player.x = 100;
+    player.y = 300;
+    player.vy = 0;
+    player.speed = 3;
+    score = 0;
+}
+
+requestAnimationFrame(update);
+
+</script>
+</body>
+</html>
