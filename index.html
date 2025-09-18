@@ -36,9 +36,6 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 const BLOCK_SIZE = 50;
-const GRID_WIDTH = Math.floor(canvas.width/BLOCK_SIZE);
-const GRID_HEIGHT = Math.floor(canvas.height/BLOCK_SIZE);
-
 let gravity = 0.7;
 let keys = {};
 let score = 0;
@@ -49,7 +46,7 @@ let shakeIntensity = 0;
 
 // Player
 let player = {
-    x: 100, y: 300, width: 50, height: 50,
+    x: 100, y: 0, width: 50, height: 50,
     color: "#0ff", vy: 0, speed: 5, trail: [],
     glow: true, hitboxScale: 0.6
 };
@@ -61,9 +58,19 @@ let particles = [];
 let backgroundParticles = [];
 let whiteLines = [];
 
-// Key handling
+// Key and click handling
 window.addEventListener("keydown", (e) => keys[e.code] = true);
 window.addEventListener("keyup", (e) => keys[e.code] = false);
+window.addEventListener("mousedown", ()=> jump());
+window.addEventListener("touchstart", ()=> jump());
+
+// Jump function
+function jump(){
+    if(player.vy === 0){
+        player.vy = -15;
+        for(let i=0;i<10;i++){ createTrail(player.x+player.width/2,player.y+player.height,"#0ff"); }
+    }
+}
 
 // Background particles
 for(let i=0;i<200;i++){
@@ -107,7 +114,7 @@ function createTrail(x,y,color){
 function generateBlockPlatform(lastX, lastY){
     let blockCount = Math.floor(Math.random()*5+2); // 2–6 blocks
     let x = lastX + Math.floor(Math.random()*3+2) * BLOCK_SIZE;
-    let y = lastY + (Math.floor(Math.random()*3)-1)*BLOCK_SIZE; // up, same, down
+    let y = lastY + (Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
     y = Math.max(BLOCK_SIZE, Math.min(canvas.height - 3*BLOCK_SIZE, y));
 
     for(let i=0;i<blockCount;i++){
@@ -120,7 +127,7 @@ function generateBlockPlatform(lastX, lastY){
         });
 
         // Lowered chance for spike
-        if(Math.random() < 0.1){ // 10% chance
+        if(Math.random() < 0.1){
             spikes.push({
                 x: x + i*BLOCK_SIZE,
                 y: y - BLOCK_SIZE,
@@ -135,9 +142,25 @@ function generateBlockPlatform(lastX, lastY){
 // Reset game
 function resetGame(){
     score = 0;
-    player.x = 100; player.y = 300; player.vy=0; player.speed=5; player.trail=[];
-    platforms=[]; spikes=[]; particles=[];
-    lastPlatform = generateBlockPlatform(0, canvas.height/2);
+    player.x = 100; 
+    player.y = canvas.height/2 - player.height; 
+    player.vy = 0; 
+    player.speed = 5; 
+    player.trail = [];
+    platforms = [];
+    spikes = [];
+    particles = [];
+    
+    // Initial ground under player
+    platforms.push({
+        x: 0,
+        y: player.y + player.height,
+        width: canvas.width,
+        height: BLOCK_SIZE,
+        color: "#0ff"
+    });
+
+    lastPlatform = generateBlockPlatform(canvas.width, player.y);
 }
 
 // Death
@@ -178,7 +201,7 @@ function update(time){
 
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // White horizontal lines moving left
+    // White horizontal lines
     for(let line of whiteLines){
         ctx.strokeStyle = `rgba(255,255,255,${line.alpha})`;
         ctx.lineWidth = 2;
@@ -202,13 +225,9 @@ function update(time){
     ctx.fillText(Math.floor(score),20,50);
     ctx.shadowBlur=0;
 
-    // Player jump
-    if((keys["KeyW"]||keys["ArrowUp"]||keys["Space"]) && player.vy===0){
-        player.vy=-15;
-        for(let i=0;i<10;i++){ createTrail(player.x+player.width/2,player.y+player.height,"#0ff"); }
-    }
-    player.vy += gravity;
+    // Player physics
     player.y += player.vy;
+    player.vy += gravity;
 
     // Horizontal movement
     player.x += player.speed;
