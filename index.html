@@ -40,17 +40,16 @@ const BLOCK_SIZE=50;
 const JUMP_SPEED=-15;
 const GRAVITY=0.7;
 
-let keys={}, score=0, bestScore=0, lastTime=0, gameStarted=false;
-let crashPieces=[], particles=[], playerTrail=[], torches=[];
-let baseColors=[{r:255,g:0,b:0},{r:255,g:153,g:0},{r:255,g:255,g:0},{r:0,g:255,g:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
+let keys={}, score=0, bestScore=0, lastTime=0, gameStarted=false, animationId=null;
+let crashPieces=[], particles=[], playerTrail=[];
+let baseColors=[{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,g:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
 let colorIndex=0, platformColor={r:255,g:0,b:0}, nextColor=baseColors[1], colorLerp=0;
 let globalTime=0;
 
 let player={
     x:100, y:0, width:50, height:50,
     color:"#0ff", vy:0, speed:15,
-    hitboxScale:0.6, jumpsLeft:0, onGround:false, visible:true,
-    frame:0, frameTime:0
+    hitboxScale:0.6, jumpsLeft:1, onGround:false, visible:true
 };
 
 let platforms=[], spikes=[], lines=[], gems=[], ground=[];
@@ -63,37 +62,31 @@ window.addEventListener("touchstart", ()=>jump());
 
 function jump(){
     if(!player.visible) return;
-    if(player.onGround){ // ground jump
-        player.vy = JUMP_SPEED;
-        player.jumpsLeft = 1; // allow one air jump
-        spawnParticles(player.x+player.width/2, player.y+player.height,"jump");
+    if(player.jumpsLeft>0){
+        player.vy=JUMP_SPEED;
+        spawnParticles(player.x+player.width/2, player.y+player.height, player.jumpsLeft===2?"jump":"double");
         playerTrail.push({x:player.x+player.width/2, y:player.y+player.height/2, life:20});
-        player.onGround=false;
-    } else if(player.jumpsLeft>0){ // air jump
-        player.vy = JUMP_SPEED;
         player.jumpsLeft--;
-        spawnParticles(player.x+player.width/2, player.y+player.height,"double");
-        playerTrail.push({x:player.x+player.width/2, y:player.y+player.height/2, life:20});
     }
 }
 
 function resetGame(){
+    if(animationId) cancelAnimationFrame(animationId);
     score=0; colorLerp=0; globalTime=0;
     player.x=100; player.y=canvas.height/2-player.height; player.vy=0; player.speed=15;
-    player.jumpsLeft=1; player.onGround=false; player.visible=true; player.frame=0; player.frameTime=0;
+    player.jumpsLeft=1; player.onGround=false; player.visible=true;
 
-    platforms=[]; spikes=[]; crashPieces=[]; particles=[]; lines=[]; gems=[]; ground=[]; playerTrail=[]; torches=[];
+    platforms=[]; spikes=[]; crashPieces=[]; particles=[]; lines=[]; gems=[]; ground=[]; playerTrail=[];
 
     platformColor={...baseColors[0]}; colorIndex=0; nextColor=baseColors[1];
 
-    // Starting platform
-    platforms.push({x:0, y:player.y + player.height, width:BLOCK_SIZE*10, height:BLOCK_SIZE, color:{...platformColor}, passed:false});
+    platforms.push({x:0,y:player.y+player.height,width:BLOCK_SIZE*10,height:BLOCK_SIZE,color:{...platformColor},passed:false});
     ground.push({x:0,y:canvas.height-BLOCK_SIZE,width:canvas.width*10,height:BLOCK_SIZE,color:{r:50,g:50,b:50}});
 
     lastTime=performance.now();
     hideStartScreen();
     gameStarted=true;
-    requestAnimationFrame(update);
+    update(lastTime);
 }
 
 function generateBlockPlatform(lastX,lastY){
@@ -103,9 +96,8 @@ function generateBlockPlatform(lastX,lastY){
     y=Math.max(BLOCK_SIZE, Math.min(canvas.height-3*BLOCK_SIZE, y));
     for(let i=0;i<blockCount;i++){
         platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
-        if(Math.random()<0.12) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6, baseY:y-BLOCK_SIZE+BLOCK_SIZE*0.2, hit:true, passed:false});
+        if(Math.random()<0.1) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6, baseY:y-BLOCK_SIZE+BLOCK_SIZE*0.2, hit:true, passed:false});
         if(Math.random()<0.08) gems.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.25, y:y-BLOCK_SIZE*0.5, size:BLOCK_SIZE*0.5, collected:false, glow:0});
-        if(Math.random()<0.05) torches.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE/2, y:y-30, flicker:0});
     }
     return {x:x+blockCount*BLOCK_SIZE,y};
 }
@@ -153,34 +145,15 @@ function addLine(){
     lines.push({x:canvas.width, y:Math.random()*canvas.height, width:Math.random()*80+20, speed:(player.speed+5)*5, blur:Math.random()*10}); 
 }
 
-function lerpColor(c1,c2,t){return {r:c1.r+(c2.r-c1.r)*t, g:c1.g+(c2.g-c1.g)*t, b:c1.b+(c2.b-c1.b)*t}; }
+function lerpColor(c1,c2,t){return {r:c1.r+(c2.r-c1.r)*t, g:c1.g+(c2.g-c1.g)*t, b:c1.b+(c2.b-c1.b)*t};}
 function rgb(c){return `rgb(${Math.floor(c.r)},${Math.floor(c.g)},${Math.floor(c.b)})`; }
-
-function drawPlayer(){
-    const px=player.x-cameraX, py=player.y-cameraY;
-    player.frameTime+=1/60;
-    if(player.frameTime>0.1){player.frame=(player.frame+1)%4; player.frameTime=0;}
-    ctx.fillStyle="#0ff"; ctx.fillRect(px+10,py+10,10,10); ctx.fillRect(px+30,py+10,10,10); ctx.fillRect(px+10,py+30,30,10);
-    ctx.fillStyle="#fff"; ctx.fillRect(px+20,py+20,10,10);
-}
-
-function drawTorch(t){
-    t.flicker=Math.random()*5;
-    ctx.fillStyle="#ff4500"; ctx.shadowColor="#ff4500"; ctx.shadowBlur=20;
-    ctx.beginPath();
-    ctx.arc(t.x-cameraX, t.y-cameraY+t.flicker,10,0,Math.PI*2);
-    ctx.fill();
-    ctx.shadowBlur=0;
-}
-
-let cameraX=0, cameraY=0;
 
 function update(time){
     let delta=(time-lastTime)/1000; lastTime=time;
     globalTime+=delta;
 
     if(gameStarted && player.visible){
-        player.speed+=0.03;
+        player.speed+=0.005;
         colorLerp+=delta/10;
         if(colorLerp>=1){ colorIndex=(colorIndex+1)%baseColors.length; nextColor=baseColors[(colorIndex+1)%baseColors.length]; colorLerp=0; }
         platformColor=lerpColor(baseColors[colorIndex],nextColor,colorLerp);
@@ -191,14 +164,8 @@ function update(time){
         player.onGround=false;
         for(let plat of platforms){
             if(player.x+player.width>plat.x && player.x<plat.x+plat.width &&
-               player.y+player.height>plat.y && player.y+player.height<plat.y+player.vy){
-                if(player.vy>=0){ 
-                    player.y = plat.y - player.height; 
-                    player.vy=0; 
-                    player.onGround=true; 
-                    player.jumpsLeft=1; 
-                    spawnParticles(player.x+player.width/2, player.y+player.height,"land"); 
-                }
+               player.y+player.height>plat.y && player.y+player.height<plat.y+plat.height+player.vy){
+                if(player.vy>=0){ player.y=plat.y-player.height; player.vy=0; player.onGround=true; player.jumpsLeft=2; spawnParticles(player.x+player.width/2, player.y+player.height,"land"); }
             }
         }
 
@@ -213,106 +180,56 @@ function update(time){
             if(!gem.collected) gem.glow+=delta*5;
         }
 
-        // Generate platforms ahead
         let lastPlatform = platforms[platforms.length-1];
-        while(lastPlatform.x < player.x + canvas.width*2){ 
-            lastPlatform = generateBlockPlatform(lastPlatform.x, lastPlatform.y);
-        }
-
+        if(lastPlatform.x < player.x + canvas.width) generateBlockPlatform(lastPlatform.x, lastPlatform.y);
         addLine();
     }
 
     const targetCamX=player.x-150;
-    const targetCamY=player.y - canvas.height/2 + player.height*1.3;
-    cameraX = cameraX*0.9 + targetCamX*0.1;
-    cameraY = cameraY*0.9 + targetCamY*0.1;
+    const targetCamY=player.y - canvas.height/2 + player.height*1.5;
+    cameraX = (typeof cameraX!=='undefined'?cameraX:targetCamX)*0.9 + targetCamX*0.1;
+    cameraY = (typeof cameraY!=='undefined'?cameraY:targetCamY)*0.9 + targetCamY*0.1;
 
     ctx.clearRect(0,0,canvas.width,canvas.height);
+
     ctx.fillStyle="#fff"; ctx.font="40px sans-serif"; ctx.fillText(score,20,50);
 
+    // Ground
     for(let g of ground){ctx.fillStyle=`rgb(${g.color.r},${g.color.g},${g.color.b})`; ctx.fillRect(g.x-cameraX,g.y-cameraY,g.width,g.height);}
-    for(let plat of platforms){
-        const grad = ctx.createLinearGradient(plat.x-cameraX, plat.y-cameraY, plat.x-cameraX, plat.y-cameraY+plat.height);
-        grad.addColorStop(0, rgb(platformColor));
-        grad.addColorStop(1, "black");
-        ctx.fillStyle = grad;
-        ctx.fillRect(plat.x - cameraX, plat.y - cameraY, plat.width, plat.height);
+
+    // Platforms
+    for(let plat of platforms){ctx.shadowColor=plat.color; ctx.shadowBlur=20; ctx.fillStyle=rgb(platformColor); ctx.fillRect(plat.x-cameraX, plat.y-cameraY, plat.width, plat.height); ctx.shadowBlur=0;}
+
+    // Spikes
+    for(let spike of spikes){ let pulse = Math.sin(globalTime*5 + spike.x)*5; ctx.fillStyle="red"; ctx.beginPath(); ctx.moveTo(spike.x-cameraX,spike.baseY+spike.height-cameraY+pulse); ctx.lineTo(spike.x-cameraX+spike.width/2,spike.baseY-cameraY+pulse); ctx.lineTo(spike.x-cameraX+spike.width,spike.baseY+spike.height-cameraY+pulse); ctx.closePath(); ctx.fill(); }
+
+    // Gems
+    for(let gem of gems){
+        if(gem.collected) continue;
+        ctx.save(); ctx.translate(gem.x+gem.size/2-cameraX, gem.y+gem.size/2-cameraY); ctx.rotate(Math.PI/4);
+        ctx.shadowBlur=20*Math.sin(gem.glow); ctx.shadowColor="#fff"; ctx.fillStyle="#fff"; ctx.fillRect(-gem.size/2,-gem.size/2,gem.size,gem.size); ctx.shadowBlur=0; ctx.restore();
     }
 
-    for (let spike of spikes) {
-        let pulse = Math.sin(globalTime * 5 + spike.x) * 5;
-        ctx.fillStyle = "red";
-        ctx.beginPath();
-        ctx.moveTo(spike.x - cameraX, spike.baseY + spike.height - cameraY + pulse);
-        ctx.lineTo(spike.x - cameraX + spike.width / 2, spike.baseY - cameraY + pulse);
-        ctx.lineTo(spike.x - cameraX + spike.width, spike.baseY + spike.height - cameraY + pulse);
-        ctx.closePath();
-        ctx.fill();
-    }
+    // Player trail
+    for(let i=playerTrail.length-1;i>=0;i--){ let p=playerTrail[i]; p.life--; ctx.fillStyle="rgba(0,255,255,"+p.life/20+")"; ctx.fillRect(p.x-cameraX,p.y-cameraY,player.width/2,player.height/2); if(p.life<=0) playerTrail.splice(i,1);}
 
-    for (let gem of gems) {
-        if (gem.collected) continue;
-        ctx.save();
-        ctx.translate(gem.x + gem.size / 2 - cameraX, gem.y + gem.size / 2 - cameraY);
-        ctx.rotate(Math.PI / 4);
-        ctx.shadowBlur = 20 * Math.sin(gem.glow);
-        ctx.shadowColor = "#fff";
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(-gem.size / 2, -gem.size / 2, gem.size, gem.size);
-        ctx.shadowBlur = 0;
-        ctx.restore();
-    }
+    // Player
+    if(player.visible){ ctx.shadowColor="#0ff"; ctx.shadowBlur=30; ctx.fillStyle=player.color; ctx.fillRect(player.x-cameraX,player.y-cameraY,player.width,player.height); ctx.strokeStyle="#fff"; ctx.lineWidth=8; ctx.strokeRect(player.x-cameraX,player.y-cameraY,player.width,player.height); ctx.shadowBlur=0;}
 
-    for (let i = playerTrail.length - 1; i >= 0; i--) {
-        let p = playerTrail[i];
-        p.life--;
-        ctx.fillStyle = `rgba(0,255,255,${p.life / 20})`;
-        ctx.fillRect(p.x - cameraX, p.y - cameraY, player.width / 2, player.height / 2);
-        if (p.life <= 0) playerTrail.splice(i, 1);
-    }
+    // Horizontal lines
+    for(let i=lines.length-1;i>=0;i--){ let line=lines[i]; line.x -= line.speed*5; ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.lineWidth=Math.random()*3+1; ctx.beginPath(); ctx.moveTo(line.x,line.y); ctx.lineTo(line.x+line.width,line.y); ctx.stroke(); if(line.x+line.width<0) lines.splice(i,1); }
 
-    if (player.visible) drawPlayer();
-    for (let t of torches) drawTorch(t);
+    // Crash pieces
+    for(let i=crashPieces.length-1;i>=0;i--){ let p=crashPieces[i]; p.vy+=GRAVITY*0.5; p.x+=p.vx; p.y+=p.vy; ctx.fillStyle=p.color; ctx.fillRect(p.x-cameraX,p.y-cameraY,p.size,p.size); if(p.y>canvas.height) crashPieces.splice(i,1); }
 
-    for (let i = lines.length - 1; i >= 0; i--) {
-        let line = lines[i];
-        line.x -= line.speed * 5;
-        ctx.strokeStyle = "rgba(255,255,255,0.3)";
-        ctx.lineWidth = Math.random() * 3 + 1;
-        ctx.beginPath();
-        ctx.moveTo(line.x, line.y);
-        ctx.lineTo(line.x + line.width, line.y);
-        ctx.stroke();
-        if (line.x + line.width < 0) lines.splice(i, 1);
-    }
+    // Particles
+    for(let i=particles.length-1;i>=0;i--){ let p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.life--; ctx.fillStyle=p.color; ctx.globalAlpha=p.life/50; ctx.fillRect(p.x-cameraX,p.y-cameraY,5,5); ctx.globalAlpha=1; if(p.life<=0) particles.splice(i,1); }
 
-    for (let i = crashPieces.length - 1; i >= 0; i--) {
-        let p = crashPieces[i];
-        p.vy += GRAVITY * 0.5;
-        p.x += p.vx;
-        p.y += p.vy;
-        ctx.fillStyle = p.color;
-        ctx.fillRect(p.x - cameraX, p.y - cameraY, p.size, p.size);
-        if (p.y > canvas.height) crashPieces.splice(i, 1);
-    }
-
-    for (let i = particles.length - 1; i >= 0; i--) {
-        let p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life--;
-        ctx.fillStyle = p.color;
-        ctx.globalAlpha = p.life / 50;
-        ctx.fillRect(p.x - cameraX, p.y - cameraY, 5, 5);
-        ctx.globalAlpha = 1;
-        if (p.life <= 0) particles.splice(i, 1);
-    }
-
-    if (!gameStarted && crashPieces.length === 0) showStartScreen();
-    requestAnimationFrame(update);
+    if(!gameStarted && crashPieces.length===0) showStartScreen();
+    animationId=requestAnimationFrame(update);
 }
 
-document.getElementById("startBtn").addEventListener("click", () => { resetGame(); });
+document.getElementById("startBtn").addEventListener("click", ()=>{resetGame();});
 showStartScreen();
 </script>
 </body>
