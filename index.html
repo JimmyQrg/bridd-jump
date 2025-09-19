@@ -41,21 +41,18 @@ const BLOCK_SIZE=50;
 const JUMP_SPEED=-15;
 const GRAVITY=0.7;
 
-let keys={}, score=0, bestScore=0, lastTime=0, gameStarted=false, shakeIntensity=0, animationId=null;
+let keys={}, score=0, bestScore=0, lastTime=0, gameStarted=false;
 let crashPieces=[], particles=[];
+let rainbowColors=["#ff0000","#ff9900","#ffff00","#00ff00","#00ffff","#0000ff","#9900ff"]; 
+let rainbowIndex=0; let blocksPerColor=0;
 
-// Player
 let player={
     x:100, y:0, width:50, height:50,
     color:"#0ff", vy:0, speed:5,
     hitboxScale:0.6, jumpsLeft:1, onGround:false
 };
 
-// Effects
-let platforms=[], spikes=[], whiteLines=[];
-
-// Block colors (1=reddest → 9=orangest)
-const blockColors={1:"#ff0000",2:"#ff3300",3:"#ff6600",4:"#ff9900",5:"#ffcc00",6:"#ffff00",7:"#ccff00",8:"#99ff00",9:"#66ff00"};
+let platforms=[], spikes=[];
 
 // Input
 window.addEventListener("keydown", e=>{ if(["KeyW","ArrowUp","Space"].includes(e.code)) jump(); keys[e.code]=true; });
@@ -63,7 +60,6 @@ window.addEventListener("keyup", e=>keys[e.code]=false);
 window.addEventListener("mousedown", ()=>jump());
 window.addEventListener("touchstart", ()=>jump());
 
-// Jump
 function jump(){
     if(player.jumpsLeft>0){
         player.vy=JUMP_SPEED;
@@ -72,33 +68,37 @@ function jump(){
     }
 }
 
-// Reset game
 function resetGame(){
     score=0;
     player.x=100; player.y=canvas.height/2-player.height; player.vy=0; player.speed=5; player.jumpsLeft=1; player.onGround=false;
-    platforms=[]; spikes=[]; whiteLines=[]; crashPieces=[]; particles=[];
-    platforms.push({x:0,y:player.y+player.height,width:canvas.width/2,height:BLOCK_SIZE,value:5});
+    platforms=[]; spikes=[]; crashPieces=[]; particles=[];
+    rainbowIndex=0; blocksPerColor=0;
+    platforms.push({x:0,y:player.y+player.height,width:canvas.width/2,height:BLOCK_SIZE,color:rainbowColors[rainbowIndex]});
     generateBlockPlatform(canvas.width/2,player.y+player.height);
     lastTime=performance.now();
     hideStartScreen();
     gameStarted=true;
 }
 
-// Generate block platform
 function generateBlockPlatform(lastX,lastY){
     let blockCount=Math.floor(Math.random()*5+2);
     let x=lastX+Math.floor(Math.random()*2+2)*BLOCK_SIZE;
     let y=lastY+(Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
     y=Math.max(BLOCK_SIZE, Math.min(canvas.height-3*BLOCK_SIZE, y));
+
     for(let i=0;i<blockCount;i++){
-        let val=Math.floor(Math.random()*9)+1;
-        platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,value:val});
-        if(Math.random()<0.1) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6});
+        if(blocksPerColor>=3){ // slower color change
+            rainbowIndex=(rainbowIndex+1)%rainbowColors.length;
+            blocksPerColor=0;
+        }
+        blocksPerColor++;
+        platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:rainbowColors[rainbowIndex]});
+
+        if(Math.random()<0.05) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6});
     }
     return {x:x+blockCount*BLOCK_SIZE,y};
 }
 
-// Spike collision
 function checkSpikeCollision(spike){
     const hbW=player.width*player.hitboxScale;
     const hbH=player.height*player.hitboxScale;
@@ -107,8 +107,7 @@ function checkSpikeCollision(spike){
     return hbX+hbW>spike.x && hbX<spike.x+spike.width && hbY+hbH>spike.y && hbY<spike.y+spike.height;
 }
 
-// Draw highway-style bridges
-function drawBridges(camX){
+function drawSupports(camX){
     for(let plat of platforms){
         ctx.strokeStyle="#fff"; ctx.lineWidth=4;
         let supportCount=Math.floor(plat.width/BLOCK_SIZE);
@@ -121,14 +120,9 @@ function drawBridges(camX){
             ctx.lineTo(sx, groundY);
             ctx.stroke();
         }
-        ctx.beginPath();
-        ctx.moveTo(plat.x-camX, plat.y+plat.height);
-        ctx.lineTo(plat.x+plat.width-camX, plat.y+plat.height);
-        ctx.stroke();
     }
 }
 
-// Crash effect
 function createCrash(){
     const pieceCount=20;
     for(let i=0;i<pieceCount;i++){
@@ -143,30 +137,21 @@ function createCrash(){
     }
 }
 
-// Spawn particles for jump/double jump/land
 function spawnParticles(x,y,type){
     const color = type==="jump"?"#0ff":type==="double"?"#ff0":"#fff";
     for(let i=0;i<15;i++){
-        particles.push({
-            x,y,
-            vx:(Math.random()-0.5)*5,
-            vy:(Math.random()-1.5)*5,
-            life:Math.random()*30+20,
-            color
-        });
+        particles.push({x,y,vx:(Math.random()-0.5)*5,vy:(Math.random()-1.5)*5,life:Math.random()*30+20,color});
     }
 }
 
-// Draw combined outline of platforms+bridges
 function drawCombinedOutline(camX){
     let points=[];
     platforms.forEach(p=>{
-        points.push([p.x-camX,p.y],[p.x+BLOCK_SIZE-camX,p.y],[p.x+BLOCK_SIZE-camX,p.y+p.height],[p.x-camX,p.y+p.height]);
+        points.push([p.x-camX,p.y],[p.x+p.width-camX,p.y],[p.x+p.width-camX,p.y+p.height],[p.x-camX,p.y+p.height]);
         let supportCount=Math.floor(p.width/BLOCK_SIZE);
         for(let i=0;i<=supportCount;i++){
             let sx=p.x+i*BLOCK_SIZE-camX, sy=p.y+p.height;
-            let groundY=canvas.height-10;
-            points.push([sx,groundY]);
+            points.push([sx,canvas.height-10]);
         }
     });
     if(points.length<3) return;
@@ -188,28 +173,21 @@ function drawCombinedOutline(camX){
     ctx.closePath(); ctx.stroke();
 }
 
-// Die (only if on ground or falling)
 function tryDie(){
-    if(player.onGround || player.vy>0) {
-        createCrash();
-        gameStarted=false;
-    }
+    if(player.onGround || player.vy>0) {createCrash(); gameStarted=false;}
 }
 
-// UI
 function showStartScreen(){document.getElementById("startScreen").style.display="flex";}
 function hideStartScreen(){document.getElementById("startScreen").style.display="none";}
 
-// Main loop
 function update(time){
     let delta=(time-lastTime)/1000; lastTime=time;
     let camX=player.x-150;
-
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
     // Score
-    ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
-    ctx.fillStyle="#fff"; ctx.font="40px sans-serif"; ctx.fillText(Math.floor(score),20,50); ctx.shadowBlur=0;
+    ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
+    ctx.fillText(Math.floor(score),20,50);
 
     if(gameStarted){
         player.y+=player.vy; player.vy+=GRAVITY;
@@ -226,17 +204,14 @@ function update(time){
                 }
             }
         }
-
         if(player.y>canvas.height) {player.jumpsLeft=1; tryDie();}
 
         // Draw platforms
         for(let plat of platforms){
-            ctx.fillStyle=blockColors[plat.value];
-            ctx.fillRect(plat.x-camX,plat.y,plat.width,plat.height);
+            ctx.fillStyle=plat.color; ctx.fillRect(plat.x-camX,plat.y,plat.width,plat.height);
         }
 
-        // Bridges + outlines
-        drawBridges(camX);
+        drawSupports(camX);
         drawCombinedOutline(camX);
 
         // Spikes
@@ -256,7 +231,6 @@ function update(time){
         ctx.strokeRect(player.x-camX,player.y,player.width,player.height);
         ctx.shadowBlur=0;
 
-        // Generate platforms
         let last=platforms[platforms.length-1];
         if(last.x<player.x+canvas.width) generateBlockPlatform(last.x,last.y);
 
@@ -280,9 +254,7 @@ function update(time){
         if(p.life<=0) particles.splice(i,1);
     }
 
-    // After crash finished, show menu
     if(!gameStarted && crashPieces.length===0) showStartScreen();
-
     animationId=requestAnimationFrame(update);
 }
 
