@@ -42,8 +42,7 @@ const JUMP_SPEED=-15;
 const GRAVITY=0.7;
 
 let keys={}, score=0, bestScore=0, lastTime=0, gameStarted=false, animationId=null;
-let crashPieces=[], particles=[];
-let gems=[];
+let crashPieces=[], particles=[], gems=[];
 let baseColors=[{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,g:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
 let colorIndex=0, platformColor={r:255,g:0,b:0}, nextColor=baseColors[1], colorLerp=0;
 let globalTime=0;
@@ -83,10 +82,9 @@ function resetGame(){
     player.onGround=false;
     player.visible=true;
 
-    platforms=[]; spikes=[]; crashPieces=[]; particles=[]; lines=[]; gems=[];
+    platforms=[]; spikes=[]; crashPieces=[]; particles=[]; gems=[]; lines=[];
     platformColor={...baseColors[0]}; colorIndex=0; nextColor=baseColors[1];
 
-    // Starting platform: 10 blocks
     platforms.push({x:0,y:player.y+player.height,width:BLOCK_SIZE*10,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
     lastPlatformX=0; lastPlatformY=player.y+player.height;
 
@@ -112,15 +110,14 @@ function generateBlockPlatform(lastX,lastY){
 
     // Generate gems
     for(let i=0;i<blockCount;i++){
-        if(Math.random()<0.1){ // 10% chance per block
+        if(Math.random()<0.1){
             let gemX = x+i*BLOCK_SIZE+BLOCK_SIZE/4;
             let gemY = y-BLOCK_SIZE*1.5;
-            // Check distance from spikes
             let safe = true;
             for(let s of spikes){
                 if(Math.abs(gemX - s.x)<BLOCK_SIZE*2) safe=false;
             }
-            if(safe) gems.push({x:gemX,y:gemY,size:20, collected:false});
+            if(safe) gems.push({x:gemX,y:gemY,size:20, collected:false, floatOffset:Math.random()*Math.PI*2});
         }
     }
 
@@ -137,8 +134,7 @@ function checkSpikeCollision(spike){
 }
 
 function createCrash(){
-    const pieceCount=20;
-    for(let i=0;i<pieceCount;i++){
+    for(let i=0;i<20;i++){
         crashPieces.push({
             x:player.x+Math.random()*player.width,
             y:player.y+Math.random()*player.height,
@@ -180,7 +176,6 @@ function addLine(){
 }
 
 function lerpColor(c1,c2,t){return {r:c1.r+(c2.r-c1.r)*t, g:c1.g+(c2.g-c1.g)*t, b:c1.b+(c2.b-c1.b)*t};}
-function rgb(c){return `rgb(${Math.floor(c.r)},${Math.floor(c.g)},${Math.floor(c.b)})`; }
 
 function update(time){
     let delta=(time-lastTime)/1000; lastTime=time;
@@ -207,7 +202,6 @@ function update(time){
                 if(player.vy>=0){
                     player.y=plat.y-player.height; player.vy=0; player.onGround=true; player.jumpsLeft=2;
                     spawnParticles(player.x+player.width/2, player.y+player.height, "land");
-                    // Press platform down
                     plat.y += 2;
                 }
             }
@@ -250,13 +244,11 @@ function update(time){
     ctx.fillText(score,20,50);
 
     for(let plat of platforms){
-        // Platform texture
         let glow = Math.sin(globalTime*3)*10 + 15;
         ctx.shadowColor=plat.color; ctx.shadowBlur=plat===platforms[0]?glow:0;
         for(let y=plat.y; y<canvas.height; y+=BLOCK_SIZE){
             let darkFactor = y===plat.y?1:0.3;
             ctx.fillStyle = `rgba(${Math.floor(plat.color.r*darkFactor)},${Math.floor(plat.color.g*darkFactor)},${Math.floor(plat.color.b*darkFactor)},1)`;
-            // Add texture lines
             ctx.fillRect(plat.x-cameraX, y-cameraY, plat.width, BLOCK_SIZE);
             ctx.strokeStyle="rgba(255,255,255,0.1)";
             for(let t=5;t<plat.width;t+=5){
@@ -275,14 +267,18 @@ function update(time){
         ctx.closePath(); ctx.fill();
     }
 
-    // Draw gems
+    // Gems floating and glowing
     for(let g of gems){
         if(g.collected) continue;
+        g.floatOffset = g.floatOffset || Math.random()*Math.PI*2;
+        let floatY = Math.sin(globalTime*3 + g.floatOffset) * 5;
+        
         ctx.save();
-        ctx.translate(g.x+g.size/2-cameraX, g.y+g.size/2-cameraY);
+        ctx.translate(g.x+g.size/2-cameraX, g.y+g.size/2-cameraY + floatY);
         ctx.rotate(Math.PI/4);
         ctx.fillStyle="white";
-        ctx.shadowColor="white"; ctx.shadowBlur=20;
+        ctx.shadowColor="white"; 
+        ctx.shadowBlur = 20 + 10*Math.sin(globalTime*5);
         ctx.fillRect(-g.size/2,-g.size/2,g.size,g.size);
         ctx.restore();
     }
@@ -295,7 +291,6 @@ function update(time){
         ctx.shadowBlur=0;
     }
 
-    // Horizontal lines with motion blur
     for(let i=lines.length-1;i>=0;i--){
         let line=lines[i];
         line.x -= line.speed; 
