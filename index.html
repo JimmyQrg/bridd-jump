@@ -44,13 +44,12 @@ const GRAVITY=0.7;
 let keys={}, score=0, bestScore=0, lastTime=0, gameStarted=false, animationId=null;
 let crashPieces=[], particles=[];
 let rainbowColors=["#ff0000","#ff9900","#ffff00","#00ff00","#00ffff","#0000ff","#9900ff"]; 
-let rainbowIndex=0, blocksPerColor=0;
-
+let rainbowIndex=0, colorTimer=0, platformColor=rainbowColors[0];
 let scoreTimer=0;
 
 let player={
     x:100, y:0, width:50, height:50,
-    color:"#0ff", vy:0, speed:8, // start faster
+    color:"#0ff", vy:0, speed:8,
     hitboxScale:0.6, jumpsLeft:1, onGround:false
 };
 
@@ -73,18 +72,18 @@ function jump(){
 function resetGame(){
     if(animationId) cancelAnimationFrame(animationId);
 
-    score=0; scoreTimer=0;
+    score=0; scoreTimer=0; colorTimer=0;
     player.x=100; 
     player.y=canvas.height/2-player.height; 
     player.vy=0; 
-    player.speed=8; // reset to faster start
+    player.speed=8;
     player.jumpsLeft=1; 
     player.onGround=false;
 
     platforms=[]; spikes=[]; crashPieces=[]; particles=[];
-    rainbowIndex=0; blocksPerColor=0;
+    rainbowIndex=0; platformColor=rainbowColors[0];
 
-    platforms.push({x:0,y:player.y+player.height,width:canvas.width/2,height:BLOCK_SIZE,color:rainbowColors[rainbowIndex]});
+    platforms.push({x:0,y:player.y+player.height,width:canvas.width/2,height:BLOCK_SIZE,color:platformColor});
     generateBlockPlatform(canvas.width/2,player.y+player.height);
 
     lastTime=performance.now();
@@ -100,12 +99,7 @@ function generateBlockPlatform(lastX,lastY){
     y=Math.max(BLOCK_SIZE, Math.min(canvas.height-3*BLOCK_SIZE, y));
 
     for(let i=0;i<blockCount;i++){
-        if(blocksPerColor>=3){
-            rainbowIndex=(rainbowIndex+1)%rainbowColors.length;
-            blocksPerColor=0;
-        }
-        blocksPerColor++;
-        platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:rainbowColors[rainbowIndex]});
+        platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:platformColor});
         if(Math.random()<0.05) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6});
     }
     return {x:x+blockCount*BLOCK_SIZE,y};
@@ -169,24 +163,24 @@ function hideStartScreen(){document.getElementById("startScreen").style.display=
 function update(time){
     let delta=(time-lastTime)/1000; lastTime=time;
 
-    if(gameStarted) player.speed+=0.001; // increase speed faster
-
-    let camX=player.x-150;
-    let camY=player.y-150;
-
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    // Score increment every 0.05 seconds
     if(gameStarted){
+        // Speed increase
+        player.speed+=0.0015;
+
+        // Update platform color slowly
+        colorTimer+=delta;
+        if(colorTimer>=0.1){
+            rainbowIndex=(rainbowIndex+1)%rainbowColors.length;
+            platformColor=rainbowColors[rainbowIndex];
+            platforms.forEach(p=>p.color=platformColor);
+            colorTimer=0;
+        }
+
+        // Score increment
         scoreTimer+=delta;
         if(scoreTimer>=0.05){ score+=1; scoreTimer=0; }
-    }
 
-    // Score display
-    ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
-    ctx.fillText(score,20,50);
-
-    if(gameStarted){
+        // Player movement
         player.y+=player.vy; player.vy+=GRAVITY;
         player.x+=player.speed;
 
@@ -201,30 +195,44 @@ function update(time){
             }
         }
         if(player.y>canvas.height) {player.jumpsLeft=1; tryDie();}
+    }
 
-        // Platforms
+    // Smooth camera
+    const targetCamX=player.x-150;
+    const targetCamY=player.y-150+100; // slightly down
+    cameraX = (typeof cameraX!=='undefined'?cameraX:targetCamX)*0.9 + targetCamX*0.1;
+    cameraY = (typeof cameraY!=='undefined'?cameraY:targetCamY)*0.9 + targetCamY*0.1;
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Score display
+    ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
+    ctx.fillText(score,20,50);
+
+    if(gameStarted){
+        // Draw platforms
         for(let plat of platforms){
             ctx.fillStyle=plat.color; 
-            ctx.fillRect(plat.x-camX,plat.y-camY,plat.width,plat.height);
+            ctx.fillRect(plat.x-cameraX,plat.y-cameraY,plat.width,plat.height);
         }
 
-        drawPlatformOutline(camX, camY);
+        drawPlatformOutline(cameraX, cameraY);
 
         // Spikes
         for(let spike of spikes){
             ctx.fillStyle="red"; ctx.beginPath();
-            ctx.moveTo(spike.x-camX,spike.y+spike.height-camY);
-            ctx.lineTo(spike.x-camX+spike.width/2,spike.y-camY);
-            ctx.lineTo(spike.x-camX+spike.width,spike.y+spike.height-camY);
+            ctx.moveTo(spike.x-cameraX,spike.y+spike.height-cameraY);
+            ctx.lineTo(spike.x-cameraX+spike.width/2,spike.y-cameraY);
+            ctx.lineTo(spike.x-cameraX+spike.width,spike.y+spike.height-cameraY);
             ctx.closePath(); ctx.fill();
             if(checkSpikeCollision(spike)) tryDie();
         }
 
         // Player
         ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
-        ctx.fillStyle=player.color; ctx.fillRect(player.x-camX,player.y-camY,player.width,player.height);
+        ctx.fillStyle=player.color; ctx.fillRect(player.x-cameraX,player.y-cameraY,player.width,player.height);
         ctx.strokeStyle="#fff"; ctx.lineWidth=2;
-        ctx.strokeRect(player.x-camX,player.y-camY,player.width,player.height);
+        ctx.strokeRect(player.x-cameraX,player.y-cameraY,player.width,player.height);
         ctx.shadowBlur=0;
 
         let last=platforms[platforms.length-1];
@@ -236,7 +244,7 @@ function update(time){
         let p=crashPieces[i];
         p.vy+=GRAVITY*0.5;
         p.x+=p.vx; p.y+=p.vy;
-        ctx.fillStyle=p.color; ctx.fillRect(p.x-camX,p.y-camY,p.size,p.size);
+        ctx.fillStyle=p.color; ctx.fillRect(p.x-cameraX,p.y-cameraY,p.size,p.size);
         if(p.y>canvas.height) crashPieces.splice(i,1);
     }
 
@@ -244,7 +252,7 @@ function update(time){
     for(let i=particles.length-1;i>=0;i--){
         let p=particles[i];
         p.x+=p.vx; p.y+=p.vy; p.life--;
-        ctx.fillStyle=p.color; ctx.globalAlpha=p.life/50; ctx.fillRect(p.x-camX,p.y-camY,5,5); ctx.globalAlpha=1;
+        ctx.fillStyle=p.color; ctx.globalAlpha=p.life/50; ctx.fillRect(p.x-cameraX,p.y-cameraY,5,5); ctx.globalAlpha=1;
         if(p.life<=0) particles.splice(i,1);
     }
 
