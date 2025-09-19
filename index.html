@@ -42,10 +42,11 @@ const JUMP_SPEED=-15;
 const GRAVITY=0.7;
 
 let keys={}, score=0, bestScore=localStorage.getItem("bestScore")?parseInt(localStorage.getItem("bestScore")):0;
-let lastTime=0, gameStarted=false;
+let lastTime=0, gameStarted=false, animationFrameId;
 let crashPieces=[], particles=[], gems=[];
-let cheatsUnlocked=false; // now cheats require code
+let cheatsUnlocked=false;
 let cheats={float:false, invincible:false, infiniteJump:false};
+let startPressCount=0;
 
 let baseColors=[{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,b:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
 let colorIndex=0, platformColor={r:255,g:0,b:0}, nextColor=baseColors[1], colorLerp=0;
@@ -53,8 +54,9 @@ let globalTime=0;
 
 let player={
     x:100, y:0, width:50, height:50,
-    color:"#0ff", vy:0, speed:12,
-    hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true
+    color:"#0ff", vy:0, speed:8,
+    hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true,
+    horizMultiplier:1, vertMultiplier:1
 };
 
 let platforms=[], spikes=[], lines=[], lastPlatformX=0, lastPlatformY=0;
@@ -63,24 +65,6 @@ let platforms=[], spikes=[], lines=[], lastPlatformX=0, lastPlatformY=0;
 window.addEventListener("keydown", e=>{ 
     if(["KeyW","ArrowUp","Space"].includes(e.code)) jump(); 
     keys[e.code]=true;
-
-    // Cheat keys only work if unlocked
-    if(!cheatsUnlocked) return;
-
-    if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
-        let code = prompt("Enter cheat code:");
-        if(code==="770709") {
-            alert("Hacker Activated");
-            cheatsUnlocked=true;
-        }
-    }
-    switch(e.code){
-        case "KeyG": cheats.float=!cheats.float; break;
-        case "KeyI": cheats.invincible=!cheats.invincible; break;
-        case "KeyJ": cheats.infiniteJump=!cheats.infiniteJump; break;
-        case "KeyQ": player.speed=Math.max(0,player.speed-5); break;
-        case "KeyE": player.speed+=5; break;
-    }
 });
 window.addEventListener("keyup", e=>keys[e.code]=false);
 window.addEventListener("mousedown", ()=>jump());
@@ -96,15 +80,17 @@ function jump(){
 }
 
 function resetGame(){
+    if(animationFrameId) cancelAnimationFrame(animationFrameId);
+    startPressCount++;
     score=0; colorLerp=0; globalTime=0;
     player.x=100; 
     player.y=canvas.height/2-player.height; 
     player.vy=0; 
-    player.speed=12;
+    player.speed=8; 
     player.jumpsLeft=2; 
     player.onGround=false;
     player.visible=true;
-
+    player.horizMultiplier=1; player.vertMultiplier=1;
     platforms=[]; spikes=[]; crashPieces=[]; particles=[]; gems=[]; lines=[];
     platformColor={...baseColors[0]}; colorIndex=0; nextColor=baseColors[1];
 
@@ -114,7 +100,7 @@ function resetGame(){
     lastTime=performance.now();
     hideStartScreen();
     gameStarted=true;
-    update(lastTime);
+    animationFrameId=requestAnimationFrame(update);
 }
 
 function generateBlockPlatform(lastX,lastY){
@@ -186,7 +172,7 @@ function tryDie(spike){
             bestScore=Math.floor(score);
             localStorage.setItem("bestScore", bestScore);
         }
-        setTimeout(()=>{showStartScreen();}, 1000); // pop up start screen after crash
+        setTimeout(()=>{showStartScreen();}, 1000);
     }
 }
 
@@ -198,7 +184,7 @@ function hideStartScreen(){document.getElementById("startScreen").style.display=
 
 function addLine(){ 
     if(Math.random()>0.15) return;
-    lines.push({x:canvas.width, y:Math.random()*canvas.height, width:Math.random()*100+20, speed:(player.speed+5)*5}); 
+    lines.push({x:canvas.width, y:Math.random()*canvas.height, width:Math.random()*50+20}); 
 }
 
 function lerpColor(c1,c2,t){return {r:c1.r+(c2.r-c1.r)*t, g:c1.g+(c2.g-c1.g)*t, b:c1.b+(c2.b-c1.b)*t};}
@@ -212,7 +198,7 @@ function update(time){
     if(gameStarted && player.visible){
         player.speed+=0.002;
 
-        colorLerp+=delta/50; // much slower color change
+        colorLerp+=delta/50; // slower color change
         if(colorLerp>=1){
             colorIndex=(colorIndex+1)%baseColors.length;
             nextColor=baseColors[(colorIndex+1)%baseColors.length];
@@ -220,10 +206,10 @@ function update(time){
         }
         platformColor=lerpColor(baseColors[colorIndex],nextColor,colorLerp);
 
-        player.y+=player.vy; 
-        if(cheats.float && player.vy>0) player.vy *= 0.5; // Float cheat slows fall
-        player.vy+=GRAVITY;
-        player.x+=player.speed;
+        player.y+=player.vy*player.vertMultiplier; 
+        if(cheats.float && player.vy>0) player.vy *= 0.5;
+        player.vy+=GRAVITY*player.vertMultiplier;
+        player.x+=player.speed*player.horizMultiplier;
 
         player.onGround=false;
         for(let plat of platforms){
@@ -267,18 +253,24 @@ function update(time){
     ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
     ctx.fillText(score,20,50);
 
+    // Platforms with gradient
     for(let plat of platforms){
         let glow = Math.sin(globalTime*3)*10 + 15;
-        ctx.shadowColor=plat.color; ctx.shadowBlur=plat===platforms[0]?glow:0;
+        ctx.shadowColor = plat.color; 
+        ctx.shadowBlur = plat===platforms[0]?glow:0;
 
         for(let y=plat.y; y<canvas.height; y+=BLOCK_SIZE){
-            let darkFactor = y===plat.y?1:0.3;
-            ctx.fillStyle = `rgba(${Math.floor(plat.color.r*darkFactor)},${Math.floor(plat.color.g*darkFactor)},${Math.floor(plat.color.b*darkFactor)},1)`;
+            let darkFactor = y===plat.y ? 1 : 0.3;
+            const grd = ctx.createLinearGradient(plat.x-cameraX, y-cameraY, plat.x+plat.width-cameraX, y+BLOCK_SIZE-cameraY);
+            grd.addColorStop(0, `rgba(${Math.floor(plat.color.r*darkFactor)},${Math.floor(plat.color.g*darkFactor)},${Math.floor(plat.color.b*darkFactor)},1)`);
+            grd.addColorStop(1, "rgba(0,0,0,1)");
+            ctx.fillStyle = grd;
             ctx.fillRect(plat.x-cameraX, y-cameraY, plat.width, BLOCK_SIZE);
         }
         ctx.shadowBlur=0;
     }
 
+    // Spikes
     for(let spike of spikes){
         let pulse = Math.sin(globalTime*5 + spike.x)*5;
         ctx.fillStyle="red"; ctx.beginPath();
@@ -288,6 +280,7 @@ function update(time){
         ctx.closePath(); ctx.fill();
     }
 
+    // Gems
     for(let g of gems){
         if(g.collected) continue;
         g.floatOffset = g.floatOffset || Math.random()*Math.PI*2;
@@ -302,6 +295,7 @@ function update(time){
         ctx.restore();
     }
 
+    // Player
     if(player.visible){
         ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
         ctx.fillStyle=player.color; ctx.fillRect(player.x-cameraX, player.y-cameraY, player.width, player.height);
@@ -309,29 +303,94 @@ function update(time){
         ctx.strokeStyle="#0ff"; ctx.lineWidth=6; ctx.strokeRect(player.x-cameraX,player.y-cameraY,player.width,player.height);
     }
 
+    // Crash pieces
     for(let p of crashPieces){
         p.vy+=GRAVITY; p.x+=p.vx; p.y+=p.vy;
         ctx.fillStyle=p.color; ctx.fillRect(p.x-cameraX,p.y-cameraY,p.size,p.size);
     }
 
+    // Particles
     for(let p of particles){
         p.x+=p.vx; p.y+=p.vy; p.life--;
         if(p.life>0){ ctx.fillStyle=p.color; ctx.fillRect(p.x-cameraX,p.y-cameraY,5,5); }
     }
     particles = particles.filter(p=>p.life>0);
 
+    // Horizontal lines now move with platforms
     for(let l of lines){
-        l.x -= l.speed*delta; 
+        l.x -= player.speed*0.5*player.horizMultiplier; 
         ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.lineWidth=2;
         ctx.beginPath(); ctx.moveTo(l.x-cameraX, l.y-cameraY); ctx.lineTo(l.x+50-cameraX,l.y-cameraY); ctx.stroke();
     }
     lines = lines.filter(l=>l.x>0);
 
-    requestAnimationFrame(update);
+    animationFrameId=requestAnimationFrame(update);
 }
 
 document.getElementById("startBtn").addEventListener("click", resetGame);
 showStartScreen();
+
+
+// --- COMMAND SYSTEM ---
+window.addEventListener("keydown", e => {
+    if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
+        const input = prompt("Enter command:");
+        if(!input) return;
+        const args = input.trim().split(/\s+/);
+        const command = args[0];
+        const root1 = args[1];
+        const root2 = args[2];
+        const root3 = args[3];
+        const root4 = args[4];
+
+        if(command === "/gamerule"){
+            switch(root1){
+                case "infiniteJump":
+                    cheats.infiniteJump = (root2==="true");
+                    break;
+                case "death":
+                    cheats.invincible = (root2==="false");
+                    break;
+                case "speed":
+                    if(!player.speedMultiplier) player.speedMultiplier=1;
+                    if(root2==="reset") player.speedMultiplier=1;
+                    if(root2==="add" && !isNaN(parseFloat(root3))) player.speedMultiplier+=parseFloat(root3);
+                    if(root2==="set" && !isNaN(parseFloat(root3))) player.speedMultiplier=parseFloat(root3);
+                    if(root4){
+                        switch(root4.toLowerCase()){
+                            case "horizontal": player.horizMultiplier=player.speedMultiplier; break;
+                            case "vertical":
+                            case "verticle": player.vertMultiplier=player.speedMultiplier; break;
+                            case "both": player.horizMultiplier=player.vertMultiplier=player.speedMultiplier; break;
+                        }
+                    } else { player.horizMultiplier=player.vertMultiplier=player.speedMultiplier; }
+                    break;
+            }
+        }
+        if(command === "/code"){
+            if(root1 === "770709"){
+                alert("Test mode activated"); cheatsUnlocked=true;
+            }
+            if(root1 === "lanseyaoji"){ player.speed=10; player.horizMultiplier=1; }
+        }
+    }
+});
+
+// Test mode keys
+window.addEventListener("keydown", e=>{
+    if(!cheatsUnlocked) return;
+    switch(e.code){
+        case "KeyG": cheats.float = !cheats.float; break;
+        case "KeyJ": cheats.infiniteJump = !cheats.infiniteJump; break;
+        case "KeyF": player.jumpsLeft = cheats.infiniteJump ? Infinity : 2; break;
+        case "KeyQ": player.horizMultiplier = Math.max(0.1, player.horizMultiplier-0.2); break;
+        case "KeyE": player.horizMultiplier += 0.2; break;
+        case "Digit1": player.vertMultiplier += 0.2; break;
+        case "Digit2": player.vertMultiplier = Math.max(0.1, player.vertMultiplier-0.2); break;
+        case "Digit0": player.horizMultiplier = player.vertMultiplier = 1; break;
+    }
+});
 </script>
 </body>
 </html>
+
