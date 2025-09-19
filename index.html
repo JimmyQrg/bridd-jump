@@ -43,9 +43,9 @@ const GRAVITY=0.7;
 
 let keys={}, score=0, bestScore=0, lastTime=0, gameStarted=false, animationId=null;
 let crashPieces=[], particles=[];
-let baseColors=[{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,b:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
+let baseColors=[{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,g:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
 let colorIndex=0, platformColor={r:255,g:0,b:0}, nextColor=baseColors[1], colorLerp=0;
-let scoreTimer=0, globalTime=0;
+let globalTime=0;
 
 let player={
     x:100, y:0, width:50, height:50,
@@ -73,7 +73,7 @@ function jump(){
 function resetGame(){
     if(animationId) cancelAnimationFrame(animationId);
 
-    score=0; scoreTimer=0; colorLerp=0; globalTime=0;
+    score=0; colorLerp=0; globalTime=0;
     player.x=100; 
     player.y=canvas.height/2-player.height; 
     player.vy=0; 
@@ -85,7 +85,8 @@ function resetGame(){
     platforms=[]; spikes=[]; crashPieces=[]; particles=[]; lines=[];
     platformColor={...baseColors[0]}; colorIndex=0; nextColor=baseColors[1];
 
-    platforms.push({x:0,y:player.y+player.height,width:BLOCK_SIZE*3,height:BLOCK_SIZE,color:{...platformColor}});
+    // Starting platform: 10 blocks
+    platforms.push({x:0,y:player.y+player.height,width:BLOCK_SIZE*10,height:BLOCK_SIZE,color:{...platformColor}});
     lastPlatformX=0; lastPlatformY=player.y+player.height;
 
     lastTime=performance.now();
@@ -95,15 +96,18 @@ function resetGame(){
 }
 
 function generateBlockPlatform(lastX,lastY){
-    let blockCount=Math.floor(Math.random()*2+1);
+    // Platform length: 1~8, shorter more probable
+    let blockCount=Math.floor(Math.random()*8)+1;
+    if(Math.random()<0.7) blockCount=Math.min(blockCount,Math.floor(Math.random()*3+1));
+
     let gap=Math.floor(Math.random()*5+3)*BLOCK_SIZE;
     let x=lastX+gap;
     let y=lastY+(Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
     y=Math.max(BLOCK_SIZE, Math.min(canvas.height-3*BLOCK_SIZE, y));
 
     for(let i=0;i<blockCount;i++){
-        platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:{...platformColor}});
-        if(Math.random()<0.05) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6, baseY:y-BLOCK_SIZE+BLOCK_SIZE*0.2, hit:true});
+        platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
+        if(Math.random()<0.08) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6, baseY:y-BLOCK_SIZE+BLOCK_SIZE*0.2, hit:true, passed:false});
     }
     return {x:x+blockCount*BLOCK_SIZE,y};
 }
@@ -170,8 +174,7 @@ function update(time){
     if(gameStarted && player.visible){
         player.speed+=0.002;
 
-        // Smooth color transition
-        colorLerp+=delta/5; // slower
+        colorLerp+=delta/5;
         if(colorLerp>=1){
             colorIndex=(colorIndex+1)%baseColors.length;
             nextColor=baseColors[(colorIndex+1)%baseColors.length];
@@ -179,14 +182,12 @@ function update(time){
         }
         platformColor=lerpColor(baseColors[colorIndex],nextColor,colorLerp);
 
-        scoreTimer+=delta;
-        if(scoreTimer>=0.05){ score+=1; scoreTimer=0; }
-
         player.y+=player.vy; player.vy+=GRAVITY;
         player.x+=player.speed;
 
         player.onGround=false;
         for(let plat of platforms){
+            // Platform collision
             if(player.x+player.width>plat.x && player.x<plat.x+plat.width &&
                player.y+player.height>plat.y && player.y+player.height<plat.y+plat.height+player.vy){
                 if(player.vy>=0){
@@ -194,8 +195,22 @@ function update(time){
                     spawnParticles(player.x+player.width/2, player.y+player.height, "land");
                 }
             }
+            // Score by passing platform
+            if(!plat.passed && player.x>plat.x+plat.width){
+                score+=1;
+                plat.passed=true;
+            }
         }
         if(player.y>canvas.height) {player.jumpsLeft=1; tryDie();}
+
+        for(let spike of spikes){
+            if(checkSpikeCollision(spike)) tryDie(spike);
+            // Score by passing spike
+            if(!spike.passed && player.x>spike.x+spike.width){
+                score+=1;
+                spike.passed=true;
+            }
+        }
 
         let lastPlatform = platforms[platforms.length-1];
         if(lastPlatform.x < player.x + canvas.width){
@@ -215,12 +230,9 @@ function update(time){
     ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
     ctx.fillText(score,20,50);
 
-    // Draw platforms and extension to bottom
     for(let plat of platforms){
         let glow = Math.sin(globalTime*3)*10 + 15;
         ctx.shadowColor=plat.color; ctx.shadowBlur=plat===platforms[0]?glow:0;
-        ctx.fillStyle=rgb(plat.color);
-        // draw all visible layers to bottom
         for(let y=plat.y; y<canvas.height; y+=BLOCK_SIZE){
             let darkFactor = y===plat.y?1:0.3;
             ctx.fillStyle = `rgba(${Math.floor(plat.color.r*darkFactor)},${Math.floor(plat.color.g*darkFactor)},${Math.floor(plat.color.b*darkFactor)},1)`;
@@ -236,7 +248,6 @@ function update(time){
         ctx.lineTo(spike.x-cameraX+spike.width/2,spike.baseY-cameraY+pulse);
         ctx.lineTo(spike.x-cameraX+spike.width,spike.baseY+spike.height-cameraY+pulse);
         ctx.closePath(); ctx.fill();
-        if(checkSpikeCollision(spike)) tryDie(spike);
     }
 
     if(player.visible){
@@ -249,7 +260,7 @@ function update(time){
 
     for(let i=lines.length-1;i>=0;i--){
         let line=lines[i];
-        line.x -= line.speed; // moves with platform speed
+        line.x -= line.speed; 
         ctx.strokeStyle="#fff"; ctx.lineWidth=2;
         ctx.beginPath(); ctx.moveTo(line.x, line.y); ctx.lineTo(line.x+line.width, line.y); ctx.stroke();
         if(line.x+line.width<0) lines.splice(i,1);
