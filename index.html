@@ -46,6 +46,8 @@ let baseColors=[{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,g
 let colorIndex=0, platformColor={r:255,g:0,b:0}, nextColor=baseColors[1], colorLerp=0;
 let globalTime=0;
 
+let cameraX=0, cameraY=0;
+
 let player={
     x:100, y:0, width:40, height:50,
     color:"#0ff", vy:0, speed:15,
@@ -127,8 +129,111 @@ document.getElementById("startBtn").addEventListener("click", ()=>{
     resetGame();
 });
 
-// The rest of your previous functions (generateBlockPlatform, checkSpikeCollision, createCrash, spawnParticles, tryDie, addLine, lerpColor, rgb, drawPlayer, update, etc.) remain the same as before, including player animations and effects
+// --- Helper functions ---
+function lerpColor(c1,c2,t){return {r:c1.r+(c2.r-c1.r)*t, g:c1.g+(c2.g-c1.g)*t, b:c1.b+(c2.b-c1.b)*t}; }
+function rgb(c){return `rgb(${Math.floor(c.r)},${Math.floor(c.g)},${Math.floor(c.b)})`; }
 
+function spawnParticles(x,y,type){
+    const color = type==="jump"?"#0ff":type==="double"?"#ff0":"#fff";
+    for(let i=0;i<20;i++) particles.push({x,y,vx:(Math.random()-0.5)*7,vy:(Math.random()-1.5)*7,life:Math.random()*30+20,color});
+}
+
+function createCrash(){
+    const pieceCount=25;
+    for(let i=0;i<pieceCount;i++){
+        crashPieces.push({x:player.x+Math.random()*player.width,y:player.y+Math.random()*player.height,vx:(Math.random()-0.5)*20,vy:(Math.random()-1)*20,size:Math.random()*player.width/4+5,color:player.color});
+    }
+}
+
+function drawPlayer(){
+    const px=player.x-cameraX, py=player.y-cameraY;
+    const w=player.width, h=player.height;
+    const block=5;
+    ctx.shadowColor="#0ff"; ctx.shadowBlur=15; ctx.fillStyle="#0ff";
+
+    player.animTime += 0.2;
+    if(player.state==="idle"){player.frame=Math.sin(player.animTime)*2;}
+    if(player.state==="jump"){player.frame=0;}
+    if(player.state==="doublejump"){player.frame=-2;}
+    if(player.state==="land"){player.frame=2; player.state="idle";}
+
+    // Head
+    ctx.fillRect(px+block*2, py+block+player.frame, block*2, block*2);
+    // Body
+    ctx.fillRect(px+block*2, py+block*3+player.frame, block*2, block*3);
+    // Arms
+    ctx.fillRect(px, py+block*3+player.frame, block*2, block); 
+    ctx.fillRect(px+block*4, py+block*3+player.frame, block*2, block);
+    // Legs
+    ctx.fillRect(px+block*2, py+block*6+player.frame, block, block*2); 
+    ctx.fillRect(px+block*3, py+block*6+player.frame, block, block*2);
+
+    ctx.strokeStyle="#fff"; ctx.lineWidth=6; ctx.strokeRect(px,py,w,h);
+    ctx.shadowBlur=0;
+}
+
+// --- Update loop ---
+function update(time){
+    let delta=(time-lastTime)/1000; lastTime=time;
+    globalTime+=delta;
+
+    if(gameStarted && player.visible){
+        // player physics
+        player.vy += GRAVITY;
+        player.y += player.vy;
+        player.x += player.speed;
+
+        player.onGround = false;
+        for(let plat of platforms){
+            if(player.x+player.width>plat.x && player.x<plat.x+plat.width &&
+               player.y+player.height>plat.y && player.y+player.height<plat.y+plat.height+player.vy){
+                if(player.vy>=0){ 
+                    player.y = plat.y - player.height; 
+                    player.vy = 0; 
+                    player.onGround=true; 
+                    player.jumpsLeft=2; 
+                    spawnParticles(player.x+player.width/2, player.y+player.height,"land"); 
+                }
+            }
+        }
+
+        // Camera
+        let targetCamX = player.x - canvas.width/2 + player.width/2;
+        let targetCamY = player.y - canvas.height/2 + player.height*1.2;
+        cameraX += (targetCamX - cameraX)*0.1;
+        cameraY += (targetCamY - cameraY)*0.1;
+    }
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Draw ground
+    for(let g of ground) ctx.fillRect(g.x-cameraX,g.y-cameraY,g.width,g.height);
+
+    // Draw platforms
+    for(let plat of platforms){
+        ctx.fillStyle=rgb(plat.color);
+        ctx.fillRect(plat.x-cameraX,plat.y-cameraY,plat.width,plat.height);
+    }
+
+    // Draw player
+    if(player.visible) drawPlayer();
+
+    // Draw crash pieces
+    for(let i=crashPieces.length-1;i>=0;i--){
+        let p=crashPieces[i]; p.vy+=GRAVITY*0.5; p.x+=p.vx; p.y+=p.vy;
+        ctx.fillStyle=p.color; ctx.fillRect(p.x-cameraX,p.y-cameraY,p.size,p.size);
+        if(p.y>canvas.height) crashPieces.splice(i,1);
+    }
+
+    animationId=requestAnimationFrame(update);
+}
+
+// Initial show
+function showStartScreen(){ 
+    document.getElementById("bestScore").innerText="Best Score: "+bestScore;
+    document.getElementById("startScreen").style.display="flex"; 
+}
+showStartScreen();
 </script>
 </body>
 </html>
