@@ -30,7 +30,7 @@ const ctx=canvas.getContext("2d");
 canvas.width=window.innerWidth;
 canvas.height=window.innerHeight;
 
-let gameOver=false, score=0, bestScore=0;
+let gameOver=false, running=false, score=0, bestScore=0;
 let player, platforms=[], strikes=[], gems=[];
 let cameraX=0, cameraY=0;
 let baseSpeed=6, speed=baseSpeed, speedIncrease=0.002;
@@ -87,10 +87,7 @@ class Player{
 
 class Platform{
   constructor(x,y,w){this.x=x;this.y=y;this.w=w;this.h=20;}
-  draw(color){
-    ctx.fillStyle=color;
-    ctx.fillRect(this.x-cameraX,this.y-cameraY,this.w,this.h);
-  }
+  draw(color){ctx.fillStyle=color;ctx.fillRect(this.x-cameraX,this.y-cameraY,this.w,this.h);}
 }
 class Strike{
   constructor(x,y){this.x=x;this.y=y;this.w=40;this.h=40;}
@@ -110,7 +107,7 @@ class Particle{
 let particles=[];
 
 function triggerDeath(y){
-  gameOver=true;
+  gameOver=true;running=false;
   let rowY=Math.floor(y/40)*40;
   ctx.strokeStyle="white";ctx.lineWidth=4;
   ctx.strokeRect(0,rowY-cameraY,canvas.width,40);
@@ -126,4 +123,50 @@ function triggerDeath(y){
 function resetGame(){
   score=0;speed=baseSpeed;
   player=new Player();
-  platforms=[];str
+  platforms=[];strikes=[];gems=[];particles=[];
+  for(let i=0;i<10;i++){
+    platforms.push(new Platform(i*40,canvas.height-100,40));
+  }
+}
+
+function generate(){
+  let last=platforms[platforms.length-1];
+  let gap=Math.random()<0.7?40*(1+Math.floor(Math.random()*2)):40*(2+Math.floor(Math.random()*2));
+  let w=40*(1+Math.floor(Math.random()*8));
+  let y=canvas.height-100-40*(Math.floor(Math.random()*3));
+  platforms.push(new Platform(last.x+gap,y,w));
+  if(Math.random()<0.2){strikes.push(new Strike(last.x+gap+Math.random()*(w-40),y-40));}
+  if(Math.random()<0.1){gems.push(new Gem(last.x+gap+Math.random()*(w-20),y-60));}
+}
+
+function loop(){
+  if(!running) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  player.update();
+  colorTimer++;
+  if(colorTimer>200){colorIndex=(colorIndex+1)%rainbowColors.length;colorTimer=0;}
+  let color=rainbowColors[colorIndex];
+  for(let p of platforms){p.draw(color);}
+  for(let s of strikes){s.draw();}
+  for(let g of gems){g.draw();}
+  for(let part of particles){part.update();part.draw();}
+  particles=particles.filter(p=>p.life>0);
+  player.draw();
+  ctx.fillStyle="white";ctx.fillText("Score: "+score,20,40);
+  cameraX=player.x-canvas.width/2;cameraY=player.y-canvas.height/2+100;
+  speed+=speedIncrease;
+  if(platforms[platforms.length-1].x<player.x+canvas.width){generate();}
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener("keydown",e=>{if(["w","ArrowUp"," "].includes(e.key)){player.jump();}});
+window.addEventListener("mousedown",()=>{player.jump();});
+
+document.getElementById("startBtn").onclick=()=>{
+  document.getElementById("menu").style.display="none";
+  gameOver=false;resetGame();
+  if(!running){running=true;loop();}
+};
+</script>
+</body>
+</html>
