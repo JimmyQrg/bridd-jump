@@ -42,14 +42,15 @@ const GRAVITY=0.7;
 
 let keys={}, score=0, bestScore=0, lastTime=0, gameStarted=false, animationId=null;
 let crashPieces=[], particles=[], playerTrail=[];
-let baseColors=[{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,g:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
+let baseColors=[{r:255,g:0,b:0},{r:255,g:102,b:0},{r:255,g:204,b:0},{r:102,g:255,b:0},{r:0,g:255,b:255},{r:102,g:102,b:255},{r:153,g:0,b:255}];
 let colorIndex=0, platformColor={r:255,g:0,b:0}, nextColor=baseColors[1], colorLerp=0;
 let globalTime=0;
+let cameraX=0, cameraY=0;
 
 let player={
     x:100, y:0, width:40, height:50,
     color:"#0ff", vy:0, speed:15,
-    hitboxScale:0.6, jumpsLeft:1, onGround:false, visible:true
+    hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true
 };
 
 let platforms=[], spikes=[], lines=[], gems=[], ground=[];
@@ -74,13 +75,18 @@ function resetGame(){
     if(animationId) cancelAnimationFrame(animationId);
     score=0; colorLerp=0; globalTime=0;
     player.x=100; player.y=canvas.height/2-player.height; player.vy=0; player.speed=15;
-    player.jumpsLeft=1; player.onGround=false; player.visible=true;
+    player.jumpsLeft=2; player.onGround=false; player.visible=true;
 
     platforms=[]; spikes=[]; crashPieces=[]; particles=[]; lines=[]; gems=[]; ground=[]; playerTrail=[];
 
     platformColor={...baseColors[0]}; colorIndex=0; nextColor=baseColors[1];
 
-    platforms.push({x:0,y:player.y+player.height,width:BLOCK_SIZE*10,height:BLOCK_SIZE,color:{...platformColor},passed:false});
+    // Starting platform
+    for(let i=0;i<10;i++){
+        platforms.push({x:i*BLOCK_SIZE,y:canvas.height/2+100,width:BLOCK_SIZE,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
+    }
+
+    // Ground
     ground.push({x:0,y:canvas.height-BLOCK_SIZE,width:canvas.width*10,height:BLOCK_SIZE,color:{r:50,g:50,b:50}});
 
     lastTime=performance.now();
@@ -89,18 +95,25 @@ function resetGame(){
     update(lastTime);
 }
 
-function generateBlockPlatform(lastX,lastY){
-    let blockCount=Math.floor(Math.random()*8)+1; 
-    if(Math.random()<0.7) blockCount=Math.min(blockCount,Math.floor(Math.random()*3+1));
-    let gap=Math.floor(Math.random()*5+3)*BLOCK_SIZE;
-    let x=lastX+gap; let y=lastY+(Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
-    y=Math.max(BLOCK_SIZE, Math.min(canvas.height-3*BLOCK_SIZE, y));
-    for(let i=0;i<blockCount;i++){
-        platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
-        if(Math.random()<0.1) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6, baseY:y-BLOCK_SIZE+BLOCK_SIZE*0.2, hit:true, passed:false});
-        if(Math.random()<0.08) gems.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.25, y:y-BLOCK_SIZE*0.5, size:BLOCK_SIZE*0.5, collected:false, glow:0});
+function generateBlockPattern(lastX,lastY){
+    const widthInBlocks=12, heightInBlocks=3;
+    for(let row=0;row<heightInBlocks;row++){
+        for(let col=0;col<widthInBlocks;col++){
+            let chance = 0.4; if(row===0) chance=0.7;
+            if(Math.random()<chance){
+                let x=lastX+col*BLOCK_SIZE;
+                let y=lastY+row*BLOCK_SIZE;
+                platforms.push({x,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:{...platformColor},passed:false});
+                if(Math.random()<0.1 && row===0){
+                    spikes.push({x:x+BLOCK_SIZE*0.1,y:y-BLOCK_SIZE*0.8,width:BLOCK_SIZE*0.8,height:BLOCK_SIZE*0.8,baseY:y-BLOCK_SIZE*0.8,hit:true,passed:false});
+                }
+                if(Math.random()<0.05){
+                    gems.push({x:x+BLOCK_SIZE*0.25,y:y-BLOCK_SIZE*0.5,size:BLOCK_SIZE*0.5,collected:false,glow:0});
+                }
+            }
+        }
     }
-    return {x:x+blockCount*BLOCK_SIZE,y};
+    return {x:lastX+widthInBlocks*BLOCK_SIZE+Math.floor(Math.random()*5+2)*BLOCK_SIZE,y:lastY};
 }
 
 function checkSpikeCollision(spike){
@@ -113,8 +126,7 @@ function checkSpikeCollision(spike){
 }
 
 function createCrash(){
-    const pieceCount=25;
-    for(let i=0;i<pieceCount;i++){
+    for(let i=0;i<25;i++){
         crashPieces.push({x:player.x+Math.random()*player.width,y:player.y+Math.random()*player.height,vx:(Math.random()-0.5)*20,vy:(Math.random()-1)*20,size:Math.random()*player.width/4+5,color:player.color});
     }
 }
@@ -146,7 +158,7 @@ function addLine(){
     lines.push({x:canvas.width, y:Math.random()*canvas.height, width:Math.random()*80+20, speed:(player.speed+5)*5, blur:Math.random()*10}); 
 }
 
-function lerpColor(c1,c2,t){return {r:c1.r+(c2.r-c1.r)*t, g:c1.g+(c2.g-c1.g)*t, b:c1.b+(c2.b-c1.b)*t};}
+function lerpColor(c1,c2,t){return {r:c1.r+(c2.r-c1.r)*t,g:c1.g+(c2.g-c1.g)*t,b:c1.b+(c2.b-c1.b)*t};}
 function rgb(c){return `rgb(${Math.floor(c.r)},${Math.floor(c.g)},${Math.floor(c.b)})`; }
 
 function drawPlayer(){
@@ -155,14 +167,12 @@ function drawPlayer(){
     const block=5;
     ctx.shadowColor="#0ff"; ctx.shadowBlur=15;
     ctx.fillStyle="#0ff";
-    // Head
     ctx.fillRect(px+block*2, py, block*2, block*2);
-    // Body
     ctx.fillRect(px+block*2, py+block*2, block*2, block*3);
-    // Arms
-    ctx.fillRect(px, py+block*2, block*2, block); ctx.fillRect(px+block*4, py+block*2, block*2, block);
-    // Legs
-    ctx.fillRect(px+block*2, py+block*5, block, block*2); ctx.fillRect(px+block*3, py+block*5, block, block*2);
+    ctx.fillRect(px, py+block*2, block*2, block);
+    ctx.fillRect(px+block*4, py+block*2, block*2, block);
+    ctx.fillRect(px+block*2, py+block*5, block, block*2);
+    ctx.fillRect(px+block*3, py+block*5, block, block*2);
     ctx.strokeStyle="#fff"; ctx.lineWidth=6; ctx.strokeRect(px,py,w,h);
     ctx.shadowBlur=0;
 }
@@ -172,7 +182,7 @@ function update(time){
     globalTime+=delta;
 
     if(gameStarted && player.visible){
-        player.speed+=0.01;
+        player.speed+=0.02;
         colorLerp+=delta/10;
         if(colorLerp>=1){ colorIndex=(colorIndex+1)%baseColors.length; nextColor=baseColors[(colorIndex+1)%baseColors.length]; colorLerp=0; }
         platformColor=lerpColor(baseColors[colorIndex],nextColor,colorLerp);
@@ -200,22 +210,20 @@ function update(time){
         }
 
         let lastPlatform = platforms[platforms.length-1];
-        if(lastPlatform.x < player.x + canvas.width) generateBlockPlatform(lastPlatform.x, lastPlatform.y);
+        if(lastPlatform.x < player.x + canvas.width) generateBlockPattern(lastPlatform.x, lastPlatform.y);
         addLine();
     }
 
     const targetCamX=player.x-150;
     const targetCamY=player.y - canvas.height/2 + player.height*1.2;
-    cameraX = (typeof cameraX!=='undefined'?cameraX:targetCamX)*0.9 + targetCamX*0.1;
-    cameraY = (typeof cameraY!=='undefined'?cameraY:targetCamY)*0.9 + targetCamY*0.1;
+    cameraX = cameraX*0.9 + targetCamX*0.1;
+    cameraY = cameraY*0.9 + targetCamY*0.1;
 
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle="#fff"; ctx.font="40px sans-serif"; ctx.fillText(score,20,50);
 
-    // Ground
     for(let g of ground){ctx.fillStyle=`rgb(${g.color.r},${g.color.g},${g.color.b})`; ctx.fillRect(g.x-cameraX,g.y-cameraY,g.width,g.height);}
 
-    // Platforms with texture
     for(let plat of platforms){
         const grad=ctx.createLinearGradient(plat.x-cameraX,plat.y-cameraY,plat.x+plat.width-cameraX,plat.y+plat.height-cameraY);
         grad.addColorStop(0, rgb(platformColor)); grad.addColorStop(1, "#000");
@@ -223,29 +231,22 @@ function update(time){
         ctx.fillRect(plat.x-cameraX, plat.y-cameraY, plat.width, plat.height);
     }
 
-    // Spikes
     for(let spike of spikes){ let pulse = Math.sin(globalTime*5 + spike.x)*5; ctx.fillStyle="red"; ctx.beginPath(); ctx.moveTo(spike.x-cameraX,spike.baseY+spike.height-cameraY+pulse); ctx.lineTo(spike.x-cameraX+spike.width/2,spike.baseY-cameraY+pulse); ctx.lineTo(spike.x-cameraX+spike.width,spike.baseY+spike.height-cameraY+pulse); ctx.closePath(); ctx.fill(); }
 
-    // Gems
     for(let gem of gems){
         if(gem.collected) continue;
         ctx.save(); ctx.translate(gem.x+gem.size/2-cameraX, gem.y+gem.size/2-cameraY); ctx.rotate(Math.PI/4);
         ctx.shadowBlur=20*Math.sin(gem.glow); ctx.shadowColor="#fff"; ctx.fillStyle="#fff"; ctx.fillRect(-gem.size/2,-gem.size/2,gem.size,gem.size); ctx.shadowBlur=0; ctx.restore();
     }
 
-    // Player trail
     for(let i=playerTrail.length-1;i>=0;i--){ let p=playerTrail[i]; p.life--; ctx.fillStyle="rgba(0,255,255,"+p.life/20+")"; ctx.fillRect(p.x-cameraX,p.y-cameraY,player.width/2,player.height/2); if(p.life<=0) playerTrail.splice(i,1);}
 
-    // Player
     if(player.visible) drawPlayer();
 
-    // Horizontal lines
     for(let i=lines.length-1;i>=0;i--){ let line=lines[i]; line.x -= line.speed*5; ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.lineWidth=Math.random()*3+1; ctx.beginPath(); ctx.moveTo(line.x,line.y); ctx.lineTo(line.x+line.width,line.y); ctx.stroke(); if(line.x+line.width<0) lines.splice(i,1); }
 
-    // Crash pieces
     for(let i=crashPieces.length-1;i>=0;i--){ let p=crashPieces[i]; p.vy+=GRAVITY*0.5; p.x+=p.vx; p.y+=p.vy; ctx.fillStyle=p.color; ctx.fillRect(p.x-cameraX,p.y-cameraY,p.size,p.size); if(p.y>canvas.height) crashPieces.splice(i,1); }
 
-    // Particles
     for(let i=particles.length-1;i>=0;i--){ let p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.life--; ctx.fillStyle=p.color; ctx.globalAlpha=p.life/50; ctx.fillRect(p.x-cameraX,p.y-cameraY,5,5); ctx.globalAlpha=1; if(p.life<=0) particles.splice(i,1); }
 
     if(!gameStarted && crashPieces.length===0) showStartScreen();
