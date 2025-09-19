@@ -47,7 +47,7 @@ let platformHue=270; // starting purple
 // Player
 let player={
     x:100, y:0, width:50, height:50,
-    color:"#0ff", vy:0, speed:5, trail:[],
+    color:"#0ff", vy:0, speed:5,
     glow:true, hitboxScale:0.6, jumpsLeft:1
 };
 
@@ -118,7 +118,7 @@ function generateBlockPlatform(lastX,lastY){
 // Reset game
 function resetGame(){
     score=0;
-    player.x=100; player.y=canvas.height/2-player.height; player.vy=0; player.speed=5; player.trail=[];
+    player.x=100; player.y=canvas.height/2-player.height; player.vy=0; player.speed=5;
     player.jumpsLeft=1;
     platforms=[]; spikes=[]; particles=[];
     initBackground(); initLines();
@@ -152,10 +152,10 @@ function checkSpikeCollision(spike){
     return hbX+hbW>spike.x && hbX<spike.x+spike.width && hbY+hbH>spike.y && hbY<spike.y+spike.height;
 }
 
-// Draw curved T-bridge under platforms
+// Draw curved T-bridge under platforms with outline
 function drawBridges(camX){
     for(let plat of platforms){
-        ctx.strokeStyle="#0ff"; ctx.lineWidth=3;
+        ctx.strokeStyle="#fff"; ctx.lineWidth=2;
         ctx.beginPath();
         let midX=plat.x + plat.width/2 - camX;
         let topY=plat.y+plat.height + 10;
@@ -184,7 +184,7 @@ function update(time){
         line.x-=line.speed; if(line.x+line.length<0) line.x=canvas.width+Math.random()*500;
     }
 
-    // Background
+    // Background particles
     for(let bp of backgroundParticles){ ctx.fillStyle=`rgba(0,255,255,${bp.alpha})`; ctx.fillRect(bp.x,bp.y,bp.size,bp.size); }
 
     // Score
@@ -205,13 +205,17 @@ function update(time){
     }
     if(!onGround && player.y>canvas.height) die();
 
-    // Draw platforms
+    // Draw platforms with outline
     for(let plat of platforms){
         let grad=ctx.createLinearGradient(plat.x-camX,plat.y,plat.x-camX+plat.width,plat.y);
         grad.addColorStop(0,`hsl(${platformHue},80%,60%)`);
         grad.addColorStop(0.5,`hsl(${(platformHue+20)%360},80%,60%)`);
         grad.addColorStop(1,`hsl(${(platformHue+40)%360},80%,60%)`);
-        ctx.fillStyle=grad; ctx.fillRect(plat.x-camX,plat.y,plat.width,plat.height);
+        ctx.fillStyle=grad; 
+        ctx.fillRect(plat.x-camX,plat.y,plat.width,plat.height);
+
+        ctx.strokeStyle="#fff"; ctx.lineWidth=2;
+        ctx.strokeRect(plat.x-camX,plat.y,plat.width,plat.height);
     }
 
     // Draw bridges
@@ -225,9 +229,12 @@ function update(time){
         if(checkSpikeCollision(spike)) die();
     }
 
-    // Draw player
+    // Draw player with outline
     ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
-    ctx.fillStyle=player.color; ctx.fillRect(player.x-camX,player.y,player.width,player.height);
+    ctx.fillStyle=player.color; 
+    ctx.fillRect(player.x-camX,player.y,player.width,player.height);
+    ctx.strokeStyle="#fff"; ctx.lineWidth=2;
+    ctx.strokeRect(player.x-camX,player.y,player.width,player.height);
     ctx.shadowBlur=0;
 
     // Generate new platforms
