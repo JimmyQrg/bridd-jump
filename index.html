@@ -69,14 +69,13 @@ function jump(){
 }
 
 function resetGame(){
-    // Cancel previous animation to prevent speed stacking
     if(animationId) cancelAnimationFrame(animationId);
 
     score=0;
     player.x=100; 
     player.y=canvas.height/2-player.height; 
     player.vy=0; 
-    player.speed=5;  // Reset speed!
+    player.speed=5;
     player.jumpsLeft=1; 
     player.onGround=false;
 
@@ -89,7 +88,7 @@ function resetGame(){
     lastTime=performance.now();
     hideStartScreen();
     gameStarted=true;
-    update(lastTime); // start loop
+    update(lastTime);
 }
 
 function generateBlockPlatform(lastX,lastY){
@@ -99,13 +98,12 @@ function generateBlockPlatform(lastX,lastY){
     y=Math.max(BLOCK_SIZE, Math.min(canvas.height-3*BLOCK_SIZE, y));
 
     for(let i=0;i<blockCount;i++){
-        if(blocksPerColor>=3){ // slower color change
+        if(blocksPerColor>=3){
             rainbowIndex=(rainbowIndex+1)%rainbowColors.length;
             blocksPerColor=0;
         }
         blocksPerColor++;
         platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:rainbowColors[rainbowIndex]});
-
         if(Math.random()<0.05) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6});
     }
     return {x:x+blockCount*BLOCK_SIZE,y};
@@ -175,7 +173,7 @@ function drawCombinedOutline(camX){
         hull.push(points[i]);
     }
     let t=points.length; for(let i=points.length-2;i>=0;i--){
-        while(hull.length>t && cross(hull[hull.length-2],hull[hull.length-1],points[i])<=0) hull.pop();
+        while(hull.length>t && cross(hull.length-2,hull.length-1,points[i])<=0) hull.pop();
         hull.push(points[i]);
     }
     ctx.strokeStyle="#fff"; ctx.lineWidth=3;
@@ -194,7 +192,14 @@ function hideStartScreen(){document.getElementById("startScreen").style.display=
 
 function update(time){
     let delta=(time-lastTime)/1000; lastTime=time;
+
+    // Gradually increase speed
+    if(gameStarted) player.speed+=0.0001;
+
+    // Camera follows player both horizontally and vertically
     let camX=player.x-150;
+    let camY=player.y-150;
+
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
     // Score
@@ -203,7 +208,7 @@ function update(time){
 
     if(gameStarted){
         player.y+=player.vy; player.vy+=GRAVITY;
-        player.x+=player.speed; player.speed+=0.00005;
+        player.x+=player.speed;
 
         // Platform collision
         player.onGround=false;
@@ -220,7 +225,8 @@ function update(time){
 
         // Draw platforms
         for(let plat of platforms){
-            ctx.fillStyle=plat.color; ctx.fillRect(plat.x-camX,plat.y,plat.width,plat.height);
+            ctx.fillStyle=plat.color; 
+            ctx.fillRect(plat.x-camX,plat.y-camY,plat.width,plat.height);
         }
 
         drawSupports(camX);
@@ -229,18 +235,18 @@ function update(time){
         // Spikes
         for(let spike of spikes){
             ctx.fillStyle="red"; ctx.beginPath();
-            ctx.moveTo(spike.x-camX,spike.y+spike.height);
-            ctx.lineTo(spike.x-camX+spike.width/2,spike.y);
-            ctx.lineTo(spike.x-camX+spike.width,spike.y+spike.height);
+            ctx.moveTo(spike.x-camX,spike.y+spike.height-camY);
+            ctx.lineTo(spike.x-camX+spike.width/2,spike.y-camY);
+            ctx.lineTo(spike.x-camX+spike.width,spike.y+spike.height-camY);
             ctx.closePath(); ctx.fill();
             if(checkSpikeCollision(spike)) tryDie();
         }
 
         // Draw player
         ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
-        ctx.fillStyle=player.color; ctx.fillRect(player.x-camX,player.y,player.width,player.height);
+        ctx.fillStyle=player.color; ctx.fillRect(player.x-camX,player.y-camY,player.width,player.height);
         ctx.strokeStyle="#fff"; ctx.lineWidth=2;
-        ctx.strokeRect(player.x-camX,player.y,player.width,player.height);
+        ctx.strokeRect(player.x-camX,player.y-camY,player.width,player.height);
         ctx.shadowBlur=0;
 
         let last=platforms[platforms.length-1];
@@ -254,7 +260,7 @@ function update(time){
         let p=crashPieces[i];
         p.vy+=GRAVITY*0.5;
         p.x+=p.vx; p.y+=p.vy;
-        ctx.fillStyle=p.color; ctx.fillRect(p.x-camX,p.y,p.size,p.size);
+        ctx.fillStyle=p.color; ctx.fillRect(p.x-camX,p.y-camY,p.size,p.size);
         if(p.y>canvas.height) crashPieces.splice(i,1);
     }
 
@@ -262,7 +268,7 @@ function update(time){
     for(let i=particles.length-1;i>=0;i--){
         let p=particles[i];
         p.x+=p.vx; p.y+=p.vy; p.life--;
-        ctx.fillStyle=p.color; ctx.globalAlpha=p.life/50; ctx.fillRect(p.x-camX,p.y,5,5); ctx.globalAlpha=1;
+        ctx.fillStyle=p.color; ctx.globalAlpha=p.life/50; ctx.fillRect(p.x-camX,p.y-camY,5,5); ctx.globalAlpha=1;
         if(p.life<=0) particles.splice(i,1);
     }
 
