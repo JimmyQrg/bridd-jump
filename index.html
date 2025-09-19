@@ -30,15 +30,31 @@ canvas.width=window.innerWidth;
 canvas.height=window.innerHeight;
 
 const GRAVITY=0.8;
+const BLOCK=40; 
+const groundY=canvas.height/2+200;
+
 let player,platforms,spikes,gems,ground,particles,lines,crashPieces;
 let gameStarted=false,score=0,bestScore=0;
 let cameraX=0,cameraY=0,globalTime=0;
 let colorIndex=0,nextColor,platformColor;
-let colorLerp=0,baseColors=["#ff0000","#ff7f00","#ffff00","#00ff00","#0000ff","#4b0082","#9400d3"];
-
+let colorLerp=0;
+let baseColors=["#ff0000","#ff7f00","#ffff00","#00ff00","#0000ff","#4b0082","#9400d3"];
 let animationId,lastTime=0;
-const BLOCK=40; // grid block size
-const groundY=canvas.height/2+200;
+
+// Input
+window.addEventListener("keydown", e=>{ if(["KeyW","ArrowUp","Space"].includes(e.code)) jump(); });
+window.addEventListener("keyup", e=>{});
+window.addEventListener("mousedown", ()=>jump());
+window.addEventListener("touchstart", ()=>jump());
+
+function jump(){
+  if(!player.visible) return;
+  if(player.jumpsLeft>0){
+    player.vy=-15;
+    spawnParticles(player.x+player.width/2,player.y+player.height,player.jumpsLeft==2?"jump":"double");
+    player.jumpsLeft--;
+  }
+}
 
 function resetGame(){
   player={x:100,y:groundY-BLOCK*2,width:BLOCK,height:BLOCK*2,vy:0,speed:6,onGround:false,jumpsLeft:2,visible:true};
@@ -54,7 +70,7 @@ function spawnGround(){
   ground=[]; spikes=[];
   for(let i=0;i<200;i++){
     let gx=i*BLOCK;
-    ground.push({x:gx,y:groundY,width:BLOCK,height:BLOCK,color:{r:20,g:20,b:20}});
+    ground.push({x:gx,y:groundY,width:BLOCK,height:BLOCK});
     // strike on ground
     spikes.push({x:gx,y:groundY-BLOCK,width:BLOCK,height:BLOCK,baseY:groundY-BLOCK,passed:false});
   }
@@ -62,22 +78,18 @@ function spawnGround(){
 
 function generateBlockPlatform(startX,startY){
   let len=Math.floor(Math.random()*8)+1;
-  // bias shorter
-  if(Math.random()<0.5) len=Math.floor(Math.random()*4)+1;
+  if(Math.random()<0.5) len=Math.floor(Math.random()*4)+1; 
   let gap=Math.floor(Math.random()*4)+3;
   let newY=startY+(Math.random()<0.5?-BLOCK:BLOCK);
-  // clamp: not below ground+3 blocks
   if(newY>groundY-BLOCK*3) newY=groundY-BLOCK*3;
   let px=startX+gap*BLOCK;
   for(let i=0;i<len;i++){
     platforms.push({x:px+i*BLOCK,y:newY,width:BLOCK,height:BLOCK});
   }
-  // maybe strike
   if(Math.random()<0.4){
     let idx=Math.floor(Math.random()*len);
     spikes.push({x:px+idx*BLOCK,y:newY-BLOCK,width:BLOCK,height:BLOCK,baseY:newY-BLOCK,passed:false});
   }
-  // maybe gem
   if(Math.random()<0.2){
     let gx=px+Math.floor(Math.random()*len)*BLOCK+BLOCK/4;
     let gy=newY-BLOCK*2;
@@ -87,22 +99,15 @@ function generateBlockPlatform(startX,startY){
 
 function lerpColor(a,b,t){
   let ca=hexToRgb(a),cb=hexToRgb(b);
-  return {r:Math.round(ca.r+(cb.r-ca.r)*t),
-          g:Math.round(ca.g+(cb.g-ca.g)*t),
-          b:Math.round(ca.b+(cb.b-ca.b)*t)};
+  return {r:Math.round(ca.r+(cb.r-ca.r)*t),g:Math.round(ca.g+(cb.g-ca.g)*t),b:Math.round(ca.b+(cb.b-ca.b)*t)};
 }
 function hexToRgb(h){h=h.replace("#","");return{r:parseInt(h.substring(0,2),16),g:parseInt(h.substring(2,4),16),b:parseInt(h.substring(4,6),16)};}
-function rgb(c){return`rgb(${c.r},${c.g},${c.b})`;}
-
-function addLine(){
-  lines.push({x:canvas.width,y:Math.random()*canvas.height,width:100+Math.random()*100,speed:20+Math.random()*10});
-}
+function rgb(c){return`rgb(${c.r},${c.g},${c.b})`; }
 
 function drawPlayer(){
   ctx.save();
   ctx.translate(player.x-cameraX,player.y-cameraY);
   ctx.fillStyle="#0ff"; ctx.strokeStyle="#fff"; ctx.lineWidth=4;
-  // body
   ctx.fillRect(5,5,player.width-10,player.height-10);
   ctx.strokeRect(5,5,player.width-10,player.height-10);
   ctx.restore();
@@ -130,12 +135,21 @@ function checkSpikeCollision(spike){
          player.y+player.height>spike.y && player.y<spike.y+spike.height;
 }
 
+function addLine(){
+  lines.push({x:canvas.width,y:Math.random()*canvas.height,width:100+Math.random()*100,speed:30});
+}
+
 function update(time){
   if(!lastTime) lastTime=time;
   let delta=(time-lastTime)/1000; lastTime=time;
   globalTime+=delta;
 
   if(gameStarted && player.visible){
+    // rainbow platform color
+    colorLerp+=delta*0.01;
+    if(colorLerp>=1){colorLerp=0;colorIndex=(colorIndex+1)%baseColors.length; nextColor=baseColors[(colorIndex+1)%baseColors.length];}
+    platformColor=lerpColor(baseColors[colorIndex],nextColor,colorLerp);
+
     player.x+=player.speed;
     player.y+=player.vy; player.vy+=GRAVITY;
     player.onGround=false;
@@ -167,14 +181,24 @@ function update(time){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle="#fff";ctx.font="40px sans-serif";ctx.fillText(score,20,50);
 
-  for(let plat of platforms){ctx.fillStyle=rgb(platformColor);ctx.fillRect(plat.x-cameraX,plat.y-cameraY,plat.width,plat.height);}
+  // Ground
+  for(let g of ground){ctx.fillStyle="rgb(60,60,60)";ctx.fillRect(g.x-cameraX,g.y-cameraY,g.width,g.height);}
+  // Platforms
+  for(let plat of platforms){
+    ctx.fillStyle=rgb(platformColor); ctx.shadowColor=rgb(platformColor); ctx.shadowBlur=20;
+    ctx.fillRect(plat.x-cameraX,plat.y-cameraY,plat.width,plat.height); ctx.shadowBlur=0;
+  }
+  // Spikes
   for(let spike of spikes){ctx.fillStyle="red";ctx.fillRect(spike.x-cameraX,spike.y-cameraY,spike.width,spike.height);}
+  // Gems
   for(let gem of gems){if(!gem.collected){ctx.fillStyle="#fff";ctx.fillRect(gem.x-cameraX,gem.y-cameraY,gem.size,gem.size);}}
-
+  // Player
   if(player.visible) drawPlayer();
-
+  // Lines
   for(let i=lines.length-1;i>=0;i--){let l=lines[i];l.x-=l.speed;ctx.strokeStyle="rgba(255,255,255,0.2)";ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(l.x+l.width,l.y);ctx.stroke();if(l.x+l.width<0)lines.splice(i,1);}
+  // Particles
   for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx;p.y+=p.vy;p.life--;ctx.fillStyle=p.color;ctx.globalAlpha=p.life/40;ctx.fillRect(p.x-cameraX,p.y-cameraY,4,4);ctx.globalAlpha=1;if(p.life<=0)particles.splice(i,1);}
+  // Crash
   for(let i=crashPieces.length-1;i>=0;i--){let p=crashPieces[i];p.vy+=GRAVITY*0.5;p.x+=p.vx;p.y+=p.vy;ctx.fillStyle=p.color;ctx.fillRect(p.x-cameraX,p.y-cameraY,p.size,p.size);if(p.y>canvas.height)crashPieces.splice(i,1);}
 
   if(!gameStarted && crashPieces.length===0) document.getElementById("startMenu").style.display="block";
@@ -182,9 +206,8 @@ function update(time){
 }
 
 document.getElementById("startBtn").addEventListener("click",()=>resetGame());
-showStartScreen();
 function showStartScreen(){document.getElementById("startMenu").style.display="block";}
-
+showStartScreen();
 update();
 </script>
 </body>
