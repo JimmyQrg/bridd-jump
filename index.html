@@ -41,7 +41,7 @@ const BLOCK_SIZE=50;
 const JUMP_SPEED=-15;
 const GRAVITY=0.7;
 
-let keys={}, score=0, bestScore=0, lastTime=0, gameStarted=false;
+let keys={}, score=0, bestScore=0, lastTime=0, gameStarted=false, animationId=null;
 let crashPieces=[], particles=[];
 let rainbowColors=["#ff0000","#ff9900","#ffff00","#00ff00","#00ffff","#0000ff","#9900ff"]; 
 let rainbowIndex=0; let blocksPerColor=0;
@@ -69,15 +69,27 @@ function jump(){
 }
 
 function resetGame(){
+    // Cancel previous animation to prevent speed stacking
+    if(animationId) cancelAnimationFrame(animationId);
+
     score=0;
-    player.x=100; player.y=canvas.height/2-player.height; player.vy=0; player.speed=5; player.jumpsLeft=1; player.onGround=false;
+    player.x=100; 
+    player.y=canvas.height/2-player.height; 
+    player.vy=0; 
+    player.speed=5;  // Reset speed!
+    player.jumpsLeft=1; 
+    player.onGround=false;
+
     platforms=[]; spikes=[]; crashPieces=[]; particles=[];
     rainbowIndex=0; blocksPerColor=0;
+
     platforms.push({x:0,y:player.y+player.height,width:canvas.width/2,height:BLOCK_SIZE,color:rainbowColors[rainbowIndex]});
     generateBlockPlatform(canvas.width/2,player.y+player.height);
+
     lastTime=performance.now();
     hideStartScreen();
     gameStarted=true;
+    update(lastTime); // start loop
 }
 
 function generateBlockPlatform(lastX,lastY){
@@ -258,7 +270,7 @@ function update(time){
     animationId=requestAnimationFrame(update);
 }
 
-document.getElementById("startBtn").addEventListener("click", ()=>{resetGame(); lastTime=performance.now(); update(lastTime);});
+document.getElementById("startBtn").addEventListener("click", ()=>{resetGame();});
 showStartScreen();
 </script>
 </body>
