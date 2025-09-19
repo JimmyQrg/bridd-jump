@@ -1,368 +1,507 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Bridd Jump</title>
 <style>
-  body { margin:0; overflow:hidden; background:#000; }
-  canvas { display:block; margin:0 auto; background:#000; }
-  #menu {
-    position:absolute;
-    top:50%; left:50%;
-    transform:translate(-50%,-50%);
-    color:white;
-    font-family:sans-serif;
+  :root{ --bg:#000; --ui:#0ff; --text:#fff; }
+  body{ margin:0; background:var(--bg); overflow:hidden; font-family:Inter,system-ui,Arial; color:var(--text); }
+  canvas{ display:block; width:100vw; height:100vh; background:var(--bg); }
+  #menu{
+    position: absolute;
+    left:50%; top:50%;
+    transform: translate(-50%,-50%);
+    background: rgba(0,0,0,0.85);
+    color:var(--text);
+    border: 2px solid rgba(255,255,255,0.08);
+    padding: 28px 36px;
     text-align:center;
-    display:none;
+    border-radius:12px;
+    box-shadow: 0 6px 30px rgba(0,0,0,0.6);
   }
-  #menu button {
-    background:#111; color:#fff;
-    border:2px solid white;
-    padding:10px 20px; margin-top:10px;
-    font-size:20px; cursor:pointer;
-  }
+  #menu h1{ margin:0 0 10px 0; letter-spacing:2px; color:var(--ui); font-size:38px; text-shadow:0 0 20px rgba(0,255,255,0.12); }
+  #menu button{ margin-top:12px; padding:10px 22px; font-size:18px; cursor:pointer; border-radius:8px; background:#071; color:#fff; border:none; }
+  #menu p{ margin:8px 0 0 0; font-size:14px; color:#ddd; }
 </style>
 </head>
 <body>
-<canvas id="gameCanvas"></canvas>
+<canvas id="c"></canvas>
+
 <div id="menu">
-  <h1>Bridd Jump</h1>
-  <p id="scoreDisplay">Score: 0</p>
-  <p id="bestScoreDisplay">Best Score: 0</p>
+  <h1>BRIDD JUMP</h1>
+  <p id="best">Best: 0</p>
   <button id="startBtn">START</button>
 </div>
+
 <script>
-const canvas=document.getElementById("gameCanvas");
-const ctx=canvas.getContext("2d");
-canvas.width=window.innerWidth;
-canvas.height=window.innerHeight;
+/* Bridd Jump — fixed: starting platforms + death-row outline */
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha: false });
 
-let GRAVITY=0.8;
-let JUMP=-15;
-let doubleJumpAvailable=true;
-let gameStarted=false;
-let score=0, bestScore=0;
-
-let camera={x:0,y:0};
-let playerAnim="walk"; // walk | jump | doublejump
-let animFrame=0;
-
-let player={
-  x:200,y:200,w:30,h:40,
-  vy:0,speed:6,visible:true
-};
-
-let platforms=[];
-let strikes=[];
-let gems=[];
-let particles=[];
-let lines=[];
-let torches=[];
-
-let baseColors=["#ff0000","#ff7f00","#ffff00","#00ff00","#0000ff","#4b0082","#8f00ff"];
-let colorIndex=0, nextColor=baseColors[1], colorLerp=0;
-let platformColor="#fff";
-const blockSize=40;
-const groundY=500;
-
-function resetGame(){
-  score=0;
-  player.x=200; player.y=200;
-  player.vy=0;
-  player.speed=6;
-  player.visible=true;
-  playerAnim="walk";
-  animFrame=0;
-  doubleJumpAvailable=true;
-  platforms=[]; strikes=[]; gems=[]; particles=[]; lines=[]; torches=[];
-  generateGround();
-  generateInitialPlatforms();
+function fitCanvas(){
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
 }
+fitCanvas();
+addEventListener('resize', fitCanvas);
 
-function generateGround(){
-  for(let i=0;i<200;i++){
-    let gx=i*blockSize;
-    platforms.push({x:gx,y:groundY,w:blockSize,h:20,ground:true});
-    strikes.push({x:gx,y:groundY-40,w:40,h:40}); // strike above every ground block
+const BLOCK = 48;                // grid block
+const GROUND_ROWS = 1;           // ground thickness rows
+const GROUND_Y = canvas.height - BLOCK * GROUND_ROWS; // top y of ground
+const GRAVITY = 0.8;
+const JUMP_V = -15;
+
+// game state
+let player, platforms, spikes, gems, particles, lines, torches, crashPieces;
+let cameraX = 0, cameraY = 0;
+let score = 0, best = 0;
+let running = false;
+let lastTime = 0;
+let deathRowY = null, deathRowTimer = 0;
+
+// UI
+const menu = document.getElementById('menu');
+const startBtn = document.getElementById('startBtn');
+const bestP = document.getElementById('best');
+
+// helpers
+function rand(a,b){ return a + Math.random()*(b-a); }
+function choose(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function resetAll(){
+  // player in world coords
+  player = {
+    x: 120,
+    y: GROUND_Y - 200,
+    w: 36,
+    h: 48,
+    vy: 0,
+    speed: 8,      // starting speed
+    jumpsLeft: 2,
+    visible: true,
+    prevY: 0
+  };
+
+  platforms = []; spikes = []; gems = []; particles = []; lines = []; torches = []; crashPieces = [];
+  cameraX = 0; cameraY = 0;
+  score = 0;
+  deathRowY = null; deathRowTimer = 0;
+
+  // ground (single rect for visual/collision)
+  // We'll still generate ground blocks (for strikes above every ground block)
+  // Create a long ground stretching to the right
+  platforms.push(...(function createGroundBlocks(){
+    const arr=[]; // blocks across wide distance
+    for(let i=0;i<120;i++){
+      arr.push({ x: i*BLOCK, y: GROUND_Y, w: BLOCK, h: BLOCK, ground: true, passed:false });
+    }
+    return arr;
+  })());
+
+  // place strikes above every ground block
+  for(let i=0;i<platforms.length;i++){
+    const p = platforms[i];
+    if(p.ground) {
+      spikes.push({ x: p.x, y: p.y - BLOCK, w: BLOCK, h: BLOCK, hit:true, passed:false });
+    }
   }
-}
 
-function generateInitialPlatforms(){
+  // starting platform cluster (10 blocks) so player has safe start
+  const startX = 0;
+  const startY = GROUND_Y - BLOCK;
   for(let i=0;i<10;i++){
-    platforms.push({x:i*blockSize,y:groundY-120,w:blockSize,h:20});
+    platforms.push({ x: startX + i*BLOCK, y: startY, w: BLOCK, h: BLOCK, ground:false, passed:false });
+    // small chance to place a gem above some start blocks (optional); keep none to be safe
+  }
+
+  // seed next pattern start marker
+  // ensure we have something to extend from
+  // lastPlatformX used in generator to know where to start next cluster
+  lastPlatformEndX = platforms[platforms.length-1].x + BLOCK;
+}
+
+// Platform pattern generator (irregular cluster, keeps blocks on a grid)
+function generateCluster(lastX, lastY){
+  // widthInBlocks and heightInBlocks similar to your ascii example feel
+  const widthInBlocks = 10 + Math.floor(Math.random()*6); // 10..15 blocks cluster
+  const heightInBlocks = 1 + Math.floor(Math.random()*3); // 1..3 rows
+  const baseX = lastX + (2 + Math.floor(Math.random()*4)) * BLOCK; // some gap
+  // choose a y that is not below (ground - 2 blocks)
+  let y = lastY + (Math.floor(Math.random()*3)-1) * BLOCK; // variation
+  y = Math.max(BLOCK, Math.min(GROUND_Y - 2*BLOCK, y));
+
+  // fill blocks with probabilistic gaps (row 0 more solid)
+  for(let row=0; row<heightInBlocks; row++){
+    for(let col=0; col<widthInBlocks; col++){
+      const chance = row === 0 ? 0.78 : 0.45; // base row more solid
+      if(Math.random() < chance){
+        const bx = baseX + col*BLOCK;
+        const by = y + row*BLOCK;
+        platforms.push({ x: bx, y: by, w: BLOCK, h: BLOCK, ground:false, passed:false });
+        // spawn spike occasionally only on base row
+        if(row === 0 && Math.random() < 0.08){
+          // ensure strikes/gems spacing of at least 2 blocks: check existing nearby spikes/gems
+          const safe = !spikes.concat(gems).some(s => Math.abs(s.x - bx) < 2*BLOCK);
+          if(safe) spikes.push({ x: bx, y: by - BLOCK, w: BLOCK, h: BLOCK, hit:true, passed:false });
+        }
+        // spawn gem occasionally above block
+        if(Math.random() < 0.06){
+          const safe = !spikes.concat(gems).some(s => Math.abs(s.x - bx) < 2*BLOCK);
+          if(safe) gems.push({ x: bx + BLOCK*0.18, y: by - BLOCK*0.6, w: BLOCK*0.6, h: BLOCK*0.6, collected:false });
+        }
+      }
+    }
+  }
+  return baseX + widthInBlocks*BLOCK;
+}
+
+// small visual particles
+function spawnParticles(x,y,color,count=12){
+  for(let i=0;i<count;i++){
+    particles.push({
+      x, y,
+      vx: rand(-4,4),
+      vy: rand(-6,-1),
+      life: 40 + Math.floor(Math.random()*20),
+      color: color || '#fff'
+    });
   }
 }
 
-function spawnPlatform(){
-  let gap=Math.random()<0.5?80:120;
-  let last=platforms[platforms.length-1];
-  let len=Math.floor(Math.random()*8)+1;
-  let py=groundY-Math.floor(Math.random()*6+2)*blockSize;
-  for(let i=0;i<len;i++){
-    platforms.push({x:last.x+gap+i*blockSize,y:py,w:blockSize,h:20});
-  }
-  // ensure no gem and strike too close
-  if(Math.random()<0.3){
-    strikes.push({x:last.x+gap+Math.random()*len*blockSize,y:py-40,w:40,h:40});
-  } else if(Math.random()<0.2){
-    gems.push({x:last.x+gap+Math.random()*len*blockSize,y:py-60,w:20,h:20});
-  }
-  // add torch randomly on wall
-  if(Math.random()<0.1){
-    torches.push({x:last.x+gap+Math.random()*len*blockSize,y:py-100});
+function spawnCrashPieces(x,y){
+  for(let i=0;i<28;i++){
+    crashPieces.push({
+      x: x + rand(-5,player.w+5),
+      y: y + rand(-5,player.h+5),
+      vx: rand(-8,8),
+      vy: rand(-10, -2),
+      life: 80 + Math.floor(Math.random()*40),
+      size: 4 + Math.random()*8,
+      color: '#0ff'
+    });
   }
 }
 
-function drawPlayer(){
-  if(!player.visible)return;
+// input
+addEventListener('keydown', (ev) => {
+  if(!running) return;
+  if(ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW'){
+    if(player.jumpsLeft > 0){
+      player.vy = JUMP_V;
+      player.jumpsLeft--;
+      spawnParticles(player.x + player.w*0.5, player.y + player.h, '#0ff', 18);
+    }
+  }
+});
+addEventListener('mousedown', ()=>{
+  if(!running) return;
+  if(player.jumpsLeft > 0){
+    player.vy = JUMP_V;
+    player.jumpsLeft--;
+    spawnParticles(player.x + player.w*0.5, player.y + player.h, '#0ff', 18);
+  }
+});
+
+// start button
+startBtn.addEventListener('click', ()=>{
+  menu.style.display = 'none';
+  resetAll();
+  running = true;
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+});
+
+// collision helpers
+function rectsOverlap(a,b){
+  return !(a.x + a.w <= b.x || a.x >= b.x + b.w || a.y + a.h <= b.y || a.y >= b.y + b.h);
+}
+
+// main loop
+let lastPlatformEndX = 0;
+function loop(t){
+  const dt = Math.min(32, t - lastTime);
+  lastTime = t;
+
+  // update physics when running
+  if(running){
+    // accelerate faster:
+    player.speed += 0.08 * (dt/16.67); // scale with dt
+
+    player.prevY = player.y;
+    player.vy += GRAVITY * (dt/16.67);
+    player.y += player.vy * (dt/16.67);
+
+    // move forward (world coord)
+    player.x += player.speed * (dt/16.67);
+
+    // camera follow (smooth)
+    const targetCamX = player.x - canvas.width * 0.35;
+    const targetCamY = player.y - canvas.height * 0.45;
+    cameraX += (targetCamX - cameraX) * 0.12;
+    cameraY += (targetCamY - cameraY) * 0.12;
+
+    // spawn new clusters if needed
+    const lastPlat = platforms[platforms.length-1];
+    if(lastPlat && lastPlat.x < player.x + canvas.width + BLOCK*4){
+      lastPlatformEndX = generateCluster(lastPlat.x, lastPlat.y);
+    }
+
+    // platform collisions (landing)
+    let landed = false;
+    for(let p of platforms){
+      // only consider top-side landing: player was above previous frame and now intersects the top
+      if(player.prevY + player.h <= p.y && player.y + player.h >= p.y){
+        // horizontally overlap
+        if(player.x + player.w > p.x && player.x < p.x + p.w){
+          // land
+          player.y = p.y - player.h;
+          player.vy = 0;
+          player.jumpsLeft = 2;
+          landed = true;
+          spawnParticles(player.x + player.w*0.5, player.y + player.h, '#fff', 8);
+        }
+      }
+    }
+
+    // ground collision (floor)
+    if(player.y + player.h > GROUND_Y){
+      player.y = GROUND_Y - player.h;
+      player.vy = 0;
+      player.jumpsLeft = 2;
+      landed = true;
+    }
+
+    // passing score: when player passes the right edge of a platform block or spike/gem
+    for(let p of platforms){
+      if(!p.passed && player.x > p.x + p.w){
+        p.passed = true;
+        score += 1;
+      }
+    }
+    for(let s of spikes){
+      if(!s.passed && player.x > s.x + s.w){
+        s.passed = true;
+        score += 1;
+      }
+    }
+    // gem collection
+    for(let i=gems.length-1;i>=0;i--){
+      const g = gems[i];
+      const playerBox = { x: player.x, y: player.y, w: player.w, h: player.h };
+      const gemBox = { x: g.x, y: g.y, w: g.w, h: g.h };
+      if(rectsOverlap(playerBox, gemBox)){
+        // collected
+        spawnParticles(g.x + g.w*0.5, g.y + g.h*0.5, '#fff', 18);
+        score += 50;
+        gems.splice(i,1);
+      }
+    }
+
+    // spikes collision -> death (only if on ground or falling)
+    for(let s of spikes){
+      if(s.hit){
+        const hb = { x: player.x + player.w*0.18, y: player.y + player.h*0.18, w: player.w*0.64, h: player.h*0.64 };
+        const spikeBox = { x: s.x, y: s.y, w: s.w, h: s.h };
+        if(rectsOverlap(hb, spikeBox)){
+          // only lethal if on ground or falling
+          if(player.vy >= 0){
+            // death
+            deathRowY = Math.floor((player.y + player.h)/BLOCK) * BLOCK; // top of the row where died
+            deathRowTimer = 60; // frames to display
+            spawnCrashPieces(player.x, player.y);
+            player.visible = false;
+            player.vy = 0;
+            // stop the game visually; after a short delay show menu
+            setTimeout(()=> {
+              running = false;
+              menu.style.display = 'block';
+              if(score > best) { best = score; bestP.innerText = 'Best: ' + best; }
+            }, 800);
+            s.hit = false; // prevent repeated triggers
+            break;
+          }
+        }
+      }
+    }
+
+    // update particles & crash pieces
+    for(let i=particles.length-1;i>=0;i--){
+      particles[i].x += particles[i].vx * (dt/16.67);
+      particles[i].y += particles[i].vy * (dt/16.67);
+      particles[i].vy += 0.2;
+      particles[i].life -= 1;
+      if(particles[i].life <= 0) particles.splice(i,1);
+    }
+    for(let i=crashPieces.length-1;i>=0;i--){
+      crashPieces[i].x += crashPieces[i].vx * (dt/16.67);
+      crashPieces[i].y += crashPieces[i].vy * (dt/16.67);
+      crashPieces[i].vy += 0.6;
+      crashPieces[i].life -= 1;
+      if(crashPieces[i].life <= 0) crashPieces.splice(i,1);
+    }
+
+    // move horizontal lines with camera for nice motion
+    if(Math.random() < 0.02) lines.push({ x: player.x + canvas.width * 0.6, y: rand(20, canvas.height-40), len: rand(40, 240), speed: rand(6, 14) });
+    for(let i=lines.length-1;i>=0;i--){
+      lines[i].x -= lines[i].speed * (dt/16.67) * 1.2;
+      if(lines[i].x + lines[i].len < player.x - canvas.width) lines.splice(i,1);
+    }
+  }
+
+  // draw
+  drawFrame();
+
+  // death row timer reduce and draw handled in drawFrame
+  if(deathRowTimer > 0) deathRowTimer--;
+
+  requestAnimationFrame(loop);
+}
+
+function drawFrame(){
+  // background
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // convert world->screen helper
+  const sx = (wx) => Math.round(wx - cameraX);
+  const sy = (wy) => Math.round(wy - cameraY);
+
+  // draw far background subtle grid for depth
   ctx.save();
-  ctx.translate(player.x-camera.x,player.y-camera.y);
-
-  ctx.fillStyle="cyan";
-
-  if(playerAnim==="walk"){
-    // body
-    ctx.fillRect(-10,-20,20,20);
-    // legs alternating
-    if(Math.floor(animFrame/10)%2===0){
-      ctx.fillRect(-10,0,8,20);
-      ctx.fillRect(2,0,8,10);
-    }else{
-      ctx.fillRect(-10,0,8,10);
-      ctx.fillRect(2,0,8,20);
-    }
-    // head
-    ctx.fillStyle="white";
-    ctx.fillRect(-8,-32,16,12);
+  ctx.globalAlpha = 0.06;
+  ctx.fillStyle = '#0ff';
+  for(let gx = - (cameraX % (BLOCK*6)); gx < canvas.width; gx += BLOCK*6){
+    ctx.fillRect(gx, 0, 2, canvas.height);
   }
-  else if(playerAnim==="jump"){
-    ctx.fillRect(-10,-20,20,20);
-    ctx.fillRect(-6,0,12,12);
-    ctx.fillStyle="white";
-    ctx.fillRect(-8,-32,16,12);
-  }
-  else if(playerAnim==="doublejump"){
-    ctx.rotate(animFrame/5);
-    ctx.fillRect(-10,-20,20,20);
-    ctx.fillStyle="white";
-    ctx.fillRect(-8,-32,16,12);
-  }
-
   ctx.restore();
-}
 
-function drawPlatforms(){
-  ctx.fillStyle=platformColor;
-  platforms.forEach(p=>{
-    if(p.y<=groundY-2*blockSize || p.ground){ // not below ground+2
-      ctx.save();
-      if(!p.ground){
-        ctx.shadowColor=platformColor;
-        ctx.shadowBlur=20;
-      }
-      ctx.fillRect(p.x-camera.x,p.y-camera.y,p.w,p.h);
-      ctx.restore();
-    }
-  });
-}
+  // draw platforms (blocks)
+  for(let p of platforms){
+    // don't draw clusters below ground + 2 rows
+    if(p.y > GROUND_Y - 2*BLOCK) continue;
+    const rx = sx(p.x), ry = sy(p.y);
+    // simple textured fill: gradient
+    const g = ctx.createLinearGradient(rx, ry, rx + p.w, ry + p.h);
+    g.addColorStop(0, '#222');
+    g.addColorStop(1, '#111');
+    ctx.fillStyle = g;
+    ctx.fillRect(rx, ry, p.w, p.h);
+    // soft glow for top row
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.strokeRect(rx, ry, p.w, p.h);
+  }
 
-function drawStrikes(){
-  ctx.fillStyle="red";
-  strikes.forEach(s=>{
-    ctx.save();
-    ctx.shadowColor="red";
-    ctx.shadowBlur=15;
-    ctx.fillRect(s.x-camera.x,s.y-camera.y,s.w,s.h);
-    ctx.restore();
-  });
-}
+  // draw ground blocks (we also stored them in platforms with ground:true — draw them darker)
+  for(let p of platforms){
+    if(!p.ground) continue;
+    const rx = sx(p.x), ry = sy(p.y);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(rx, ry, p.w, p.h);
+    // spike outlines above ground drawn in spikes loop
+  }
 
-function drawGems(){
-  gems.forEach(g=>{
-    ctx.save();
-    ctx.translate(g.x-camera.x+g.w/2,g.y-camera.y+g.h/2);
-    ctx.rotate(Math.PI/4);
-    ctx.fillStyle="white";
-    ctx.shadowColor="white";
-    ctx.shadowBlur=20;
-    ctx.fillRect(-g.w/2,-g.h/2,g.w,g.h);
-    ctx.restore();
-  });
-}
-
-function drawTorches(){
-  torches.forEach(t=>{
-    ctx.save();
-    ctx.fillStyle="orange";
-    ctx.shadowColor="orange";
-    ctx.shadowBlur=30+Math.sin(Date.now()/100+t.x)*10;
-    ctx.fillRect(t.x-camera.x,t.y-camera.y,10,30);
-    ctx.restore();
-  });
-}
-
-function drawLines(){
-  ctx.strokeStyle="rgba(255,255,255,0.15)";
-  ctx.lineWidth=2;
-  lines.forEach(l=>{
+  // draw spikes
+  for(let s of spikes){
+    if(s.hit === false) continue; // disabled
+    const rx = sx(s.x), ry = sy(s.y);
+    ctx.fillStyle = '#c00';
     ctx.beginPath();
-    ctx.moveTo(l.x-camera.x,l.y-camera.y);
-    ctx.lineTo(l.x+canvas.width-camera.x,l.y-camera.y);
+    ctx.moveTo(rx, ry + s.h);
+    ctx.lineTo(rx + s.w/2, ry);
+    ctx.lineTo(rx + s.w, ry + s.h);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // draw gems
+  for(let g of gems){
+    const rx = sx(g.x + g.w*0.5), ry = sy(g.y + g.h*0.5);
+    ctx.save();
+    ctx.translate(rx, ry);
+    ctx.rotate(Math.PI/4);
+    ctx.fillStyle = '#fff';
+    ctx.shadowColor = '#fff';
+    ctx.shadowBlur = 18;
+    ctx.fillRect(-g.w*0.5, -g.h*0.5, g.w, g.h);
+    ctx.restore();
+  }
+
+  // draw horizontal motion lines (with blur)
+  for(let l of lines){
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sx(l.x), sy(l.y));
+    ctx.lineTo(sx(l.x + l.len), sy(l.y));
     ctx.stroke();
-  });
-}
-
-function update(){
-  if(gameStarted&&player.visible){
-    player.speed += 0.08;
-    animFrame++;
-
-    colorLerp+=0.001;
-    if(colorLerp>=1){
-      colorIndex=(colorIndex+1)%baseColors.length;
-      nextColor=baseColors[(colorIndex+1)%baseColors.length];
-      colorLerp=0;
-    }
-    platformColor=lerpColor(baseColors[colorIndex],nextColor,colorLerp);
-
-    player.y+=player.vy;
-    player.vy+=GRAVITY;
-    player.x+=player.speed;
-
-    camera.x=player.x-canvas.width/3;
-    camera.y=player.y-canvas.height/2.5;
-
-    if(platforms[platforms.length-1].x<player.x+canvas.width){
-      spawnPlatform();
-    }
-
-    let onGround=false;
-    platforms.forEach(p=>{
-      if(player.x+player.w/2>p.x&&player.x-player.w/2<p.x+p.w&&
-         player.y+player.h/2>p.y&&player.y+player.h/2<p.y+p.h){
-        player.y=p.y-player.h/2;
-        player.vy=0;
-        doubleJumpAvailable=true;
-        onGround=true;
-        score+=1;
-      }
-    });
-
-    if(onGround) playerAnim="walk";
-    else if(playerAnim!=="doublejump") playerAnim="jump";
-
-    strikes.forEach((s,i)=>{
-      if(player.x+player.w/2>s.x&&player.x-player.w/2<s.x+s.w&&
-         player.y+player.h/2>s.y&&player.y-player.h/2<s.y+s.h){
-        explodePlayer();
-      }
-      if(s.x+s.w<player.x){
-        score+=1; strikes.splice(i,1);
-      }
-    });
-
-    gems.forEach((g,i)=>{
-      if(player.x+player.w/2>g.x&&player.x-player.w/2<g.x+g.w&&
-         player.y+player.h/2>g.y&&player.y-player.h/2<g.y+g.h){
-        score+=50; explodeGem(g.x,g.y); gems.splice(i,1);
-      }
-    });
-
-    if(Math.random()<0.05){
-      lines.push({x:camera.x+canvas.width,y:Math.random()*canvas.height});
-    }
-    lines.forEach(l=>{l.x-=player.speed*2;});
-    lines=lines.filter(l=>l.x+canvas.width>camera.x);
-
-    particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life--;});
-    particles=particles.filter(p=>p.life>0);
+    // trailing blur line
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.beginPath();
+    ctx.moveTo(sx(l.x + 10), sy(l.y));
+    ctx.lineTo(sx(l.x + l.len + 10), sy(l.y));
+    ctx.stroke();
   }
-}
 
-function explodePlayer(){
-  player.visible=false;
-  for(let i=0;i<30;i++){
-    particles.push({x:player.x,y:player.y,
-      vx:(Math.random()-0.5)*10,vy:(Math.random()-0.5)*10,
-      life:60,color:"cyan"});
+  // draw player if visible (pixel-person cyan/white without outline)
+  if(player.visible){
+    const px = sx(player.x), py = sy(player.y);
+    // simple pixel-person body composed of rectangles
+    // head (white)
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(px + 10, py - 14, 16, 10);
+    // body (cyan)
+    ctx.fillStyle = '#00ffff';
+    ctx.fillRect(px + 10, py - 4, 16, 20);
+    // arms (cyan)
+    ctx.fillRect(px + 4, py - 2, 6, 12);
+    ctx.fillRect(px + 26, py - 2, 6, 12);
+    // legs (cyan)
+    ctx.fillRect(px + 10, py + 16, 6, 12);
+    ctx.fillRect(px + 20, py + 16, 6, 12);
   }
-  setTimeout(()=>{
-    document.getElementById("menu").style.display="block";
-    document.getElementById("scoreDisplay").textContent="Score: "+score;
-    if(score>bestScore)bestScore=score;
-    document.getElementById("bestScoreDisplay").textContent="Best Score: "+bestScore;
-    gameStarted=false;
-  },1000);
-}
 
-function explodeGem(x,y){
-  for(let i=0;i<15;i++){
-    particles.push({x,y,
-      vx:(Math.random()-0.5)*6,vy:(Math.random()-0.5)*6,
-      life:40,color:"white"});
+  // crash pieces
+  for(let c of crashPieces){
+    ctx.fillStyle = c.color;
+    ctx.fillRect(Math.round(sx(c.x)), Math.round(sy(c.y)), Math.round(c.size), Math.round(c.size));
   }
-}
 
-function drawParticles(){
-  particles.forEach(p=>{
-    ctx.fillStyle=p.color;
-    ctx.fillRect(p.x-camera.x,p.y-camera.y,4,4);
-  });
-}
-
-function lerpColor(a,b,t){
-  let ar=parseInt(a.substr(1,2),16);
-  let ag=parseInt(a.substr(3,2),16);
-  let ab=parseInt(a.substr(5,2),16);
-  let br=parseInt(b.substr(1,2),16);
-  let bg=parseInt(b.substr(3,2),16);
-  let bb=parseInt(b.substr(5,2),16);
-  let rr=Math.floor(ar+(br-ar)*t);
-  let rg=Math.floor(ag+(bg-ag)*t);
-  let rb=Math.floor(ab+(bb-ab)*t);
-  return `rgb(${rr},${rg},${rb})`;
-}
-
-function draw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  drawLines();
-  drawPlatforms();
-  drawStrikes();
-  drawGems();
-  drawTorches();
-  drawPlayer();
-  drawParticles();
-  requestAnimationFrame(draw);
-}
-
-document.getElementById("startBtn").onclick=()=>{
-  document.getElementById("menu").style.display="none";
-  resetGame();
-  gameStarted=true;
-};
-
-document.addEventListener("keydown",e=>{
-  if(!gameStarted||!player.visible)return;
-  if(e.code==="Space"||e.code==="ArrowUp"||e.code==="KeyW"){
-    if(player.vy===0){
-      player.vy=JUMP; playerAnim="jump"; doubleJumpAvailable=true;
-    }else if(doubleJumpAvailable){
-      player.vy=JUMP; playerAnim="doublejump"; doubleJumpAvailable=false;
-    }
+  // particles
+  for(let p of particles){
+    ctx.fillStyle = p.color;
+    ctx.fillRect(Math.round(sx(p.x)), Math.round(sy(p.y)), 4, 4);
   }
-});
-document.addEventListener("click",()=>{
-  if(!gameStarted||!player.visible)return;
-  if(player.vy===0){
-    player.vy=JUMP; playerAnim="jump"; doubleJumpAvailable=true;
-  }else if(doubleJumpAvailable){
-    player.vy=JUMP; playerAnim="doublejump"; doubleJumpAvailable=false;
-  }
-});
 
-function gameLoop(){update();setTimeout(gameLoop,1000/60);}
-gameLoop();
-draw();
+  // death-row outline: full-width white rectangle across the world row
+  if(deathRowTimer > 0 && deathRowY !== null){
+    ctx.save();
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 4;
+    // row top (world coord) -> screen
+    const ry = sy(deathRowY);
+    ctx.beginPath();
+    ctx.moveTo(0, ry);
+    ctx.lineTo(canvas.width, ry);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // HUD: score
+  ctx.fillStyle = '#fff';
+  ctx.font = '20px system-ui, Arial';
+  ctx.fillText('Score: ' + score, 22, 34);
+  ctx.fillText('Best: ' + best, 22, 62);
+}
+
+// expose small helper to ensure initial generation exists
+function ensureInitial(){
+  if(platforms.length === 0) resetAll();
+}
+
+// safety ensure
+ensureInitial();
+
 </script>
 </body>
 </html>
