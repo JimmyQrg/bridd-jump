@@ -148,7 +148,7 @@ function showStartScreen(){
 function hideStartScreen(){document.getElementById("startScreen").style.display="none";}
 
 // Horizontal lines
-function addLine(){ lines.push({x:canvas.width, y:Math.random()*canvas.height, width:canvas.width, speed:Math.random()*5+2}); }
+function addLine(){ lines.push({x:canvas.width, y:Math.random()*canvas.height, width:canvas.width, speed:(Math.random()*5+2)*5}); }
 
 function update(time){
     let delta=(time-lastTime)/1000; lastTime=time;
@@ -158,9 +158,9 @@ function update(time){
         // Speed increase
         player.speed+=0.0015;
 
-        // Update platform color slowly
+        // Update platform color 10x slower
         colorTimer+=delta;
-        if(colorTimer>=0.1){
+        if(colorTimer>=1){ // 0.1 *10 = 1
             rainbowIndex=(rainbowIndex+1)%rainbowColors.length;
             platformColor=rainbowColors[rainbowIndex];
             platforms.forEach(p=>p.color=platformColor);
