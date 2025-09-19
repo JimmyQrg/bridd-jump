@@ -45,7 +45,7 @@ let keys={}, score=0, bestScore=0, lastTime=0, gameStarted=false, animationId=nu
 let crashPieces=[], particles=[];
 let rainbowColors=["#ff0000","#ff9900","#ffff00","#00ff00","#00ffff","#0000ff","#9900ff"]; 
 let rainbowIndex=0, colorTimer=0, platformColor=rainbowColors[0];
-let scoreTimer=0;
+let scoreTimer=0, globalTime=0;
 
 let player={
     x:100, y:0, width:50, height:50,
@@ -72,7 +72,7 @@ function jump(){
 function resetGame(){
     if(animationId) cancelAnimationFrame(animationId);
 
-    score=0; scoreTimer=0; colorTimer=0;
+    score=0; scoreTimer=0; colorTimer=0; globalTime=0;
     player.x=100; 
     player.y=canvas.height/2-player.height; 
     player.vy=0; 
@@ -103,7 +103,7 @@ function generateBlockPlatform(lastX,lastY){
 
     for(let i=0;i<blockCount;i++){
         platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:platformColor});
-        if(Math.random()<0.05) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6});
+        if(Math.random()<0.05) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6, baseY:y-BLOCK_SIZE+BLOCK_SIZE*0.2});
     }
     return {x:x+blockCount*BLOCK_SIZE,y};
 }
@@ -152,6 +152,7 @@ function addLine(){ lines.push({x:canvas.width, y:Math.random()*canvas.height, w
 
 function update(time){
     let delta=(time-lastTime)/1000; lastTime=time;
+    globalTime+=delta;
 
     if(gameStarted){
         // Speed increase
@@ -189,16 +190,16 @@ function update(time){
         // Generate platforms when entering screen
         let lastPlatform = platforms[platforms.length-1];
         if(lastPlatform.x < player.x + canvas.width){
-            let res = generateBlockPlatform(lastPlatform.x, lastPlatform.y);
+            generateBlockPlatform(lastPlatform.x, lastPlatform.y);
         }
 
         // Add horizontal lines
         if(Math.random()<0.05) addLine();
     }
 
-    // Smooth camera
+    // Smooth camera: player slightly below center
     const targetCamX=player.x-150;
-    const targetCamY=player.y-150+100; // slightly down
+    const targetCamY=player.y - canvas.height/2 + player.height*1.5; // slightly below middle
     cameraX = (typeof cameraX!=='undefined'?cameraX:targetCamX)*0.9 + targetCamX*0.1;
     cameraY = (typeof cameraY!=='undefined'?cameraY:targetCamY)*0.9 + targetCamY*0.1;
 
@@ -208,21 +209,22 @@ function update(time){
     ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
     ctx.fillText(score,20,50);
 
-    // Draw platforms
+    // Draw platforms with pulsing glow
     for(let plat of platforms){
-        ctx.shadowColor=plat.color;
-        ctx.shadowBlur=20;
+        let glow = Math.sin(globalTime*3)*10 + 15;
+        ctx.shadowColor=plat.color; ctx.shadowBlur=glow;
         ctx.fillStyle=plat.color;
         ctx.fillRect(plat.x-cameraX,plat.y-cameraY,plat.width,plat.height);
         ctx.shadowBlur=0;
     }
 
-    // Draw spikes (red triangles)
+    // Draw spikes (pulsating)
     for(let spike of spikes){
+        let pulse = Math.sin(globalTime*5 + spike.x)*5;
         ctx.fillStyle="red"; ctx.beginPath();
-        ctx.moveTo(spike.x-cameraX,spike.y+spike.height-cameraY);
-        ctx.lineTo(spike.x-cameraX+spike.width/2,spike.y-cameraY);
-        ctx.lineTo(spike.x-cameraX+spike.width,spike.y+spike.height-cameraY);
+        ctx.moveTo(spike.x-cameraX,spike.baseY+spike.height-cameraY+pulse);
+        ctx.lineTo(spike.x-cameraX+spike.width/2,spike.baseY-cameraY+pulse);
+        ctx.lineTo(spike.x-cameraX+spike.width,spike.baseY+spike.height-cameraY+pulse);
         ctx.closePath(); ctx.fill();
         if(checkSpikeCollision(spike)) tryDie();
     }
@@ -230,7 +232,7 @@ function update(time){
     // Player
     ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
     ctx.fillStyle=player.color; ctx.fillRect(player.x-cameraX,player.y-cameraY,player.width,player.height);
-    ctx.strokeStyle="#fff"; ctx.lineWidth=4;
+    ctx.strokeStyle="#fff"; ctx.lineWidth=6;
     ctx.strokeRect(player.x-cameraX,player.y-cameraY,player.width,player.height);
     ctx.shadowBlur=0;
 
