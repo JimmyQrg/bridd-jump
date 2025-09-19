@@ -44,11 +44,13 @@ const GRAVITY=0.7;
 let keys={}, score=0, bestScore=0, lastTime=0, gameStarted=false, animationId=null;
 let crashPieces=[], particles=[];
 let rainbowColors=["#ff0000","#ff9900","#ffff00","#00ff00","#00ffff","#0000ff","#9900ff"]; 
-let rainbowIndex=0; let blocksPerColor=0;
+let rainbowIndex=0, blocksPerColor=0;
+
+let scoreTimer=0;
 
 let player={
     x:100, y:0, width:50, height:50,
-    color:"#0ff", vy:0, speed:5,
+    color:"#0ff", vy:0, speed:8, // start faster
     hitboxScale:0.6, jumpsLeft:1, onGround:false
 };
 
@@ -71,11 +73,11 @@ function jump(){
 function resetGame(){
     if(animationId) cancelAnimationFrame(animationId);
 
-    score=0;
+    score=0; scoreTimer=0;
     player.x=100; 
     player.y=canvas.height/2-player.height; 
     player.vy=0; 
-    player.speed=5;
+    player.speed=8; // reset to faster start
     player.jumpsLeft=1; 
     player.onGround=false;
 
@@ -167,16 +169,22 @@ function hideStartScreen(){document.getElementById("startScreen").style.display=
 function update(time){
     let delta=(time-lastTime)/1000; lastTime=time;
 
-    if(gameStarted) player.speed+=0.0001;
+    if(gameStarted) player.speed+=0.001; // increase speed faster
 
     let camX=player.x-150;
     let camY=player.y-150;
 
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // Score
+    // Score increment every 0.05 seconds
+    if(gameStarted){
+        scoreTimer+=delta;
+        if(scoreTimer>=0.05){ score+=1; scoreTimer=0; }
+    }
+
+    // Score display
     ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
-    ctx.fillText(Math.floor(score),20,50);
+    ctx.fillText(score,20,50);
 
     if(gameStarted){
         player.y+=player.vy; player.vy+=GRAVITY;
@@ -221,8 +229,6 @@ function update(time){
 
         let last=platforms[platforms.length-1];
         if(last.x<player.x+canvas.width) generateBlockPlatform(last.x,last.y);
-
-        score+=delta*100;
     }
 
     // Crash pieces
