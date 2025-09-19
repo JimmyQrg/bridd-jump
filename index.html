@@ -42,13 +42,13 @@ const JUMP_SPEED=-15;
 const GRAVITY=0.7;
 
 let keys={}, score=0, bestScore=0, lastTime=0, gameStarted=false, shakeIntensity=0, animationId=null;
-let crashPieces=[];
+let crashPieces=[], particles=[];
 
 // Player
 let player={
     x:100, y:0, width:50, height:50,
     color:"#0ff", vy:0, speed:5,
-    hitboxScale:0.6, jumpsLeft:1
+    hitboxScale:0.6, jumpsLeft:1, onGround:false
 };
 
 // Effects
@@ -67,6 +67,7 @@ window.addEventListener("touchstart", ()=>jump());
 function jump(){
     if(player.jumpsLeft>0){
         player.vy=JUMP_SPEED;
+        spawnParticles(player.x+player.width/2, player.y+player.height, player.jumpsLeft===2?"jump":"double");
         player.jumpsLeft--;
     }
 }
@@ -74,8 +75,8 @@ function jump(){
 // Reset game
 function resetGame(){
     score=0;
-    player.x=100; player.y=canvas.height/2-player.height; player.vy=0; player.speed=5; player.jumpsLeft=1;
-    platforms=[]; spikes=[]; whiteLines=[]; crashPieces=[];
+    player.x=100; player.y=canvas.height/2-player.height; player.vy=0; player.speed=5; player.jumpsLeft=1; player.onGround=false;
+    platforms=[]; spikes=[]; whiteLines=[]; crashPieces=[]; particles=[];
     platforms.push({x:0,y:player.y+player.height,width:canvas.width/2,height:BLOCK_SIZE,value:5});
     generateBlockPlatform(canvas.width/2,player.y+player.height);
     lastTime=performance.now();
@@ -109,19 +110,17 @@ function checkSpikeCollision(spike){
 // Draw highway-style bridges
 function drawBridges(camX){
     for(let plat of platforms){
-        // Vertical supports
         ctx.strokeStyle="#fff"; ctx.lineWidth=4;
         let supportCount=Math.floor(plat.width/BLOCK_SIZE);
         for(let i=0;i<=supportCount;i++){
             let sx=plat.x+i*BLOCK_SIZE - camX;
             let sy=plat.y+plat.height;
-            let groundY=canvas.height-10; // fake ground
+            let groundY=canvas.height-10;
             ctx.beginPath();
             ctx.moveTo(sx, sy);
             ctx.lineTo(sx, groundY);
             ctx.stroke();
         }
-        // Bridge deck (top line connecting supports)
         ctx.beginPath();
         ctx.moveTo(plat.x-camX, plat.y+plat.height);
         ctx.lineTo(plat.x+plat.width-camX, plat.y+plat.height);
@@ -144,22 +143,25 @@ function createCrash(){
     }
 }
 
-// Die
-function die(){
-    createCrash();
-    gameStarted=false;
+// Spawn particles for jump/double jump/land
+function spawnParticles(x,y,type){
+    const color = type==="jump"?"#0ff":type==="double"?"#ff0":"#fff";
+    for(let i=0;i<15;i++){
+        particles.push({
+            x,y,
+            vx:(Math.random()-0.5)*5,
+            vy:(Math.random()-1.5)*5,
+            life:Math.random()*30+20,
+            color
+        });
+    }
 }
-
-// UI
-function showStartScreen(){document.getElementById("startScreen").style.display="flex";}
-function hideStartScreen(){document.getElementById("startScreen").style.display="none";}
 
 // Draw combined outline of platforms+bridges
 function drawCombinedOutline(camX){
     let points=[];
     platforms.forEach(p=>{
         points.push([p.x-camX,p.y],[p.x+BLOCK_SIZE-camX,p.y],[p.x+BLOCK_SIZE-camX,p.y+p.height],[p.x-camX,p.y+p.height]);
-        // Add supports bottom
         let supportCount=Math.floor(p.width/BLOCK_SIZE);
         for(let i=0;i<=supportCount;i++){
             let sx=p.x+i*BLOCK_SIZE-camX, sy=p.y+p.height;
@@ -167,7 +169,6 @@ function drawCombinedOutline(camX){
             points.push([sx,groundY]);
         }
     });
-    // Convex hull algorithm
     if(points.length<3) return;
     points.sort((a,b)=>a[0]-b[0] || a[1]-b[1]);
     let hull=[];
@@ -187,6 +188,18 @@ function drawCombinedOutline(camX){
     ctx.closePath(); ctx.stroke();
 }
 
+// Die (only if on ground or falling)
+function tryDie(){
+    if(player.onGround || player.vy>0) {
+        createCrash();
+        gameStarted=false;
+    }
+}
+
+// UI
+function showStartScreen(){document.getElementById("startScreen").style.display="flex";}
+function hideStartScreen(){document.getElementById("startScreen").style.display="none";}
+
 // Main loop
 function update(time){
     let delta=(time-lastTime)/1000; lastTime=time;
@@ -198,20 +211,23 @@ function update(time){
     ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
     ctx.fillStyle="#fff"; ctx.font="40px sans-serif"; ctx.fillText(Math.floor(score),20,50); ctx.shadowBlur=0;
 
-    // Player alive
     if(gameStarted){
         player.y+=player.vy; player.vy+=GRAVITY;
         player.x+=player.speed; player.speed+=0.00005;
 
         // Platform collision
-        let onGround=false;
+        player.onGround=false;
         for(let plat of platforms){
             if(player.x+player.width>plat.x && player.x<plat.x+plat.width &&
                player.y+player.height>plat.y && player.y+player.height<plat.y+plat.height+player.vy){
-                player.y=plat.y-player.height; player.vy=0; onGround=true; player.jumpsLeft=2;
+                if(player.vy>=0){
+                    player.y=plat.y-player.height; player.vy=0; player.onGround=true; player.jumpsLeft=2;
+                    spawnParticles(player.x+player.width/2, player.y+player.height, "land");
+                }
             }
         }
-        if(!onGround && player.y>canvas.height) {player.jumpsLeft=1; die();}
+
+        if(player.y>canvas.height) {player.jumpsLeft=1; tryDie();}
 
         // Draw platforms
         for(let plat of platforms){
@@ -219,10 +235,8 @@ function update(time){
             ctx.fillRect(plat.x-camX,plat.y,plat.width,plat.height);
         }
 
-        // Draw bridges
+        // Bridges + outlines
         drawBridges(camX);
-
-        // Draw combined outline
         drawCombinedOutline(camX);
 
         // Spikes
@@ -232,7 +246,7 @@ function update(time){
             ctx.lineTo(spike.x-camX+spike.width/2,spike.y);
             ctx.lineTo(spike.x-camX+spike.width,spike.y+spike.height);
             ctx.closePath(); ctx.fill();
-            if(checkSpikeCollision(spike)) die();
+            if(checkSpikeCollision(spike)) tryDie();
         }
 
         // Draw player
@@ -256,6 +270,14 @@ function update(time){
         p.x+=p.vx; p.y+=p.vy;
         ctx.fillStyle=p.color; ctx.fillRect(p.x-camX,p.y,p.size,p.size);
         if(p.y>canvas.height) crashPieces.splice(i,1);
+    }
+
+    // Particles
+    for(let i=particles.length-1;i>=0;i--){
+        let p=particles[i];
+        p.x+=p.vx; p.y+=p.vy; p.life--;
+        ctx.fillStyle=p.color; ctx.globalAlpha=p.life/50; ctx.fillRect(p.x-camX,p.y,5,5); ctx.globalAlpha=1;
+        if(p.life<=0) particles.splice(i,1);
     }
 
     // After crash finished, show menu
