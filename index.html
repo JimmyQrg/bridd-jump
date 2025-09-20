@@ -360,7 +360,345 @@ function update(){
   animationFrameId=requestAnimationFrame(update);
 }
 
-resetGame();
-</script>
-</body>
-</html>
+let canvas = document.getElementById("gameCanvas");
+let ctx = canvas.getContext("2d");
+canvas.width = 1280;
+canvas.height = 720;
+
+let keys = {};
+let gameRunning = false;
+let gameFrozen = false;
+let score = 0;
+let scoreFrozen = false;
+let playerSpeed = 6;
+let baseSpeed = 6;
+let gravity = 0.7;
+let jumpStrength = -12;
+
+let platforms = [];
+let spikes = [];
+let gems = [];
+let particles = [];
+let crashPieces = [];
+let shapes = [];
+let lines = [];
+
+// Player
+let player = {
+    x: 200,
+    y: 200,
+    width: 40,
+    height: 40,
+    vx: 0,
+    vy: 0,
+    grounded: false,
+    alive: true
+};
+
+// Key listeners
+document.addEventListener("keydown", e => {
+    keys[e.code] = true;
+    if (e.code === "Enter" && !gameRunning) {
+        startGame();
+    }
+});
+document.addEventListener("keyup", e => {
+    keys[e.code] = false;
+});
+function startGame() {
+    gameRunning = true;
+    gameFrozen = false;
+    score = 0;
+    playerSpeed = baseSpeed;
+    player.x = 200;
+    player.y = 200;
+    player.vy = 0;
+    player.alive = true;
+
+    platforms = [];
+    spikes = [];
+    gems = [];
+    particles = [];
+    crashPieces = [];
+    shapes = [];
+    lines = [];
+
+    generateBlockPlatform(100, 600, 6); // Starting platform
+}
+
+function resetGame() {
+    gameRunning = false;
+    startGame();
+}
+function generateBlockPlatform(x, y, length) {
+    let platform = {
+        x,
+        y,
+        length,
+        blocks: [],
+        pressed: false
+    };
+
+    for (let i = 0; i < length; i++) {
+        platform.blocks.push({ offsetX: i * 50 });
+    }
+
+    platforms.push(platform);
+
+    // chance to spawn decorative shapes
+    if (length >= 4 && Math.random() < 0.4) {
+        shapes.push({
+            x: x + (length * 25),
+            y: y - 50,
+            size: 30 + Math.random() * 20,
+            rotation: Math.random() * Math.PI,
+            glow: 0.4 + Math.random() * 0.6
+        });
+    }
+
+    // chance to spawn spikes
+    if (Math.random() < 0.3) {
+        spikes.push({ x: x + Math.random() * length * 50, y: y - 20 });
+    }
+
+    // chance to spawn gems
+    let gemCount = Math.floor(Math.random() * 2) + 1;
+    for (let i = 0; i < gemCount; i++) {
+        gems.push({
+            x: x + 20 + Math.random() * (length * 50 - 40),
+            y: y - (Math.random() < 0.5 ? 60 : 120),
+            vy: 0.6,
+            glow: 1
+        });
+    }
+}
+function checkPlatformCollision(player, platform) {
+    for (let block of platform.blocks) {
+        let bx = platform.x + block.offsetX;
+        let by = platform.y;
+        if (
+            player.x < bx + 50 &&
+            player.x + player.width > bx &&
+            player.y + player.height < by + 20 &&
+            player.y + player.height > by - 10 &&
+            player.vy >= 0
+        ) {
+            player.grounded = true;
+            player.vy = 0;
+            player.y = by - player.height;
+
+            platform.pressed = true;
+            return true;
+        }
+    }
+    return false;
+}
+
+function checkSpikeCollision(player, spike) {
+    return (
+        player.x < spike.x + 30 &&
+        player.x + player.width > spike.x &&
+        player.y < spike.y + 30 &&
+        player.y + player.height > spike.y
+    );
+}
+
+function tryDie() {
+    player.alive = false;
+    createCrash(player.x, player.y);
+    resetGame();
+}
+function spawnParticles(x, y, color, amount, glowSize = 1) {
+    for (let i = 0; i < amount; i++) {
+        particles.push({
+            x,
+            y,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 1) * 6,
+            life: 60,
+            color,
+            glow: glowSize
+        });
+    }
+}
+
+function createCrash(x, y) {
+    for (let i = 0; i < 15; i++) {
+        crashPieces.push({
+            x,
+            y,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 50
+        });
+    }
+}
+
+function addLine(x, y) {
+    lines.push({ x, y, alpha: 1 });
+}
+function update() {
+    if (!gameRunning || gameFrozen) return;
+
+    // Speed increases over time
+    playerSpeed += 0.002;
+
+    // Player physics
+    player.vy += gravity;
+    player.y += player.vy;
+    player.x += playerSpeed * 0.1;
+
+    player.grounded = false;
+    for (let p of platforms) {
+        if (checkPlatformCollision(player, p)) break;
+    }
+
+    // Spikes
+    for (let s of spikes) {
+        if (checkSpikeCollision(player, s)) tryDie();
+    }
+
+    // Gems
+    for (let g of gems) {
+        g.y += Math.sin(Date.now() / 300) * 0.3;
+        if (
+            player.x < g.x + 20 &&
+            player.x + player.width > g.x &&
+            player.y < g.y + 20 &&
+            player.y + player.height > g.y
+        ) {
+            score += 10;
+            spawnParticles(g.x, g.y, "cyan", 20, 2.5);
+            gems.splice(gems.indexOf(g), 1);
+        }
+    }
+
+    // Particles
+    particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        p.glow *= 0.95;
+    });
+    particles = particles.filter(p => p.life > 0);
+
+    // Crash pieces
+    crashPieces.forEach(c => {
+        c.x += c.vx;
+        c.y += c.vy;
+        c.life--;
+    });
+    crashPieces = crashPieces.filter(c => c.life > 0);
+}
+function render() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Platforms
+    ctx.fillStyle = "green";
+    for (let p of platforms) {
+        for (let block of p.blocks) {
+            ctx.fillRect(p.x + block.offsetX, p.y, 50, 20);
+        }
+    }
+
+    // Spikes
+    ctx.fillStyle = "red";
+    for (let s of spikes) {
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y + 30);
+        ctx.lineTo(s.x + 15, s.y);
+        ctx.lineTo(s.x + 30, s.y + 30);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // Gems
+    ctx.fillStyle = "cyan";
+    for (let g of gems) {
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "cyan";
+        ctx.beginPath();
+        ctx.arc(g.x, g.y, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+
+    // Particles
+    for (let p of particles) {
+        ctx.shadowBlur = 10 * p.glow;
+        ctx.shadowColor = p.color;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, 4, 4);
+        ctx.shadowBlur = 0;
+    }
+
+    // Player
+    if (player.alive) {
+        ctx.fillStyle = "white";
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+    }
+
+    // Score
+    ctx.fillStyle = "white";
+    ctx.font = "24px Arial";
+    ctx.fillText("Score: " + score, 20, 40);
+}
+function handleCommand(input) {
+    let args = input.trim().split(" ");
+    let cmd = args.shift();
+
+    if (cmd === "/gamerule") {
+        let sub = args.shift();
+        if (sub === "speed") {
+            if (args[0] === "set") playerSpeed = parseFloat(args[1]);
+        } else if (sub === "score") {
+            let action = args.shift();
+            if (action === "add") score += parseInt(args[0]);
+            if (action === "set") score = parseInt(args[0]);
+            if (action === "reset") score = 0;
+            if (action === "freeze") scoreFrozen = !scoreFrozen;
+            if (action === "function" && args[0] === "+=") {
+                playerSpeed += parseFloat(args[1]);
+            }
+        }
+    }
+
+    if (cmd === "/control") {
+        if (args[0] === "freeze") gameFrozen = true;
+        if (args[0] === "unfreeze") gameFrozen = false;
+    }
+
+    if (cmd === "/code" && args[0] === "lanseyaoji") {
+        playerSpeed = 10;
+    }
+}
+// Prevent Ctrl+Shift+A (override Chrome default)
+document.addEventListener("keydown", e => {
+    if (e.ctrlKey && e.shiftKey && e.code === "KeyA") {
+        e.preventDefault();
+        alert("Custom Ctrl+Shift+A pressed!");
+    }
+});
+function gameLoop() {
+    update();
+    render();
+    requestAnimationFrame(gameLoop);
+}
+gameLoop();
+// Simple input box for commands
+let inputBox = document.createElement("input");
+inputBox.type = "text";
+inputBox.placeholder = "Enter command...";
+inputBox.style.position = "absolute";
+inputBox.style.bottom = "10px";
+inputBox.style.left = "10px";
+inputBox.style.width = "300px";
+document.body.appendChild(inputBox);
+
+inputBox.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+        handleCommand(inputBox.value);
+        inputBox.value = "";
+    }
+});
