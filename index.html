@@ -2,314 +2,365 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Neon Runner Grid</title>
+<title>Bridd Jump</title>
 <style>
-  body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
-  canvas { display:block; }
-  #ui { position:absolute; top:0; left:0; width:100%; text-align:center; pointer-events:none; }
-  #startScreen {
-    position:absolute; top:0; left:0; width:100%; height:100%;
-    background:rgba(0,0,0,0.95); display:flex; flex-direction:column; justify-content:center; align-items:center;
-    pointer-events:all; font-size:30px; color:#0ff; text-shadow:0 0 20px #0ff;
+  body { margin:0; background:black; overflow:hidden; }
+  canvas { display:block; margin:0 auto; background:#111; }
+  #commandOverlay {
+    position: fixed;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.9);
+    border: 2px solid #0f0;
+    padding: 20px;
+    z-index: 9999;
+    display: none;
   }
-  button { font-size:32px; padding:15px 40px; cursor:pointer; margin-top:30px; color:#0ff; background:black; border:3px solid #0ff; border-radius:12px; transition:0.3s; }
-  button:hover { color:black; background:#0ff; }
-  h1 { font-size:70px; margin-bottom:20px; text-shadow: 0 0 20px #0ff, 0 0 40px #0ff, 0 0 60px #0ff; animation: glow 1.5s infinite alternate; }
-  @keyframes glow { 0% { text-shadow:0 0 10px #0ff,0 0 20px #0ff;} 100% {text-shadow:0 0 40px #0ff,0 0 80px #0ff;} }
+  #commandInput {
+    width: 400px;
+    font-size: 18px;
+    padding: 5px;
+    background:black;
+    color:#0f0;
+    border:1px solid #0f0;
+  }
 </style>
 </head>
 <body>
-<canvas id="gameCanvas"></canvas>
-<div id="ui">
-  <div id="startScreen">
-    <h1>NEON RUNNER</h1>
-    <div id="bestScore">Best Score: 0</div>
-    <button id="startBtn">START</button>
-  </div>
+<canvas id="gameCanvas" width="960" height="540"></canvas>
+<div id="commandOverlay">
+  <input type="text" id="commandInput" placeholder="Enter command here...">
 </div>
-
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
 
-const BLOCK_SIZE = 50;
-let gravity = 0.7;
-let keys = {};
+// ==== GLOBALS ====
 let score = 0;
-let bestScore = 0;
-let lastTime = 0;
+let freezeScore = false;
+let scoreFunctionMultiplier = 1;
+let globalTime = 0;
+let animationFrameId = null;
 let gameStarted = false;
-let shakeIntensity = 0;
+let testMode = false;
+let floatEnabled = false;
+let infiniteJump = false;
+let doubleJumpEnabled = true;
+let playerDead = false;
+let invincible = false;
 
-// Player
-let player = {
-    x: 100, y: 0, width: 50, height: 50,
-    color: "#0ff", vy: 0, speed: 5, trail: [],
-    glow: true, hitboxScale: 0.6
-};
+// SPEED
+let speedMultiplierH = 1;
+let speedMultiplierV = 1;
+let baseSpeed = 8;
 
-// Effects
+// ARRAYS
 let platforms = [];
 let spikes = [];
+let crashPieces = [];
 let particles = [];
-let backgroundParticles = [];
-let whiteLines = [];
+let gems = [];
+let lines = [];
+let decorations = [];
 
-// Key and click handling
-window.addEventListener("keydown", (e) => keys[e.code] = true);
-window.addEventListener("keyup", (e) => keys[e.code] = false);
-window.addEventListener("mousedown", ()=> jump());
-window.addEventListener("touchstart", ()=> jump());
+// COLORS
+const baseColors = [
+  {r:0,g:200,b:255},
+  {r:200,g:0,b:255},
+  {r:255,g:200,b:0}
+];
+let colorIndex = 0;
+let platformColor = {...baseColors[0]};
+let nextColor = baseColors[1];
+let colorLerp = 0;
 
-// Jump function
-function jump(){
-    if(player.vy === 0){
-        player.vy = -15;
-        for(let i=0;i<10;i++){ createTrail(player.x+player.width/2,player.y+player.height,"#0ff"); }
-    }
+// PLAYER
+const player = {
+  x:100,
+  y:200,
+  width:40,
+  height:40,
+  vy:0,
+  jumpsLeft:2,
+  onGround:false,
+  visible:true,
+  speed: baseSpeed
+};
+
+let lastPlatformX = 0;
+let lastPlatformY = 400;
+let BLOCK_SIZE = 40;
+
+// ==== INPUT ====
+const keys = {};
+document.addEventListener("keydown", e => {
+  keys[e.code] = true;
+
+  // test mode toggles
+  if(testMode){
+    if(e.code==="KeyG") floatEnabled = !floatEnabled;
+    if(e.code==="KeyJ") infiniteJump = !infiniteJump;
+    if(e.code==="KeyF") doubleJumpEnabled = !doubleJumpEnabled;
+    if(e.code==="KeyQ") speedMultiplierH *= 0.8;
+    if(e.code==="KeyE") speedMultiplierH *= 1.2;
+    if(e.code==="Digit1") speedMultiplierV *= 1.2;
+    if(e.code==="Digit2") speedMultiplierV *= 0.8;
+    if(e.code==="Digit0"){speedMultiplierH=1; speedMultiplierV=1;}
+  }
+});
+document.addEventListener("keyup", e => { keys[e.code] = false; });
+
+// ==== COMMAND OVERLAY ====
+const commandOverlay = document.getElementById("commandOverlay");
+const commandInput = document.getElementById("commandInput");
+
+let overlayOpen = false;
+
+function toggleOverlay(open){
+  overlayOpen = open;
+  commandOverlay.style.display = open ? "block":"none";
+  if(open) commandInput.focus();
 }
 
-// Background particles
-for(let i=0;i<200;i++){
-    backgroundParticles.push({
-        x:Math.random()*canvas.width,
-        y:Math.random()*canvas.height,
-        size:Math.random()*2+1,
-        alpha:Math.random()*0.5+0.1
-    });
-}
-
-// White horizontal lines moving left
-for(let i=0;i<50;i++){
-    whiteLines.push({
-        x: canvas.width + Math.random()*500,
-        y: Math.random()*canvas.height,
-        speed: Math.random()*8+2,
-        length: Math.random()*200+50,
-        alpha: Math.random()*0.3+0.1
-    });
-}
-
-// Particle creation
-function createExplosion(x, y, color, amount=50){
-    for(let i=0;i<amount;i++){
-        particles.push({
-            x:x, y:y,
-            vx:(Math.random()-0.5)*15,
-            vy:(Math.random()-0.5)*15-2,
-            size:Math.random()*6+2,
-            color:color,
-            alpha:1
-        });
-    }
-}
-function createTrail(x,y,color){
-    player.trail.push({x,y,color,alpha:1,size:Math.random()*6+4});
-}
-
-// Generate grid-based platform
-function generateBlockPlatform(lastX, lastY){
-    let blockCount = Math.floor(Math.random()*5+2); // 2–6 blocks
-    let x = lastX + Math.floor(Math.random()*3+2) * BLOCK_SIZE;
-    let y = lastY + (Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
-    y = Math.max(BLOCK_SIZE, Math.min(canvas.height - 3*BLOCK_SIZE, y));
-
-    for(let i=0;i<blockCount;i++){
-        platforms.push({
-            x: x + i*BLOCK_SIZE,
-            y: y,
-            width: BLOCK_SIZE,
-            height: BLOCK_SIZE,
-            color: `hsl(${Math.random()*360},100%,50%)`
-        });
-
-        // Lowered chance for spike
-        if(Math.random() < 0.1){
-            spikes.push({
-                x: x + i*BLOCK_SIZE,
-                y: y - BLOCK_SIZE,
-                width: BLOCK_SIZE,
-                height: BLOCK_SIZE
-            });
-        }
-    }
-    return {x: x + blockCount*BLOCK_SIZE, y};
-}
-
-// Reset game
-function resetGame(){
-    score = 0;
-    player.x = 100; 
-    player.y = canvas.height/2 - player.height; 
-    player.vy = 0; 
-    player.speed = 5; 
-    player.trail = [];
-    platforms = [];
-    spikes = [];
-    particles = [];
-    
-    // Initial ground under player
-    platforms.push({
-        x: 0,
-        y: player.y + player.height,
-        width: canvas.width,
-        height: BLOCK_SIZE,
-        color: "#0ff"
-    });
-
-    lastPlatform = generateBlockPlatform(canvas.width, player.y);
-}
-
-// Death
-function die(){
-    createExplosion(player.x+player.width/2, player.y+player.height/2,"#0ff",150);
-    shakeIntensity=15;
-    if(score>bestScore) bestScore=Math.floor(score);
-    document.getElementById("bestScore").innerText = "Best Score: "+bestScore;
-    showStartScreen();
-    gameStarted=false;
-}
-
-// UI
-function showStartScreen(){ document.getElementById("startScreen").style.display="flex"; }
-function hideStartScreen(){ document.getElementById("startScreen").style.display="none"; }
-
-// Spike collision with smaller hitbox
-function checkSpikeCollision(spike){
-    const hbWidth = player.width*player.hitboxScale;
-    const hbHeight = player.height*player.hitboxScale;
-    const hbX = player.x + (player.width - hbWidth)/2;
-    const hbY = player.y + (player.height - hbHeight)/2;
-    return hbX+hbWidth>spike.x && hbX<spike.x+spike.width &&
-           hbY+hbHeight>spike.y && hbY<spike.y+spike.height;
-}
-
-// Main loop
-function update(time){
-    if(!gameStarted) return requestAnimationFrame(update);
-    let delta = (time-lastTime)/1000;
-    lastTime = time;
-
-    let camShakeX = (Math.random()-0.5)*shakeIntensity;
-    let camShakeY = (Math.random()-0.5)*shakeIntensity;
-    if(shakeIntensity>0) shakeIntensity *= 0.9;
-
-    let camX = player.x-150+camShakeX;
-
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    // White horizontal lines
-    for(let line of whiteLines){
-        ctx.strokeStyle = `rgba(255,255,255,${line.alpha})`;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(line.x, line.y);
-        ctx.lineTo(line.x - line.length, line.y);
-        ctx.stroke();
-        line.x -= line.speed;
-        if(line.x + line.length < 0) line.x = canvas.width + Math.random()*500;
-    }
-
-    // Background particles
-    for(let bp of backgroundParticles){
-        ctx.fillStyle = `rgba(0,255,255,${bp.alpha})`;
-        ctx.fillRect(bp.x, bp.y, bp.size, bp.size);
-    }
-
-    // Score
-    ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
-    ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
-    ctx.fillText(Math.floor(score),20,50);
-    ctx.shadowBlur=0;
-
-    // Player physics
-    player.y += player.vy;
-    player.vy += gravity;
-
-    // Horizontal movement
-    player.x += player.speed;
-    player.speed += 0.00005;
-
-    // Player trail
-    for(let i=player.trail.length-1;i>=0;i--){
-        let t = player.trail[i];
-        ctx.fillStyle=`rgba(0,255,255,${t.alpha})`;
-        ctx.fillRect(t.x-camX,t.y,t.size,t.size);
-        t.alpha-=0.05; t.y-=0.5;
-        if(t.alpha<=0) player.trail.splice(i,1);
-    }
-
-    // Platform collision
-    let onGround=false;
-    for(let plat of platforms){
-        if(player.x+player.width>plat.x && player.x<plat.x+plat.width &&
-           player.y+player.height>plat.y && player.y+player.height<plat.y+plat.height+player.vy){
-            player.y = plat.y - player.height;
-            player.vy = 0;
-            onGround=true;
-        }
-    }
-    if(!onGround && player.y>canvas.height) die();
-
-    // Draw platforms
-    for(let plat of platforms){
-        let grad = ctx.createLinearGradient(plat.x-camX, plat.y, plat.x-camX+plat.width, plat.y);
-        grad.addColorStop(0, "#0ff");
-        grad.addColorStop(0.5, plat.color);
-        grad.addColorStop(1, "#0ff");
-        ctx.fillStyle = grad;
-        ctx.fillRect(plat.x-camX, plat.y, plat.width, plat.height);
-    }
-
-    // Spikes
-    for(let spike of spikes){
-        ctx.fillStyle="red";
-        ctx.beginPath();
-        ctx.moveTo(spike.x-camX, spike.y+spike.height);
-        ctx.lineTo(spike.x-camX+spike.width/2, spike.y);
-        ctx.lineTo(spike.x-camX+spike.width, spike.y+spike.height);
-        ctx.closePath();
-        ctx.fill();
-        if(checkSpikeCollision(spike)) die();
-    }
-
-    // Glowing player
-    ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
-    ctx.fillStyle=player.color;
-    ctx.fillRect(player.x-camX, player.y, player.width, player.height);
-    ctx.shadowBlur=0;
-
-    // Particles update
-    for(let i=particles.length-1;i>=0;i--){
-        let p=particles[i];
-        p.x+=p.vx; p.y+=p.vy; p.vy+=0.3; p.alpha-=0.03;
-        ctx.fillStyle=`rgba(0,255,255,${p.alpha})`;
-        ctx.fillRect(p.x-camX,p.y,p.size,p.size);
-        if(p.alpha<=0) particles.splice(i,1);
-    }
-
-    // Dynamic platforms
-    let last = platforms[platforms.length-1];
-    if(last.x < player.x + canvas.width) generateBlockPlatform(last.x,last.y);
-
-    score += delta*100;
-
-    requestAnimationFrame(update);
-}
-
-// Start button
-document.getElementById("startBtn").addEventListener("click", ()=>{
-    hideStartScreen();
-    resetGame();
-    gameStarted=true;
-    lastTime=performance.now();
-    requestAnimationFrame(update);
+document.addEventListener("keydown", e=>{
+  if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
+    e.preventDefault();
+    toggleOverlay(!overlayOpen);
+  }
+  if(overlayOpen && e.code==="Enter"){
+    handleCommand(commandInput.value.trim());
+    commandInput.value="";
+    toggleOverlay(false);
+  }
 });
 
-showStartScreen();
+// ==== COMMAND SYSTEM ====
+function handleCommand(cmd){
+  const parts = cmd.split(" ");
+  const root = parts[0];
+  if(root==="/gamerule"){
+    const rule = parts[1];
+    if(rule==="infiniteJump"){
+      if(parts[2]==="true") infiniteJump=true;
+      if(parts[2]==="false") infiniteJump=false;
+    }
+    if(rule==="death"){
+      if(parts[2]==="true"){invincible=false;}
+      if(parts[2]==="false"){invincible=true;}
+    }
+    if(rule==="speed"){
+      const act = parts[2];
+      const value = parseFloat(parts[3]);
+      const target = parts[4];
+      if(act==="reset"){speedMultiplierH=1; speedMultiplierV=1;}
+      if(act==="add"){
+        if(target==="horizontal") speedMultiplierH += value;
+        else if(target==="vertical"||target==="verticle") speedMultiplierV += value;
+        else if(target==="both"){speedMultiplierH+=value; speedMultiplierV+=value;}
+      }
+      if(act==="set"){
+        if(target==="horizontal") speedMultiplierH = value;
+        else if(target==="vertical"||target==="verticle") speedMultiplierV = value;
+        else if(target==="both"){speedMultiplierH=value; speedMultiplierV=value;}
+      }
+    }
+    if(rule==="score"){
+      const act=parts[2];
+      if(act==="add"){score+=parseInt(parts[3]);}
+      if(act==="set"){score=parseInt(parts[3]);}
+      if(act==="reset"){score=0;}
+      if(act==="freeze"){freezeScore=true;}
+      if(act==="function" && parts[3]==="+="){scoreFunctionMultiplier=parseFloat(parts[4]);}
+    }
+  }
+  if(root==="/code"){
+    if(parts[1]==="770709"){testMode=true;}
+    if(parts[1]==="lanseyaoji"){speedMultiplierH=10;}
+  }
+  if(root==="/control"){
+    if(parts[1]==="freeze"){cancelAnimationFrame(animationFrameId);}
+    if(parts[1]==="unfreeze"){animationFrameId=requestAnimationFrame(update);}
+  }
+}
+
+// ==== GAME RESET ====
+function resetGame(){
+  if(animationFrameId) cancelAnimationFrame(animationFrameId);
+  score=0; freezeScore=false;
+  colorLerp=0; globalTime=0;
+  player.x=100; player.y=canvas.height/2-player.height;
+  player.vy=0; player.speed=baseSpeed;
+  player.jumpsLeft=2; player.onGround=false; player.visible=true;
+  platforms=[]; spikes=[]; crashPieces=[]; particles=[]; gems=[]; lines=[]; decorations=[];
+  platformColor={...baseColors[0]};
+  colorIndex=0; nextColor=baseColors[1];
+  platforms.push({x:0,y:player.y+player.height,width:BLOCK_SIZE*10,height:BLOCK_SIZE,color:{...platformColor},passed:false,press:0,strikes:[]});
+  lastPlatformX=0; lastPlatformY=player.y+player.height;
+  lastTime=performance.now();
+  gameStarted=true;
+  animationFrameId=requestAnimationFrame(update);
+}
+
+// ==== GENERATION ====
+function generateBlockPlatform(){
+  const width = (3+Math.floor(Math.random()*5))*BLOCK_SIZE;
+  const gap = 100+Math.random()*200;
+  lastPlatformX += width + gap;
+  const y = lastPlatformY + (Math.random()*2-1)*BLOCK_SIZE*2;
+  const platform={x:lastPlatformX,y,width,height:BLOCK_SIZE,color:{...platformColor},passed:false,press:0,strikes:[]};
+  if(width/BLOCK_SIZE>=4){
+    if(Math.random()<0.3){
+      decorations.push({x:platform.x+BLOCK_SIZE,y:platform.y-30,width:30,height:30,shape:"circle"});
+    }
+  }
+  platforms.push(platform);
+  lastPlatformY=y;
+  if(Math.random()<0.3){
+    spikes.push({x:platform.x+Math.random()*(width-20),y:platform.y-20,width:20,height:20});
+  }
+  if(Math.random()<0.4){
+    gems.push({x:platform.x+Math.random()*(width-20),y:platform.y-60-Math.random()*80,vy:0.5,dir:1,glow:0});
+  }
+}
+
+// ==== COLLISIONS ====
+function checkSpikeCollision(){
+  for(const s of spikes){
+    if(player.x< s.x+s.width && player.x+player.width> s.x &&
+       player.y< s.y+s.height && player.y+player.height> s.y){
+      if(!invincible) tryDie();
+    }
+  }
+}
+
+function tryDie(){
+  if(invincible) return;
+  playerDead=true;
+  createCrash(player.x,player.y);
+  resetGame();
+}
+
+// ==== CRASH ====
+function createCrash(x,y){
+  for(let i=0;i<20;i++){
+    crashPieces.push({x,y,vx:(Math.random()-0.5)*10,vy:(Math.random()-0.5)*10,life:60});
+  }
+}
+
+// ==== PARTICLES ====
+function spawnParticles(x,y,color,size,count,glow){
+  for(let i=0;i<count;i++){
+    particles.push({x,y,vx:(Math.random()-0.5)*2,vy:(Math.random()-0.5)*2,life:40,color,size,glow});
+  }
+}
+
+// ==== LINES ====
+function addLine(x1,y1,x2,y2){ lines.push({x1,y1,x2,y2,life:40}); }
+
+// ==== LERP COLOR ====
+function lerpColor(c1,c2,t){
+  return {r:c1.r+(c2.r-c1.r)*t,g:c1.g+(c2.g-c1.g)*t,b:c1.b+(c2.b-c1.b)*t};
+}
+
+// ==== UPDATE ====
+function update(){
+  globalTime++;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // color
+  colorLerp+=0.002;
+  if(colorLerp>=1){
+    colorLerp=0;
+    colorIndex=(colorIndex+1)%baseColors.length;
+    platformColor=nextColor;
+    nextColor=baseColors[(colorIndex+1)%baseColors.length];
+  }
+  const currentColor=lerpColor(platformColor,nextColor,colorLerp);
+
+  // player gravity
+  if(floatEnabled) player.vy = 0;
+  else player.vy += 0.5*speedMultiplierV;
+  player.y += player.vy;
+
+  // jumping
+  if(keys["Space"]||keys["ArrowUp"]||keys["KeyW"]){
+    if(player.onGround || infiniteJump){
+      player.vy=-10*speedMultiplierV;
+      if(!infiniteJump) player.jumpsLeft--;
+      spawnParticles(player.x+player.width/2,player.y+player.height,"white",2,6,true);
+    }
+  }
+
+  // horizontal move
+  player.x += player.speed*speedMultiplierH;
+
+  // collisions
+  player.onGround=false;
+  for(const p of platforms){
+    if(player.x+player.width>p.x && player.x<p.x+p.width &&
+       player.y+player.height>p.y && player.y+player.height< p.y+p.height){
+      player.y=p.y-player.height;
+      player.vy=0; player.onGround=true; player.jumpsLeft=doubleJumpEnabled?2:1;
+      p.press=10;
+    }
+  }
+
+  // spikes
+  checkSpikeCollision();
+
+  // gems
+  for(let g of gems){
+    g.y += g.vy*g.dir;
+    if(g.y<50) g.dir=1;
+    if(g.y>400) g.dir=-1;
+    if(player.x<g.x+20 && player.x+player.width>g.x &&
+       player.y<g.y+20 && player.y+player.height>g.y){
+      score+=10; g.collected=true;
+      spawnParticles(g.x,g.y,"cyan",4,20,true);
+    }
+  }
+  gems=gems.filter(g=>!g.collected);
+
+  // score
+  if(!freezeScore) score+=0.1*scoreFunctionMultiplier;
+
+  // rendering
+  ctx.fillStyle=`rgb(${currentColor.r},${currentColor.g},${currentColor.b})`;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.fillStyle="white";
+  ctx.fillRect(player.x,player.y,player.width,player.height);
+
+  ctx.fillStyle="brown";
+  for(const p of platforms){
+    ctx.fillRect(p.x,p.y+p.press,p.width,p.height);
+  }
+  ctx.fillStyle="red";
+  for(const s of spikes){
+    ctx.fillRect(s.x,s.y,20,20);
+  }
+  ctx.fillStyle="cyan";
+  for(const g of gems){
+    ctx.beginPath();
+    ctx.arc(g.x,g.y,10,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle="yellow";
+  for(const d of decorations){
+    ctx.beginPath();
+    ctx.arc(d.x,d.y,15,0,Math.PI*2);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle="white";
+  ctx.fillText("Score: "+Math.floor(score),20,20);
+
+  animationFrameId=requestAnimationFrame(update);
+}
+
+resetGame();
 </script>
 </body>
 </html>
