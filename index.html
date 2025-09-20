@@ -1,42 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Bridd Jump</title>
-<style>
-  body { margin:0; background:black; overflow:hidden; }
-  canvas { display:block; margin:0 auto; background:#111; }
-  #commandOverlay {
-    position: fixed;
-    top: 20%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.9);
-    border: 2px solid #0f0;
-    padding: 20px;
-    z-index: 9999;
-    display: none;
-  }
-  #commandInput {
-    width: 400px;
-    font-size: 18px;
-    padding: 5px;
-    background:black;
-    color:#0f0;
-    border:1px solid #0f0;
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>Bridd Jump</title>
+  <style>
+    body { margin:0; background:black; overflow:hidden; }
+    canvas { display:block; margin:0 auto; background:#111; }
+    #commandOverlay {
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.9);
+      border: 2px solid #0f0;
+      padding: 20px;
+      z-index: 9999;
+      display: none;
+    }
+    #commandInput {
+      width: 400px;
+      font-size: 18px;
+      padding: 5px;
+      background:black;
+      color:#0f0;
+      border:1px solid #0f0;
+    }
+  </style>
 </head>
 <body>
-<canvas id="gameCanvas" width="1280" height="720"></canvas>
-<div id="commandOverlay">
-  <input type="text" id="commandInput" placeholder="Enter command here...">
-</div>
-<script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-
-// ==== GLOBALS ====
+  <canvas id="gameCanvas" width="960" height="540"></canvas>
+  <div id="commandOverlay">
+    <input type="text" id="commandInput" placeholder="Enter command here...">
+  </div>
+  <script>
+    // ==== GLOBALS ====
 let score = 0;
 let freezeScore = false;
 let scoreFunctionMultiplier = 1;
@@ -702,6 +699,6 @@ inputBox.addEventListener("keydown", e => {
         inputBox.value = "";
     }
 });
-</script>
+  </script>
 </body>
 </html>
