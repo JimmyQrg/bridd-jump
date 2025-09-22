@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Untitled document - Google Docs</title>
+<title>Bridd Jump</title>
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
 canvas { display:block; }
@@ -38,8 +38,13 @@ canvas.width=window.innerWidth;
 canvas.height=window.innerHeight;
 
 const BLOCK_SIZE=50;
-const JUMP_SPEED=-15;
+let JUMP_SPEED=-15;
 const GRAVITY=0.7;
+
+// Variants for generation
+let platformHeightVar = BLOCK_SIZE;
+let strikeChance = 0.08;
+let spaceVar = 5*BLOCK_SIZE;
 
 let keys={}, score=0, bestScore=localStorage.getItem("bestScore")?parseInt(localStorage.getItem("bestScore")):0;
 let lastTime=0, gameStarted=false, animationFrameId;
@@ -56,7 +61,8 @@ let player={
     x:100, y:0, width:50, height:50,
     color:"#0ff", vy:0, speed:8,
     hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true,
-    horizMultiplier:1, vertMultiplier:1
+    horizMultiplier:1, vertMultiplier:1,
+    accountEmail:"player@example.com"
 };
 
 let platforms=[], spikes=[], lines=[], lastPlatformX=0, lastPlatformY=0;
@@ -73,7 +79,7 @@ window.addEventListener("touchstart", ()=>jump());
 function jump(){
     if(!player.visible) return;
     if(cheats.infiniteJump || player.jumpsLeft>0){
-        player.vy=JUMP_SPEED;
+        player.vy=JUMP_SPEED*player.vertMultiplier;
         spawnParticles(player.x+player.width/2, player.y+player.height, player.jumpsLeft===2?"jump":"double");
         if(!cheats.infiniteJump) player.jumpsLeft--;
     }
@@ -108,16 +114,16 @@ function generateBlockPlatform(lastX,lastY){
     if(Math.random()<0.7) blockCount=Math.min(blockCount,Math.floor(Math.random()*3+1));
 
     let gap=Math.floor(Math.random()*5+3)*BLOCK_SIZE;
+    gap = spaceVar + (Math.random()-0.5)*BLOCK_SIZE;
     let x=lastX+gap;
-    let y=lastY+(Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
+    let y=lastY+(Math.floor(Math.random()*3)-1)*platformHeightVar;
     y=Math.max(BLOCK_SIZE, Math.min(canvas.height-3*BLOCK_SIZE, y));
 
     for(let i=0;i<blockCount;i++){
         platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
-        if(Math.random()<0.08) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6, baseY:y-BLOCK_SIZE+BLOCK_SIZE*0.2, hit:true, passed:false});
+        if(Math.random()<strikeChance) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6, baseY:y-BLOCK_SIZE+BLOCK_SIZE*0.2, hit:true, passed:false});
     }
 
-    // Gems
     for(let i=0;i<blockCount;i++){
         if(Math.random()<0.1){
             let gemX = x+i*BLOCK_SIZE+BLOCK_SIZE/4;
@@ -131,8 +137,8 @@ function generateBlockPlatform(lastX,lastY){
     return {x:x+blockCount*BLOCK_SIZE,y};
 }
 
+// collision helpers
 function checkSpikeCollision(spike){
-    if(!spike.hit) return false;
     const hbW=player.width*player.hitboxScale;
     const hbH=player.height*player.hitboxScale;
     const hbX=player.x+(player.width-hbW)/2;
@@ -163,17 +169,15 @@ function spawnParticles(x,y,type){
 function tryDie(spike){
     if(!player.visible) return;
     if(cheats.invincible) return;
-    if(player.onGround || player.vy>0){
-        player.visible=false;
-        if(spike) spike.hit=false;
-        createCrash();
-        gameStarted=false; 
-        if(score>bestScore) {
-            bestScore=Math.floor(score);
-            localStorage.setItem("bestScore", bestScore);
-        }
-        setTimeout(()=>{showStartScreen();}, 1000);
+    player.visible=false;
+    if(spike) spike.hit=false;
+    createCrash();
+    gameStarted=false; 
+    if(score>bestScore) {
+        bestScore=Math.floor(score);
+        localStorage.setItem("bestScore", bestScore);
     }
+    setTimeout(()=>{showStartScreen();}, 1000);
 }
 
 function showStartScreen(){ 
@@ -198,7 +202,7 @@ function update(time){
     if(gameStarted && player.visible){
         player.speed+=0.002;
 
-        colorLerp+=delta/50; // slower color change
+        colorLerp+=delta/50; 
         if(colorLerp>=1){
             colorIndex=(colorIndex+1)%baseColors.length;
             nextColor=baseColors[(colorIndex+1)%baseColors.length];
@@ -206,9 +210,9 @@ function update(time){
         }
         platformColor=lerpColor(baseColors[colorIndex],nextColor,colorLerp);
 
-        player.y+=player.vy*player.vertMultiplier; 
+        player.y+=player.vy; 
         if(cheats.float && player.vy>0) player.vy *= 0.5;
-        player.vy+=GRAVITY*player.vertMultiplier;
+        player.vy+=GRAVITY;
         player.x+=player.speed*player.horizMultiplier;
 
         player.onGround=false;
@@ -218,7 +222,6 @@ function update(time){
                 if(player.vy>=0){
                     player.y=plat.y-player.height; player.vy=0; player.onGround=true; player.jumpsLeft=2;
                     spawnParticles(player.x+player.width/2, player.y+player.height, "land");
-                    plat.y += 2;
                 }
             }
             if(!plat.passed && player.x>plat.x+plat.width){ score+=1; plat.passed=true; }
@@ -253,72 +256,42 @@ function update(time){
     ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
     ctx.fillText(score,20,50);
 
-    // Platforms with gradient
     for(let plat of platforms){
-        let glow = Math.sin(globalTime*3)*10 + 15;
-        ctx.shadowColor = plat.color; 
-        ctx.shadowBlur = plat===platforms[0]?glow:0;
-
-        for(let y=plat.y; y<canvas.height; y+=BLOCK_SIZE){
-            let darkFactor = y===plat.y ? 1 : 0.3;
-            const grd = ctx.createLinearGradient(plat.x-cameraX, y-cameraY, plat.x+plat.width-cameraX, y+BLOCK_SIZE-cameraY);
-            grd.addColorStop(0, `rgba(${Math.floor(plat.color.r*darkFactor)},${Math.floor(plat.color.g*darkFactor)},${Math.floor(plat.color.b*darkFactor)},1)`);
-            grd.addColorStop(1, "rgba(0,0,0,1)");
-            ctx.fillStyle = grd;
-            ctx.fillRect(plat.x-cameraX, y-cameraY, plat.width, BLOCK_SIZE);
-        }
-        ctx.shadowBlur=0;
+        ctx.fillStyle=`rgb(${plat.color.r},${plat.color.g},${plat.color.b})`;
+        ctx.fillRect(plat.x-cameraX, plat.y-cameraY, plat.width, plat.height);
     }
 
-    // Spikes
     for(let spike of spikes){
-        let pulse = Math.sin(globalTime*5 + spike.x)*5;
         ctx.fillStyle="red"; ctx.beginPath();
-        ctx.moveTo(spike.x-cameraX,spike.baseY+spike.height-cameraY+pulse);
-        ctx.lineTo(spike.x-cameraX+spike.width/2,spike.baseY-cameraY+pulse);
-        ctx.lineTo(spike.x-cameraX+spike.width,spike.baseY+spike.height-cameraY+pulse);
+        ctx.moveTo(spike.x-cameraX,spike.baseY+spike.height-cameraY);
+        ctx.lineTo(spike.x-cameraX+spike.width/2,spike.baseY-cameraY);
+        ctx.lineTo(spike.x-cameraX+spike.width,spike.baseY+spike.height-cameraY);
         ctx.closePath(); ctx.fill();
     }
 
-    // Gems
     for(let g of gems){
         if(g.collected) continue;
-        g.floatOffset = g.floatOffset || Math.random()*Math.PI*2;
-        let floatY = Math.sin(globalTime*3 + g.floatOffset) * 5;
-        ctx.save();
-        ctx.translate(g.x+g.size/2-cameraX, g.y+g.size/2-cameraY + floatY);
-        ctx.rotate(Math.PI/4);
         ctx.fillStyle="white";
-        ctx.shadowColor="white"; 
-        ctx.shadowBlur = 20 + 10*Math.sin(globalTime*5);
-        ctx.fillRect(-g.size/2,-g.size/2,g.size,g.size);
-        ctx.restore();
+        ctx.fillRect(g.x-cameraX,g.y-cameraY,g.size,g.size);
     }
 
-    // Player
     if(player.visible){
-        ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
         ctx.fillStyle=player.color; ctx.fillRect(player.x-cameraX, player.y-cameraY, player.width, player.height);
-        ctx.shadowBlur=0;
-        ctx.strokeStyle="#0ff"; ctx.lineWidth=6; ctx.strokeRect(player.x-cameraX,player.y-cameraY,player.width,player.height);
     }
 
-    // Crash pieces
     for(let p of crashPieces){
         p.vy+=GRAVITY; p.x+=p.vx; p.y+=p.vy;
         ctx.fillStyle=p.color; ctx.fillRect(p.x-cameraX,p.y-cameraY,p.size,p.size);
     }
 
-    // Particles
     for(let p of particles){
         p.x+=p.vx; p.y+=p.vy; p.life--;
         if(p.life>0){ ctx.fillStyle=p.color; ctx.fillRect(p.x-cameraX,p.y-cameraY,5,5); }
     }
     particles = particles.filter(p=>p.life>0);
 
-    // Horizontal lines now move with platforms
     for(let l of lines){
-        l.x -= player.speed*0.5*player.horizMultiplier; 
+        l.x -= player.speed*0.5; 
         ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.lineWidth=2;
         ctx.beginPath(); ctx.moveTo(l.x-cameraX, l.y-cameraY); ctx.lineTo(l.x+50-cameraX,l.y-cameraY); ctx.stroke();
     }
@@ -330,8 +303,7 @@ function update(time){
 document.getElementById("startBtn").addEventListener("click", resetGame);
 showStartScreen();
 
-
-// --- COMMAND SYSTEM ---
+// COMMAND SYSTEM
 window.addEventListener("keydown", e => {
     if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
         const input = prompt("Enter command:");
@@ -343,47 +315,37 @@ window.addEventListener("keydown", e => {
         const root3 = args[3];
         const root4 = args[4];
 
-        if(command === "/gamerule"){
-            switch(root1){
-                case "infiniteJump":
-                    cheats.infiniteJump = (root2==="true");
-                    break;
-                case "death":
-                    cheats.invincible = (root2==="false");
-                    break;
-                case "speed":
-                    if(!player.speedMultiplier) player.speedMultiplier=1;
-                    if(root2==="reset") player.speedMultiplier=1;
-                    if(root2==="add" && !isNaN(parseFloat(root3))) player.speedMultiplier+=parseFloat(root3);
-                    if(root2==="set" && !isNaN(parseFloat(root3))) player.speedMultiplier=parseFloat(root3);
-                    if(root4){
-                        switch(root4.toLowerCase()){
-                            case "horizontal": player.horizMultiplier=player.speedMultiplier; break;
-                            case "vertical":
-                            case "verticle": player.vertMultiplier=player.speedMultiplier; break;
-                            case "both": player.horizMultiplier=player.vertMultiplier=player.speedMultiplier; break;
-                        }
-                    } else { player.horizMultiplier=player.vertMultiplier=player.speedMultiplier; }
-                    break;
+        if(command === "/variable"){
+            if(!root1){
+                let msg="";
+                msg+="test mode "+(cheatsUnlocked?"true":"false")+"\n";
+                msg+="infinite jump "+(cheats.infiniteJump?"true":"false")+"\n";
+                msg+="float "+(cheats.float?"true":"false")+"\n";
+                msg+="death "+(!player.visible?"true":"false")+"\n";
+                msg+="score "+score+"\n";
+                msg+="best score "+bestScore+"\n";
+                const creators=["bw55133@pausd.us","ikunbeautiful@gmail.com","benranwu@gmail.com"];
+                msg+="account "+(creators.includes(player.accountEmail)?"creator":"player")+"\n";
+                msg+="player speed "+player.speed+"\n";
+                msg+="jump height "+player.vertMultiplier+"\n";
+                msg+="platform height variance "+platformHeightVar+"\n";
+                msg+="strike chance "+(strikeChance*100)+"%\n";
+                msg+="platform spacing "+spaceVar+"\n";
+                alert(msg);
+            }
+            else if(root1==="jumpHeight"){ player.vertMultiplier=parseFloat(root2)||1; }
+            else if(root1==="generation"){
+                if(root2==="heightVarP") platformHeightVar=parseFloat(root3)||platformHeightVar;
+                if(root2==="strike") strikeChance=Math.max(0,Math.min(100,parseFloat(root3)||0))/100;
+                if(root2==="spaceVarP") spaceVar=parseFloat(root3)||spaceVar;
+            }
+            else if(root1==="directChange"){
+                if(root4==="valid" && root2 in player){
+                    let num=parseFloat(root3);
+                    player[root2]=isNaN(num)?root3:num;
+                }
             }
         }
-        if(command === "/code"){
-            if(root1 === "770709"){
-                alert("Test mode activated"); cheatsUnlocked=true;
-            }
-            if(root1 === "lanseyaoji"){ player.speed=10; player.horizMultiplier=1; }
-        }
-        if(command === "/score"){
-            if(root1 === "add"){
-                score += parseInt(root2) || 0;
-            }
-            if(root1 === "reset"){
-                score = 0;
-            }
-            if(root1 === "set"){
-                score = parseInt(root2) || 0;
-            }
-        } // <-- this missing brace caused the issue
     }
 });
 
@@ -394,11 +356,6 @@ window.addEventListener("keydown", e=>{
         case "KeyG": cheats.float = !cheats.float; break;
         case "KeyJ": cheats.infiniteJump = !cheats.infiniteJump; break;
         case "KeyF": player.jumpsLeft = cheats.infiniteJump ? Infinity : 2; break;
-        case "KeyQ": player.horizMultiplier = Math.max(0.1, player.horizMultiplier-0.2); break;
-        case "KeyE": player.horizMultiplier += 0.2; break;
-        case "Digit1": player.vertMultiplier += 0.2; break;
-        case "Digit2": player.vertMultiplier = Math.max(0.1, player.vertMultiplier-0.2); break;
-        case "Digit0": player.horizMultiplier = player.vertMultiplier = 1; break;
     }
 });
 </script>
