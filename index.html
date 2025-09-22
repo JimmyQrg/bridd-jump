@@ -375,14 +375,15 @@ window.addEventListener("keydown", e => {
         }
         if(command === "/score"){
             if(root1 === "add"){
-                score += root2
+                score += parseInt(root2) || 0;
             }
             if(root1 === "reset"){
-                score = 0
+                score = 0;
             }
             if(root1 === "set"){
-                score = root2
+                score = parseInt(root2) || 0;
             }
+        } // <-- this missing brace caused the issue
     }
 });
 
@@ -390,7 +391,7 @@ window.addEventListener("keydown", e => {
 window.addEventListener("keydown", e=>{
     if(!cheatsUnlocked) return;
     switch(e.code){
-        case         "KeyG": cheats.float = !cheats.float; break;
+        case "KeyG": cheats.float = !cheats.float; break;
         case "KeyJ": cheats.infiniteJump = !cheats.infiniteJump; break;
         case "KeyF": player.jumpsLeft = cheats.infiniteJump ? Infinity : 2; break;
         case "KeyQ": player.horizMultiplier = Math.max(0.1, player.horizMultiplier-0.2); break;
