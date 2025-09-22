@@ -373,6 +373,16 @@ window.addEventListener("keydown", e => {
             }
             if(root1 === "lanseyaoji"){ player.speed=10; player.horizMultiplier=1; }
         }
+        if(command === "/score"){
+            if(root1 === "add"){
+                score += root2
+            }
+            if(root1 === "reset"){
+                score = 0
+            }
+            if(root1 === "set"){
+                score = root2
+            }
     }
 });
 
