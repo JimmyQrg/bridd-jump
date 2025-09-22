@@ -47,52 +47,28 @@ let crashPieces=[], particles=[], gems=[];
 let cheatsUnlocked=false;
 let cheats={float:false, invincible:false, infiniteJump:false};
 let startPressCount=0;
-let gameFrozen=false;
-let scoreFrozen=false;
 
-let baseColors=[{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,g:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
+let baseColors=[{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,b:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
 let colorIndex=0, platformColor={r:255,g:0,b:0}, nextColor=baseColors[1], colorLerp=0;
 let globalTime=0;
 
 let player={
     x:100, y:0, width:50, height:50,
-    color:"#0ff", vy:0, speed:8, horizMultiplier:1,
-    hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true
+    color:"#0ff", vy:0, speed:8,
+    hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true,
+    horizMultiplier:1, vertMultiplier:1
 };
 
 let platforms=[], spikes=[], lines=[], lastPlatformX=0, lastPlatformY=0;
 
-// --- Input ---
+// Input
 window.addEventListener("keydown", e=>{ 
     if(["KeyW","ArrowUp","Space"].includes(e.code)) jump(); 
     keys[e.code]=true;
-
-    if(!cheatsUnlocked) return;
-
-    if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
-        let code = prompt("Enter cheat code:");
-        if(code==="770709") { alert("Hacker Activated"); cheatsUnlocked=true; }
-    }
-
-    switch(e.code){
-        case "KeyG": cheats.float=!cheats.float; break;
-        case "KeyI": cheats.invincible=!cheats.invincible; break;
-        case "KeyJ": cheats.infiniteJump=!cheats.infiniteJump; break;
-        case "KeyQ": player.speed=Math.max(0,player.speed-5); break;
-        case "KeyE": player.speed+=5; break;
-        case "Digit1": player.vy-=2; break;
-        case "Digit2": player.vy+=2; break;
-        case "Digit0": player.speed=8; break;
-    }
 });
 window.addEventListener("keyup", e=>keys[e.code]=false);
 window.addEventListener("mousedown", ()=>jump());
 window.addEventListener("touchstart", ()=>jump());
-
-// Prevent default browser hotkey (Ctrl+Shift+A)
-window.addEventListener("keydown", e=>{
-    if(e.ctrlKey && e.shiftKey && e.code==="KeyA") e.preventDefault();
-});
 
 function jump(){
     if(!player.visible) return;
@@ -103,16 +79,18 @@ function jump(){
     }
 }
 
-// --- Game reset ---
 function resetGame(){
     if(animationFrameId) cancelAnimationFrame(animationFrameId);
-
     startPressCount++;
     score=0; colorLerp=0; globalTime=0;
-    player.x=100; player.y=canvas.height/2-player.height; player.vy=0; 
-    player.speed=8; player.horizMultiplier=1;
-    player.jumpsLeft=2; player.onGround=false; player.visible=true;
-
+    player.x=100; 
+    player.y=canvas.height/2-player.height; 
+    player.vy=0; 
+    player.speed=8; 
+    player.jumpsLeft=2; 
+    player.onGround=false;
+    player.visible=true;
+    player.horizMultiplier=1; player.vertMultiplier=1;
     platforms=[]; spikes=[]; crashPieces=[]; particles=[]; gems=[]; lines=[];
     platformColor={...baseColors[0]}; colorIndex=0; nextColor=baseColors[1];
 
@@ -125,16 +103,10 @@ function resetGame(){
     animationFrameId=requestAnimationFrame(update);
 }
 
-function showStartScreen(){ 
-    document.getElementById("bestScore").innerText="Best Score: "+bestScore;
-    document.getElementById("startScreen").style.display="flex"; 
-}
-function hideStartScreen(){document.getElementById("startScreen").style.display="none";}
-
-// --- Platforms & Spikes ---
 function generateBlockPlatform(lastX,lastY){
     let blockCount=Math.floor(Math.random()*8)+1;
     if(Math.random()<0.7) blockCount=Math.min(blockCount,Math.floor(Math.random()*3+1));
+
     let gap=Math.floor(Math.random()*5+3)*BLOCK_SIZE;
     let x=lastX+gap;
     let y=lastY+(Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
@@ -145,6 +117,7 @@ function generateBlockPlatform(lastX,lastY){
         if(Math.random()<0.08) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y:y-BLOCK_SIZE+BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6, baseY:y-BLOCK_SIZE+BLOCK_SIZE*0.2, hit:true, passed:false});
     }
 
+    // Gems
     for(let i=0;i<blockCount;i++){
         if(Math.random()<0.1){
             let gemX = x+i*BLOCK_SIZE+BLOCK_SIZE/4;
@@ -167,7 +140,6 @@ function checkSpikeCollision(spike){
     return hbX+hbW>spike.x && hbX<spike.x+spike.width && hbY+hbH>spike.y && hbY<spike.y+spike.height;
 }
 
-// --- Crash & Particles ---
 function createCrash(){
     for(let i=0;i<20;i++){
         crashPieces.push({
@@ -188,7 +160,6 @@ function spawnParticles(x,y,type){
     }
 }
 
-// --- Death ---
 function tryDie(spike){
     if(!player.visible) return;
     if(cheats.invincible) return;
@@ -197,33 +168,37 @@ function tryDie(spike){
         if(spike) spike.hit=false;
         createCrash();
         gameStarted=false; 
-        if(score>bestScore) { bestScore=Math.floor(score); localStorage.setItem("bestScore", bestScore); }
+        if(score>bestScore) {
+            bestScore=Math.floor(score);
+            localStorage.setItem("bestScore", bestScore);
+        }
         setTimeout(()=>{showStartScreen();}, 1000);
     }
 }
 
-// --- Horizontal lines ---
+function showStartScreen(){ 
+    document.getElementById("bestScore").innerText="Best Score: "+bestScore;
+    document.getElementById("startScreen").style.display="flex"; 
+}
+function hideStartScreen(){document.getElementById("startScreen").style.display="none";}
+
 function addLine(){ 
     if(Math.random()>0.15) return;
     lines.push({x:canvas.width, y:Math.random()*canvas.height, width:Math.random()*50+20}); 
 }
 
-// --- Color lerp ---
 function lerpColor(c1,c2,t){return {r:c1.r+(c2.r-c1.r)*t, g:c1.g+(c2.g-c1.g)*t, b:c1.b+(c2.b-c1.b)*t};}
 
-// --- Camera ---
 let cameraX=0, cameraY=0;
 
-// --- Update & Render ---
 function update(time){
-    if(gameFrozen){ animationFrameId=requestAnimationFrame(update); return; }
     let delta=(time-lastTime)/1000; lastTime=time;
     globalTime+=delta;
 
     if(gameStarted && player.visible){
         player.speed+=0.002;
 
-        colorLerp+=delta/50;
+        colorLerp+=delta/50; // slower color change
         if(colorLerp>=1){
             colorIndex=(colorIndex+1)%baseColors.length;
             nextColor=baseColors[(colorIndex+1)%baseColors.length];
@@ -231,9 +206,9 @@ function update(time){
         }
         platformColor=lerpColor(baseColors[colorIndex],nextColor,colorLerp);
 
-        player.y+=player.vy; 
+        player.y+=player.vy*player.vertMultiplier; 
         if(cheats.float && player.vy>0) player.vy *= 0.5;
-        player.vy+=GRAVITY;
+        player.vy+=GRAVITY*player.vertMultiplier;
         player.x+=player.speed*player.horizMultiplier;
 
         player.onGround=false;
@@ -246,18 +221,18 @@ function update(time){
                     plat.y += 2;
                 }
             }
-            if(!plat.passed && player.x>plat.x+plat.width){ if(!scoreFrozen) score+=1; plat.passed=true; }
+            if(!plat.passed && player.x>plat.x+plat.width){ score+=1; plat.passed=true; }
         }
         if(player.y>canvas.height) {player.jumpsLeft=1; tryDie();}
 
         for(let spike of spikes){
             if(checkSpikeCollision(spike)) tryDie(spike);
-            if(!spike.passed && player.x>spike.x+spike.width){ if(!scoreFrozen) score+=1; spike.passed=true; }
+            if(!spike.passed && player.x>spike.x+spike.width){ score+=1; spike.passed=true; }
         }
 
         for(let g of gems){
             if(!g.collected && player.x+player.width>g.x && player.x<g.x+g.size && player.y+player.height>g.y && player.y<g.y+g.size){
-                if(!scoreFrozen) score+=50; g.collected=true; spawnParticles(g.x+g.size/2,g.y+g.size/2,"double");
+                score+=50; g.collected=true; spawnParticles(g.x+g.size/2,g.y+g.size/2,"double");
             }
         }
 
@@ -278,7 +253,7 @@ function update(time){
     ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
     ctx.fillText(score,20,50);
 
-    // --- Platforms with gradient ---
+    // Platforms with gradient
     for(let plat of platforms){
         let glow = Math.sin(globalTime*3)*10 + 15;
         ctx.shadowColor = plat.color; 
@@ -343,7 +318,7 @@ function update(time){
 
     // Horizontal lines now move with platforms
     for(let l of lines){
-        l.x -= player.speed*0.5; 
+        l.x -= player.speed*0.5*player.horizMultiplier; 
         ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.lineWidth=2;
         ctx.beginPath(); ctx.moveTo(l.x-cameraX, l.y-cameraY); ctx.lineTo(l.x+50-cameraX,l.y-cameraY); ctx.stroke();
     }
@@ -354,6 +329,67 @@ function update(time){
 
 document.getElementById("startBtn").addEventListener("click", resetGame);
 showStartScreen();
+
+
+// --- COMMAND SYSTEM ---
+window.addEventListener("keydown", e => {
+    if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
+        const input = prompt("Enter command:");
+        if(!input) return;
+        const args = input.trim().split(/\s+/);
+        const command = args[0];
+        const root1 = args[1];
+        const root2 = args[2];
+        const root3 = args[3];
+        const root4 = args[4];
+
+        if(command === "/gamerule"){
+            switch(root1){
+                case "infiniteJump":
+                    cheats.infiniteJump = (root2==="true");
+                    break;
+                case "death":
+                    cheats.invincible = (root2==="false");
+                    break;
+                case "speed":
+                    if(!player.speedMultiplier) player.speedMultiplier=1;
+                    if(root2==="reset") player.speedMultiplier=1;
+                    if(root2==="add" && !isNaN(parseFloat(root3))) player.speedMultiplier+=parseFloat(root3);
+                    if(root2==="set" && !isNaN(parseFloat(root3))) player.speedMultiplier=parseFloat(root3);
+                    if(root4){
+                        switch(root4.toLowerCase()){
+                            case "horizontal": player.horizMultiplier=player.speedMultiplier; break;
+                            case "vertical":
+                            case "verticle": player.vertMultiplier=player.speedMultiplier; break;
+                            case "both": player.horizMultiplier=player.vertMultiplier=player.speedMultiplier; break;
+                        }
+                    } else { player.horizMultiplier=player.vertMultiplier=player.speedMultiplier; }
+                    break;
+            }
+        }
+        if(command === "/code"){
+            if(root1 === "770709"){
+                alert("Test mode activated"); cheatsUnlocked=true;
+            }
+            if(root1 === "lanseyaoji"){ player.speed=10; player.horizMultiplier=1; }
+        }
+    }
+});
+
+// Test mode keys
+window.addEventListener("keydown", e=>{
+    if(!cheatsUnlocked) return;
+    switch(e.code){
+        case         "KeyG": cheats.float = !cheats.float; break;
+        case "KeyJ": cheats.infiniteJump = !cheats.infiniteJump; break;
+        case "KeyF": player.jumpsLeft = cheats.infiniteJump ? Infinity : 2; break;
+        case "KeyQ": player.horizMultiplier = Math.max(0.1, player.horizMultiplier-0.2); break;
+        case "KeyE": player.horizMultiplier += 0.2; break;
+        case "Digit1": player.vertMultiplier += 0.2; break;
+        case "Digit2": player.vertMultiplier = Math.max(0.1, player.vertMultiplier-0.2); break;
+        case "Digit0": player.horizMultiplier = player.vertMultiplier = 1; break;
+    }
+});
 </script>
 </body>
 </html>
