@@ -417,6 +417,11 @@ window.addEventListener("keydown", e => {
                         let num=parseFloat(root3);
                         player[root2]=isNaN(num)?root3:num;
                     }
+                    if(root2 === "bestScore" && root3 === "reset"){
+                    bestScore = 0;
+                    localStorage.setItem("bestScore", "0");
+                    alert("Best Score has been reset to 0!");
+                    }
                     // Global (server-side) variables — only creators may change
                     else if(isCreator){
                         if(root2==="platformHeightVar"){
