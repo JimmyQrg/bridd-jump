@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BRIDD JUMP</title>
+<title>Schedule | Infinite Campus</title>
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
 canvas { display:block; }
@@ -41,6 +41,7 @@ canvas.height=window.innerHeight;
 const BLOCK_SIZE=50;
 const JUMP_SPEED=-15;
 const GRAVITY=0.7;
+const strikeChance = 0.3;
 
 let testMode = false;
 let gemEveryBlock = false;
@@ -60,7 +61,7 @@ let globalTime=0;
 
 let player={
     x:100, y:0, width:50, height:50,
-    color:"#0ff", vy=0, speed=8,
+    color:"#0ff", vy:0, speed:8,
     hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true,
     horizMultiplier:1, vertMultiplier:1,
     accountEmail:"player@example.com"
@@ -110,39 +111,6 @@ function resetGame(){
     animationFrameId=requestAnimationFrame(update);
 }
 
-function jump(){
-    if(!player.visible) return;
-    if(cheats.infiniteJump || player.jumpsLeft>0){
-        player.vy=JUMP_SPEED;
-        spawnParticles(player.x+player.width/2, player.y+player.height, player.jumpsLeft===2?"jump":"double");
-        if(!cheats.infiniteJump) player.jumpsLeft--;
-    }
-}
-
-function resetGame(){
-    if(animationFrameId) cancelAnimationFrame(animationFrameId);
-    startPressCount++;
-    score=0; colorLerp=0; globalTime=0;
-    player.x=100; 
-    player.y=canvas.height/2-player.height; 
-    player.vy=0; 
-    player.speed=8; 
-    player.jumpsLeft=2; 
-    player.onGround=false;
-    player.visible=true;
-    player.horizMultiplier=1; player.vertMultiplier=1;
-    platforms=[]; spikes=[]; crashPieces=[]; particles=[]; gems=[]; lines=[];
-    platformColor={...baseColors[0]}; colorIndex=0; nextColor=baseColors[1];
-
-    platforms.push({x:0,y:player.y+player.height,width:BLOCK_SIZE*10,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
-    lastPlatformX=0; lastPlatformY=player.y+player.height;
-
-    lastTime=performance.now();
-    hideStartScreen();
-    gameStarted=true;
-    animationFrameId=requestAnimationFrame(update);
-}
-
 function generateBlockPlatform(lastX,lastY){
     let blockCount=Math.floor(Math.random()*8)+1;
     if(Math.random()<0.7) blockCount=Math.min(blockCount,Math.floor(Math.random()*3+1));
@@ -159,7 +127,7 @@ function generateBlockPlatform(lastX,lastY){
 
     // Gems
     for(let i=0;i<blockCount;i++){
-        if(Math.random()<0.1){
+        if(Math.random()<0.1 || gemEveryBlock){
             let gemX = x+i*BLOCK_SIZE+BLOCK_SIZE/4;
             let gemY = y-BLOCK_SIZE*1.5;
             let safe = true;
@@ -216,20 +184,14 @@ function tryDie(spike){
     }
 }
 
-function showStartScreen(){ 
-    document.getElementById("bestScore").innerText="Best Score: "+bestScore;
-    document.getElementById("startScreen").style.display="flex"; 
-}
-function hideStartScreen(){document.getElementById("startScreen").style.display="none";}
+// --- CAMERA & LERP ---
+let cameraX=0, cameraY=0;
+function lerpColor(c1,c2,t){return {r:c1.r+(c2.r-c1.r)*t, g:c1.g+(c2.g-c1.g)*t, b:c1.b+(c2.b-c1.b)*t};}
 
 function addLine(){ 
     if(Math.random()>0.15) return;
     lines.push({x:canvas.width, y:Math.random()*canvas.height, width:Math.random()*50+20}); 
 }
-
-function lerpColor(c1,c2,t){return {r:c1.r+(c2.r-c1.r)*t, g:c1.g+(c2.g-c1.g)*t, b:c1.b+(c2.b-c1.b)*t};}
-
-let cameraX=0, cameraY=0;
 
 function update(time){
     let delta=(time-lastTime)/1000; lastTime=time;
@@ -238,7 +200,7 @@ function update(time){
     if(gameStarted && player.visible){
         player.speed+=0.002;
 
-        colorLerp+=delta/25; // slower color change
+        colorLerp+=delta/25;
         if(colorLerp>=1){
             colorIndex=(colorIndex+1)%baseColors.length;
             nextColor=baseColors[(colorIndex+1)%baseColors.length];
@@ -258,7 +220,6 @@ function update(time){
                 if(player.vy>=0){
                     player.y=plat.y-player.height; player.vy=0; player.onGround=true; player.jumpsLeft=2;
                     spawnParticles(player.x+player.width/2, player.y+player.height, "land");
-                    plat.y += 2;
                 }
             }
             if(!plat.passed && player.x>plat.x+plat.width){ score+=1; plat.passed=true; }
@@ -293,21 +254,13 @@ function update(time){
     ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
     ctx.fillText(score,20,50);
 
-    // Platforms with gradient
+    // Platforms
     for(let plat of platforms){
-        let glow = Math.sin(globalTime*3)*10 + 15;
-        ctx.shadowColor = plat.color; 
-        ctx.shadowBlur = plat===platforms[0]?glow:0;
-
-        for(let y=plat.y; y<canvas.height; y+=BLOCK_SIZE){
-            let darkFactor = y===plat.y ? 1 : 0.3;
-            const grd = ctx.createLinearGradient(plat.x-cameraX, y-cameraY, plat.x+plat.width-cameraX, y+BLOCK_SIZE-cameraY);
-            grd.addColorStop(0, `rgba(${Math.floor(plat.color.r*darkFactor)},${Math.floor(plat.color.g*darkFactor)},${Math.floor(plat.color.b*darkFactor)},1)`);
-            grd.addColorStop(1, "rgba(0,0,0,1)");
-            ctx.fillStyle = grd;
-            ctx.fillRect(plat.x-cameraX, y-cameraY, plat.width, BLOCK_SIZE);
-        }
-        ctx.shadowBlur=0;
+        let grd = ctx.createLinearGradient(plat.x-cameraX, plat.y-cameraY, plat.x+plat.width-cameraX, plat.y+BLOCK_SIZE-cameraY);
+        grd.addColorStop(0, `rgba(${Math.floor(plat.color.r)},${Math.floor(plat.color.g)},${Math.floor(plat.color.b)},1)`);
+        grd.addColorStop(1, "rgba(0,0,0,1)");
+        ctx.fillStyle = grd;
+        ctx.fillRect(plat.x-cameraX, plat.y-cameraY, plat.width, BLOCK_SIZE);
     }
 
     // Spikes
@@ -338,9 +291,11 @@ function update(time){
     // Player
     if(player.visible){
         ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
-        ctx.fillStyle=player.color; ctx.fillRect(player.x-cameraX, player.y-cameraY, player.width, player.height);
+        ctx.fillStyle=player.color; 
+        ctx.fillRect(player.x-cameraX, player.y-cameraY, player.width, player.height);
         ctx.shadowBlur=0;
-        ctx.strokeStyle="#0ff"; ctx.lineWidth=6; ctx.strokeRect(player.x-cameraX,player.y-cameraY,player.width,player.height);
+        ctx.strokeStyle="#0ff"; ctx.lineWidth=6; 
+        ctx.strokeRect(player.x-cameraX,player.y-cameraY,player.width,player.height);
     }
 
     // Crash pieces
@@ -356,7 +311,7 @@ function update(time){
     }
     particles = particles.filter(p=>p.life>0);
 
-    // Horizontal lines now move with platforms
+    // Horizontal lines
     for(let l of lines){
         l.x -= player.speed*0.5*player.horizMultiplier; 
         ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.lineWidth=2;
@@ -385,12 +340,8 @@ window.addEventListener("keydown", e => {
 
         if(command === "/gamerule"){
             switch(root1){
-                case "infiniteJump":
-                    cheats.infiniteJump = (root2==="true");
-                    break;
-                case "death":
-                    cheats.invincible = (root2==="false");
-                    break;
+                case "infiniteJump": cheats.infiniteJump = (root2==="true"); break;
+                case "death": cheats.invincible = (root2==="false"); break;
                 case "speed":
                     if(!player.speedMultiplier) player.speedMultiplier=1;
                     if(root2==="reset") player.speedMultiplier=1;
@@ -423,30 +374,13 @@ window.addEventListener("keydown", e => {
                 );
             }
         }
-
-        // --- FIXED /code ---
         if(command === "/code") {
-            if(root1 === "770709") {
-                testMode = !testMode;
-                alert(testMode ? "TEST MODE ON" : "TEST MODE OFF");
-            }
-            else if(root1 === "lanseyaoji") {
-                if(player.speed < 5) player.speed = 5;
-                else player.speed *= 1.5;
-                console.log("Player speed:", player.speed);
-            }
-            else if(root1 === "jinyumantang") {
-                gemEveryBlock = !gemEveryBlock;
-                console.log("Gem generation mode:", gemEveryBlock ? "every block" : "standard");
-            }
+            if(root1 === "770709") { testMode = !testMode; alert(testMode ? "TEST MODE ON" : "TEST MODE OFF"); }
+            else if(root1 === "lanseyaoji") { if(player.speed < 5) player.speed = 5; else player.speed *= 1.5; }
+            else if(root1 === "jinyumantang") { gemEveryBlock = !gemEveryBlock; }
             else if(root1 === "JiMmYiStHeCoOlEsTgUy|2025.letmecheat|L^UP++0U+L0UD") {
-                if(account !== "𐀒𐀒𐀒") {
-                    oldAccount = account;
-                    account = "𐀒𐀒𐀒";
-                } else {
-                    account = oldAccount || "player";
-                }
-                console.log("Account:", account);
+                if(account !== "𐀒𐀒𐀒") { oldAccount = account; account = "𐀒𐀒𐀒"; } 
+                else { account = oldAccount || "player"; }
             }
         }
     }
@@ -455,27 +389,11 @@ window.addEventListener("keydown", e => {
 // --- TEST-MODE HOTKEYS ---
 document.addEventListener("keydown", function(event){
     if(!testMode) return;
-
-    if(event.code === "KeyG") {
-        cheats.float = !cheats.float;
-        console.log("Float:", cheats.float);
-    }
-    if(event.code === "KeyJ") {
-        cheats.infiniteJump = !cheats.infiniteJump;
-        console.log("Infinite Jump:", cheats.infiniteJump);
-    }
-    if(event.code === "KeyI") {
-        cheats.invincible = !cheats.invincible;
-        console.log("Death enabled:", !cheats.invincible);
-    }
-    if(event.code === "KeyQ") {
-        player.speed = Math.max(0.5, player.speed - 0.5);
-        console.log("Player Speed decreased:", player.speed);
-    }
-    if(event.code === "KeyE") {
-        player.speed += 0.5;
-        console.log("Player Speed increased:", player.speed);
-    }
+    if(event.code === "KeyG") { cheats.float = !cheats.float; console.log("Float:", cheats.float); }
+    if(event.code === "KeyJ") { cheats.infiniteJump = !cheats.infiniteJump; console.log("Infinite Jump:", cheats.infiniteJump); }
+    if(event.code === "KeyI") { cheats.invincible = !cheats.invincible; console.log("Death enabled:", !cheats.invincible); }
+    if(event.code === "KeyQ") { player.speed = Math.max(0.5, player.speed - 0.5); console.log("Player Speed decreased:", player.speed); }
+    if(event.code === "KeyE") { player.speed += 0.5; console.log("Player Speed increased:", player.speed); }
 });
 </script>
 </body>
