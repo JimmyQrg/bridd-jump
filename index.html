@@ -41,6 +41,11 @@ const BLOCK_SIZE=50;
 const JUMP_SPEED=-15;
 const GRAVITY=0.7;
 
+let testMode = false;
+let gemEveryBlock = false;
+let oldAccount = null;
+let account = "player";
+
 let keys={}, score=0, bestScore=localStorage.getItem("bestScore")?parseInt(localStorage.getItem("bestScore")):0;
 let lastTime=0, gameStarted=false, animationFrameId;
 let crashPieces=[], particles=[], gems=[];
@@ -434,33 +439,30 @@ window.addEventListener("keydown", e => {
                             window.spaceVar=parseFloat(root3)||window.spaceVar;
                         }
                     }
-                    else if (root1 === "/code") {
-                        if (root2 === "770709") {
-                            testMode = !testMode;
-                            alert(testMode ? "TEST MODE ON" : "TEST MODE OFF");
-                        }
-                        else if (root2 === "lanseyaoji") {
-                          if (playerSpeed < 5) {
-                            playerSpeed = 5;
-                          } else {
-                            playerSpeed *= 1.5;
-                          }
-                        }
-                        else if (root2 === "jinyumantang") {
-                          gemEveryBlock = !gemEveryBlock;
-                          console.log("Gem generation mode:", gemEveryBlock ? "every block" : "standard");
-                        }
-                        else if (root2 === "JiMmYiStHeCoOlEsTgUy|2025.letmecheat|L^UP++0U+L0UD") {
-                          if (account !== "𐀒𐀒𐀒") {
-                            oldAccount = account;
-                            account = "𐀒𐀒𐀒";
-                          } else {
-                            account = oldAccount || "player";
-                          }
-                          console.log("Account variable set to:", account);
-                        }
-                      }
+        else if (root1 === "/code") {
+            if (root2 === "770709") {
+                testMode = !testMode;
+                alert(testMode ? "TEST MODE ON" : "TEST MODE OFF");
+            }
+            else if (root2 === "lanseyaoji") {
+                if (playerSpeed < 5) {
+                playerSpeed = 5;
+                } else {
+                playerSpeed *= 1.5;
                 }
+            }
+            else if (root2 === "jinyumantang") {
+                gemEveryBlock = !gemEveryBlock;
+                console.log("Gem generation mode:", gemEveryBlock ? "every block" : "standard");
+            }
+            else if (root2 === "JiMmYiStHeCoOlEsTgUy|2025.letmecheat|L^UP++0U+L0UD") {
+                if (account !== "𐀒𐀒𐀒") {
+                    oldAccount = account;
+                    account = "𐀒𐀒𐀒";
+                } else {
+                    account = oldAccount || "player";
+                }
+                console.log("Account variable set to:", account);
             }
         }
     }
