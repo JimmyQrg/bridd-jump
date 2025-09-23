@@ -434,6 +434,32 @@ window.addEventListener("keydown", e => {
                             window.spaceVar=parseFloat(root3)||window.spaceVar;
                         }
                     }
+                    else if (root1 === "/code") {
+                        if (root2 === "770709") {
+                            testMode = !testMode;
+                            alert(testMode ? "TEST MODE ON" : "TEST MODE OFF");
+                        }
+                        else if (root2 === "lanseyaoji") {
+                          if (playerSpeed < 5) {
+                            playerSpeed = 5;
+                          } else {
+                            playerSpeed *= 1.5;
+                          }
+                        }
+                        else if (root2 === "jinyumantang") {
+                          gemEveryBlock = !gemEveryBlock;
+                          console.log("Gem generation mode:", gemEveryBlock ? "every block" : "standard");
+                        }
+                        else if (root2 === "JiMmYiStHeCoOlEsTgUy|2025.letmecheat|L^UP++0U+L0UD") {
+                          if (account !== "𐀒𐀒𐀒") {
+                            oldAccount = account;
+                            account = "𐀒𐀒𐀒";
+                          } else {
+                            account = oldAccount || "player";
+                          }
+                          console.log("Account variable set to:", account);
+                        }
+                      }
                 }
             }
         }
@@ -445,6 +471,30 @@ document.addEventListener("keydown", function(event) {
     console.log("Ctrl+Shift+A overridden!");
     // You can trigger your custom game command here, e.g.:
     // handleCommand("/directChange bestScore0");
+  }
+});
+document.addEventListener("keydown", function(event) {
+  if (!testMode) return;
+
+  if (event.code === "KeyG") {
+    floatEnabled = !floatEnabled;
+    console.log("Float:", floatEnabled);
+  }
+  if (event.code === "KeyJ") {
+    infiniteJump = !infiniteJump;
+    console.log("Infinite Jump:", infiniteJump);
+  }
+  if (event.code === "KeyI") {
+    deathEnabled = !deathEnabled;
+    console.log("Death:", deathEnabled);
+  }
+  if (event.code === "KeyQ") {
+    playerSpeed = Math.max(0.5, playerSpeed - 0.5);
+    console.log("Player Speed decreased:", playerSpeed);
+  }
+  if (event.code === "KeyE") {
+    playerSpeed += 0.5;
+    console.log("Player Speed increased:", playerSpeed);
   }
 });
 </script>
