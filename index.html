@@ -204,7 +204,7 @@ function update(time){
     if(gameStarted && player.visible){
         player.speed+=0.002;
 
-        colorLerp+=delta/50; // slower color change
+        colorLerp+=delta/25; // slower color change
         if(colorLerp>=1){
             colorIndex=(colorIndex+1)%baseColors.length;
             nextColor=baseColors[(colorIndex+1)%baseColors.length];
