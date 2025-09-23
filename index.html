@@ -370,7 +370,9 @@ window.addEventListener("keydown", e => {
                             case "both": player.horizMultiplier=player.vertMultiplier=player.speedMultiplier; break;
                         }
                     } else { player.horizMultiplier=player.vertMultiplier=player.speedMultiplier; }
-                    break
+                    break;
+            }
+        }
         if(command === "/variable"){
             if(!root1){
                 let account = localStorage.getItem("account") || "player";
