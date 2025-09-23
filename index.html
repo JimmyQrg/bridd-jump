@@ -439,6 +439,14 @@ window.addEventListener("keydown", e => {
         }
     }
 });
+document.addEventListener("keydown", function(event) {
+  if (event.ctrlKey && event.shiftKey && event.code === "KeyA") {
+    event.preventDefault(); // Stop browser’s default shortcut
+    console.log("Ctrl+Shift+A overridden!");
+    // You can trigger your custom game command here, e.g.:
+    // handleCommand("/directChange bestScore0");
+  }
+});
 </script>
 </body>
 </html>
