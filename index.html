@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Untitled document - Google Docs</title>
+<title>BRIDD JUMP</title>
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
 canvas { display:block; }
@@ -32,6 +32,7 @@ h1 { font-size:60px; margin-bottom:20px; text-shadow: 0 0 20px #0ff, 0 0 40px #0
 </div>
 
 <script>
+// --- GLOBAL VARIABLES ---
 const canvas=document.getElementById("gameCanvas");
 const ctx=canvas.getContext("2d");
 canvas.width=window.innerWidth;
@@ -59,20 +60,15 @@ let globalTime=0;
 
 let player={
     x:100, y:0, width:50, height:50,
-    color:"#0ff", vy:0, speed:8,
+    color:"#0ff", vy=0, speed=8,
     hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true,
     horizMultiplier:1, vertMultiplier:1,
-    accountEmail:"player@example.com" // default, can be replaced
+    accountEmail:"player@example.com"
 };
 
 let platforms=[], spikes=[], lines=[], lastPlatformX=0, lastPlatformY=0;
 
-// --- server-side variables (not persistent after refresh) ---
-let platformHeightVar = 50;
-let strikeChance = 0.1;
-let spaceVar = 150;
-
-// Input
+// --- INPUT ---
 window.addEventListener("keydown", e=>{ 
     if(["KeyW","ArrowUp","Space"].includes(e.code)) jump(); 
     keys[e.code]=true;
@@ -80,6 +76,39 @@ window.addEventListener("keydown", e=>{
 window.addEventListener("keyup", e=>keys[e.code]=false);
 window.addEventListener("mousedown", ()=>jump());
 window.addEventListener("touchstart", ()=>jump());
+
+function jump(){
+    if(!player.visible) return;
+    if(cheats.infiniteJump || player.jumpsLeft>0){
+        player.vy=JUMP_SPEED;
+        spawnParticles(player.x+player.width/2, player.y+player.height, player.jumpsLeft===2?"jump":"double");
+        if(!cheats.infiniteJump) player.jumpsLeft--;
+    }
+}
+
+function resetGame(){
+    if(animationFrameId) cancelAnimationFrame(animationFrameId);
+    startPressCount++;
+    score=0; colorLerp=0; globalTime=0;
+    player.x=100; 
+    player.y=canvas.height/2-player.height; 
+    player.vy=0; 
+    player.speed=8; 
+    player.jumpsLeft=2; 
+    player.onGround=false; 
+    player.visible=true; 
+    player.horizMultiplier=1; player.vertMultiplier=1;
+    platforms=[]; spikes=[]; crashPieces=[]; particles=[]; gems=[]; lines=[];
+    platformColor={...baseColors[0]}; colorIndex=0; nextColor=baseColors[1];
+
+    platforms.push({x:0,y:player.y+player.height,width:BLOCK_SIZE*10,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
+    lastPlatformX=0; lastPlatformY=player.y+player.height;
+
+    lastTime=performance.now();
+    hideStartScreen();
+    gameStarted=true;
+    animationFrameId=requestAnimationFrame(update);
+}
 
 function jump(){
     if(!player.visible) return;
@@ -338,11 +367,11 @@ function update(time){
     animationFrameId=requestAnimationFrame(update);
 }
 
+// --- START BUTTON ---
 document.getElementById("startBtn").addEventListener("click", resetGame);
 showStartScreen();
 
-
-// --- COMMAND SYSTEM ---
+// --- COMMANDS ---
 window.addEventListener("keydown", e => {
     if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
         const input = prompt("Enter command:");
@@ -370,8 +399,7 @@ window.addEventListener("keydown", e => {
                     if(root4){
                         switch(root4.toLowerCase()){
                             case "horizontal": player.horizMultiplier=player.speedMultiplier; break;
-                            case "vertical":
-                            case "verticle": player.vertMultiplier=player.speedMultiplier; break;
+                            case "vertical": player.vertMultiplier=player.speedMultiplier; break;
                             case "both": player.horizMultiplier=player.vertMultiplier=player.speedMultiplier; break;
                         }
                     } else { player.horizMultiplier=player.vertMultiplier=player.speedMultiplier; }
@@ -391,113 +419,63 @@ window.addEventListener("keydown", e => {
                     "best score: "+bestScore+"\n"+
                     "account: "+(isCreator?"creator":"player")+"\n"+
                     "player speed: "+player.speed+"\n"+
-                    "jump height: "+(-JUMP_SPEED)+"\n"+
-                    "platformHeightVar: "+(window.platformHeightVar||0)+"\n"+
-                    "strikeChance: "+(window.strikeChance||0)+"\n"+
-                    "spaceVar: "+(window.spaceVar||0)
+                    "jump height: "+(-JUMP_SPEED)
                 );
             }
-            else if(root1==="jumpHeight"){
-                let val=parseFloat(root2);
-                if(!isNaN(val)) player.vertMultiplier=val;
-            }
-            else if(root1==="generation"){
-                if(root2==="heightVarP"){
-                    window.platformHeightVar=parseFloat(root3)||0;
-                }
-                if(root2==="strike"){
-                    window.strikeChance=Math.max(0,Math.min(100,parseFloat(root3)||0))/100;
-                }
-                if(root2==="spaceVarP"){
-                    window.spaceVar=parseFloat(root3)||0;
-                }
-            }
-            else if(root1==="directChange"){
-                if(root4==="valid"){
-                    let account = localStorage.getItem("account") || "player";
-                    let isCreator = ["bw55133@pausd.us","ikunbeautiful@gmail.com","benranwu@gmail.com"].includes(account);
+        }
 
-                    // Player variables
-                    if(root2 in player){
-                        let num=parseFloat(root3);
-                        player[root2]=isNaN(num)?root3:num;
-                    }
-                    if(root2 === "bestScore" && root3 === "reset"){
-                    bestScore = 0;
-                    localStorage.setItem("bestScore", "0");
-                    alert("Best Score has been reset to 0!");
-                    }
-                    // Global (server-side) variables — only creators may change
-                    else if(isCreator){
-                        if(root2==="platformHeightVar"){
-                            window.platformHeightVar=parseFloat(root3)||window.platformHeightVar;
-                        }
-                        else if(root2==="strikeChance"){
-                            window.strikeChance=Math.max(0,Math.min(100,parseFloat(root3)||0))/100;
-                        }
-                        else if(root2==="spaceVar"){
-                            window.spaceVar=parseFloat(root3)||window.spaceVar;
-                        }
-                    }
-        else if (root1 === "/code") {
-            if (root2 === "770709") {
+        // --- FIXED /code ---
+        if(command === "/code") {
+            if(root1 === "770709") {
                 testMode = !testMode;
                 alert(testMode ? "TEST MODE ON" : "TEST MODE OFF");
             }
-            else if (root2 === "lanseyaoji") {
-                if (playerSpeed < 5) {
-                playerSpeed = 5;
-                } else {
-                playerSpeed *= 1.5;
-                }
+            else if(root1 === "lanseyaoji") {
+                if(player.speed < 5) player.speed = 5;
+                else player.speed *= 1.5;
+                console.log("Player speed:", player.speed);
             }
-            else if (root2 === "jinyumantang") {
+            else if(root1 === "jinyumantang") {
                 gemEveryBlock = !gemEveryBlock;
                 console.log("Gem generation mode:", gemEveryBlock ? "every block" : "standard");
             }
-            else if (root2 === "JiMmYiStHeCoOlEsTgUy|2025.letmecheat|L^UP++0U+L0UD") {
-                if (account !== "𐀒𐀒𐀒") {
+            else if(root1 === "JiMmYiStHeCoOlEsTgUy|2025.letmecheat|L^UP++0U+L0UD") {
+                if(account !== "𐀒𐀒𐀒") {
                     oldAccount = account;
                     account = "𐀒𐀒𐀒";
                 } else {
                     account = oldAccount || "player";
                 }
-                console.log("Account variable set to:", account);
+                console.log("Account:", account);
             }
         }
     }
 });
-document.addEventListener("keydown", function(event) {
-  if (event.ctrlKey && event.shiftKey && event.code === "KeyA") {
-    event.preventDefault(); // Stop browser’s default shortcut
-    console.log("Ctrl+Shift+A overridden!");
-    // You can trigger your custom game command here, e.g.:
-    // handleCommand("/directChange bestScore0");
-  }
-});
-document.addEventListener("keydown", function(event) {
-  if (!testMode) return;
 
-  if (event.code === "KeyG") {
-    floatEnabled = !floatEnabled;
-    console.log("Float:", floatEnabled);
-  }
-  if (event.code === "KeyJ") {
-    infiniteJump = !infiniteJump;
-    console.log("Infinite Jump:", infiniteJump);
-  }
-  if (event.code === "KeyI") {
-    deathEnabled = !deathEnabled;
-    console.log("Death:", deathEnabled);
-  }
-  if (event.code === "KeyQ") {
-    playerSpeed = Math.max(0.5, playerSpeed - 0.5);
-    console.log("Player Speed decreased:", playerSpeed);
-  }
-  if (event.code === "KeyE") {
-    playerSpeed += 0.5;
-    console.log("Player Speed increased:", playerSpeed);
-  }
+// --- TEST-MODE HOTKEYS ---
+document.addEventListener("keydown", function(event){
+    if(!testMode) return;
+
+    if(event.code === "KeyG") {
+        cheats.float = !cheats.float;
+        console.log("Float:", cheats.float);
+    }
+    if(event.code === "KeyJ") {
+        cheats.infiniteJump = !cheats.infiniteJump;
+        console.log("Infinite Jump:", cheats.infiniteJump);
+    }
+    if(event.code === "KeyI") {
+        cheats.invincible = !cheats.invincible;
+        console.log("Death enabled:", !cheats.invincible);
+    }
+    if(event.code === "KeyQ") {
+        player.speed = Math.max(0.5, player.speed - 0.5);
+        console.log("Player Speed decreased:", player.speed);
+    }
+    if(event.code === "KeyE") {
+        player.speed += 0.5;
+        console.log("Player Speed increased:", player.speed);
+    }
 });
 </script>
 </body>
