@@ -166,20 +166,46 @@ function spawnParticles(x,y,type){
 function tryDie(spike){
     if(!player.visible) return;
     if(cheats.invincible) return;
+
     if(player.onGround || player.vy>0){
         player.visible=false;
         if(spike) spike.hit=false;
         createCrash();
-        gameStarted=false; 
-        if(score>bestScore) { bestScore = Math.floor(score); localStorage.setItem("bestScore", bestScore); }
+        gameStarted=false;
+
+        // Save last score
+        localStorage.setItem("lastScore", score);
+
+        // Update best score
+        if(score > bestScore) {
+            bestScore=Math.floor(score);
+            localStorage.setItem("bestScore", bestScore);
+        }
+
         setTimeout(()=>{showStartScreen();}, 1000);
     }
 }
 
+
 function showStartScreen(){ 
     document.getElementById("bestScore").innerText="Best Score: "+bestScore;
+
+    // Display last score
+    let lastScore = localStorage.getItem("lastScore") || 0;
+    if(!document.getElementById("lastScore")){
+        let lastScoreDiv = document.createElement("div");
+        lastScoreDiv.id = "lastScore";
+        lastScoreDiv.style.fontSize = "24px";
+        lastScoreDiv.style.marginTop = "10px";
+        lastScoreDiv.style.color = "#0ff";
+        lastScoreDiv.style.textShadow = "0 0 10px #0ff";
+        document.getElementById("startScreen").appendChild(lastScoreDiv);
+    }
+    document.getElementById("lastScore").innerText="Last Score: "+lastScore;
+
     document.getElementById("startScreen").style.display="flex"; 
 }
+
 function hideStartScreen(){ document.getElementById("startScreen").style.display="none"; }
 
 function addLine(){ 
