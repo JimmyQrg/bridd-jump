@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bridd Jump with Trail</title>
+<title>Schedule | Infinite Campus</title>
 <link rel="icon" type="image/png" href="infinite-campus-icon.png">
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
@@ -299,19 +299,24 @@ function update(time){
 
     // --- PLAYER TRAIL ---
     if(player.visible){
-        trail.push({x:player.x+player.width/2, y:player.y+player.height/2});
-        if(trail.length>50) trail.shift();
-        ctx.strokeStyle = "#0ff"; ctx.lineWidth = 6; ctx.shadowBlur = 20;
-        ctx.beginPath();
-        for(let i=0;i<trail.length;i++){
-            let p = trail[i];
-            if(i===0) ctx.moveTo(p.x-cameraX,p.y-cameraY);
-            else ctx.lineTo(p.x-cameraX,p.y-cameraY);
-        }
-        ctx.stroke();
-        ctx.shadowBlur=0;
+    trail.push({x:player.x, y:player.y, width:player.width, height:player.height, color:player.color});
+    if(trail.length>20) trail.shift(); // keep last 20 clones
+    for(let i=0;i<trail.length;i++){
+        let t = trail[i];
+        ctx.save();
+        let alpha = (i+1)/trail.length; // older clones are more transparent
+        ctx.globalAlpha = alpha * 0.6; 
+        ctx.shadowColor = t.color;
+        ctx.shadowBlur = 15*alpha;
+        ctx.fillStyle = t.color;
+        ctx.fillRect(t.x-cameraX, t.y-cameraY, t.width, t.height);
+        ctx.strokeStyle = t.color;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(t.x-cameraX, t.y-cameraY, t.width, t.height);
+        ctx.restore();
     }
-
+    ctx.globalAlpha = 1; // reset alpha
+}
     // Player
     if(player.visible){
         ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
