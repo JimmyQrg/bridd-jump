@@ -437,7 +437,17 @@ window.addEventListener("keydown", e => {
                 );
             }
         }
-
+        if(command === "/clear") {
+            if(root1 === "bestScore") {
+                bestScore = 0;
+                localStorage.setItem("bestScore", bestScore);
+                alert("Best Score has been reset to 0.");
+                // Also update the UI if the start screen is visible
+                if(document.getElementById("bestScore")) {
+                    document.getElementById("bestScore").innerText = "Best Score: 0";
+                }
+            }
+        }
         if(command === "/code") {
             if(root1 === "770709") { testMode = !testMode; alert(testMode ? "TEST MODE ON" : "TEST MODE OFF"); }
             else if(root1 === "lanseyaoji") { if(player.speed < 5) player.speed = 5; else player.speed *= 1.5; console.log("Player speed:", player.speed); }
