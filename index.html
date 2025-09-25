@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Schedule | Infinite Campus</title>
-    <link rel="icon" type="image/png" href="infinite-campus-icon.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bridd Jump with Trail</title>
+<link rel="icon" type="image/png" href="infinite-campus-icon.png">
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
 canvas { display:block; }
@@ -34,32 +34,32 @@ h1 { font-size:60px; margin-bottom:20px; text-shadow: 0 0 20px #0ff, 0 0 40px #0
 
 <script>
 // --- GLOBAL VARIABLES ---
-const canvas=document.getElementById("gameCanvas");
-const ctx=canvas.getContext("2d");
-canvas.width=window.innerWidth;
-canvas.height=window.innerHeight;
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-const BLOCK_SIZE=50;
-const JUMP_SPEED=-15;
-const GRAVITY=0.7;
+const BLOCK_SIZE = 50;
+const JUMP_SPEED = -15;
+const GRAVITY = 0.7;
 
 let testMode = false;
 let gemEveryBlock = false;
 let oldAccount = null;
 let account = "player";
 
-let keys={}, score=0, bestScore=localStorage.getItem("bestScore")?parseInt(localStorage.getItem("bestScore")):0;
-let lastTime=0, gameStarted=false, animationFrameId;
-let crashPieces=[], particles=[], gems=[];
-let cheatsUnlocked=false;
-let cheats={float:false, invincible:false, infiniteJump:false};
-let startPressCount=0;
+let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
+let lastTime = 0, gameStarted = false, animationFrameId;
+let crashPieces = [], particles = [], gems = [], trail = [];
+let cheatsUnlocked = false;
+let cheats = {float:false, invincible:false, infiniteJump:false};
+let startPressCount = 0;
 
-let baseColors=[{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,b:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
-let colorIndex=0, platformColor={r:255,g:0,b:0}, nextColor=baseColors[1], colorLerp=0;
-let globalTime=0;
+let baseColors = [{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,b:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
+let colorIndex = 0, platformColor = {r:255,g:0,b:0}, nextColor = baseColors[1], colorLerp = 0;
+let globalTime = 0;
 
-let player={
+let player = {
     x:100, y:0, width:50, height:50,
     color:"#0ff", vy:0, speed:8,
     hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true,
@@ -67,21 +67,21 @@ let player={
     accountEmail:"player@example.com"
 };
 
-let platforms=[], spikes=[], lines=[], lastPlatformX=0, lastPlatformY=0;
+let platforms = [], spikes = [], lines = [], lastPlatformX = 0, lastPlatformY = 0;
 
 // --- INPUT ---
 window.addEventListener("keydown", e=>{ 
     if(["KeyW","ArrowUp","Space"].includes(e.code)) jump(); 
-    keys[e.code]=true;
+    keys[e.code] = true;
 });
-window.addEventListener("keyup", e=>keys[e.code]=false);
-window.addEventListener("mousedown", ()=>jump());
-window.addEventListener("touchstart", ()=>jump());
+window.addEventListener("keyup", e => keys[e.code] = false);
+window.addEventListener("mousedown", () => jump());
+window.addEventListener("touchstart", () => jump());
 
 function jump(){
     if(!player.visible) return;
     if(cheats.infiniteJump || player.jumpsLeft>0){
-        player.vy=JUMP_SPEED;
+        player.vy = JUMP_SPEED;
         spawnParticles(player.x+player.width/2, player.y+player.height, player.jumpsLeft===2?"jump":"double");
         if(!cheats.infiniteJump) player.jumpsLeft--;
     }
@@ -90,35 +90,30 @@ function jump(){
 function resetGame(){
     if(animationFrameId) cancelAnimationFrame(animationFrameId);
     startPressCount++;
-    score=0; colorLerp=0; globalTime=0;
-    player.x=100; 
-    player.y=canvas.height/2-player.height; 
-    player.vy=0; 
-    player.speed=8; 
-    player.jumpsLeft=2; 
-    player.onGround=false; 
-    player.visible=true; 
-    player.horizMultiplier=1; player.vertMultiplier=1;
-    platforms=[]; spikes=[]; crashPieces=[]; particles=[]; gems=[]; lines=[];
-    platformColor={...baseColors[0]}; colorIndex=0; nextColor=baseColors[1];
+    score = 0; colorLerp = 0; globalTime = 0; trail = [];
+    player.x = 100; player.y = canvas.height/2-player.height; player.vy = 0; player.speed = 8;
+    player.jumpsLeft = 2; player.onGround = false; player.visible = true;
+    player.horizMultiplier = 1; player.vertMultiplier = 1;
+    platforms = []; spikes = []; crashPieces = []; particles = []; gems = []; lines = [];
+    platformColor = {...baseColors[0]}; colorIndex = 0; nextColor = baseColors[1];
 
     platforms.push({x:0,y:player.y+player.height,width:BLOCK_SIZE*10,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
-    lastPlatformX=0; lastPlatformY=player.y+player.height;
+    lastPlatformX = 0; lastPlatformY = player.y+player.height;
 
-    lastTime=performance.now();
+    lastTime = performance.now();
     hideStartScreen();
-    gameStarted=true;
-    animationFrameId=requestAnimationFrame(update);
+    gameStarted = true;
+    animationFrameId = requestAnimationFrame(update);
 }
 
 function generateBlockPlatform(lastX,lastY){
-    let blockCount=Math.floor(Math.random()*8)+1;
-    if(Math.random()<0.7) blockCount=Math.min(blockCount,Math.floor(Math.random()*3+1));
+    let blockCount = Math.floor(Math.random()*8)+1;
+    if(Math.random()<0.7) blockCount = Math.min(blockCount,Math.floor(Math.random()*3+1));
 
-    let gap=Math.floor(Math.random()*5+3)*BLOCK_SIZE;
-    let x=lastX+gap;
-    let y=lastY+(Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
-    y=Math.max(BLOCK_SIZE, Math.min(canvas.height-3*BLOCK_SIZE, y));
+    let gap = Math.floor(Math.random()*5+3)*BLOCK_SIZE;
+    let x = lastX+gap;
+    let y = lastY+(Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
+    y = Math.max(BLOCK_SIZE, Math.min(canvas.height-3*BLOCK_SIZE, y));
 
     for(let i=0;i<blockCount;i++){
         platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
@@ -141,10 +136,10 @@ function generateBlockPlatform(lastX,lastY){
 
 function checkSpikeCollision(spike){
     if(!spike.hit) return false;
-    const hbW=player.width*player.hitboxScale;
-    const hbH=player.height*player.hitboxScale;
-    const hbX=player.x+(player.width-hbW)/2;
-    const hbY=player.y+(player.height-hbH)/2;
+    const hbW = player.width*player.hitboxScale;
+    const hbH = player.height*player.hitboxScale;
+    const hbX = player.x+(player.width-hbW)/2;
+    const hbY = player.y+(player.height-hbH)/2;
     return hbX+hbW>spike.x && hbX<spike.x+spike.width && hbY+hbH>spike.y && hbY<spike.y+spike.height;
 }
 
@@ -176,10 +171,7 @@ function tryDie(spike){
         if(spike) spike.hit=false;
         createCrash();
         gameStarted=false; 
-        if(score>bestScore) {
-            bestScore=Math.floor(score);
-            localStorage.setItem("bestScore", bestScore);
-        }
+        if(score>bestScore) { bestScore = Math.floor(score); localStorage.setItem("bestScore", bestScore); }
         setTimeout(()=>{showStartScreen();}, 1000);
     }
 }
@@ -188,59 +180,59 @@ function showStartScreen(){
     document.getElementById("bestScore").innerText="Best Score: "+bestScore;
     document.getElementById("startScreen").style.display="flex"; 
 }
-function hideStartScreen(){document.getElementById("startScreen").style.display="none";}
+function hideStartScreen(){ document.getElementById("startScreen").style.display="none"; }
 
 function addLine(){ 
     if(Math.random()>0.15) return;
     lines.push({x:canvas.width, y:Math.random()*canvas.height, width:Math.random()*50+20}); 
 }
 
-function lerpColor(c1,c2,t){return {r:c1.r+(c2.r-c1.r)*t, g:c1.g+(c2.g-c1.g)*t, b:c1.b+(c2.b-c1.b)*t};}
+function lerpColor(c1,c2,t){ return {r:c1.r+(c2.r-c1.r)*t, g:c1.g+(c2.g-c1.g)*t, b:c1.b+(c2.b-c1.b)*t}; }
 
-let cameraX=0, cameraY=0;
+let cameraX = 0, cameraY = 0;
 
 function update(time){
-    let delta=(time-lastTime)/1000; lastTime=time;
-    globalTime+=delta;
+    let delta = (time-lastTime)/1000; lastTime = time;
+    globalTime += delta;
 
     if(gameStarted && player.visible){
-        player.speed+=0.002;
+        player.speed += 0.002;
 
-        colorLerp+=delta/25;
-        if(colorLerp>=1){
-            colorIndex=(colorIndex+1)%baseColors.length;
-            nextColor=baseColors[(colorIndex+1)%baseColors.length];
-            colorLerp=0;
+        colorLerp += delta/25;
+        if(colorLerp >= 1){
+            colorIndex = (colorIndex+1)%baseColors.length;
+            nextColor = baseColors[(colorIndex+1)%baseColors.length];
+            colorLerp = 0;
         }
-        platformColor=lerpColor(baseColors[colorIndex],nextColor,colorLerp);
+        platformColor = lerpColor(baseColors[colorIndex],nextColor,colorLerp);
 
-        player.y+=player.vy*player.vertMultiplier; 
+        player.y += player.vy*player.vertMultiplier; 
         if(cheats.float && player.vy>0) player.vy *= 0.5;
-        player.vy+=GRAVITY*player.vertMultiplier;
-        player.x+=player.speed*player.horizMultiplier;
+        player.vy += GRAVITY*player.vertMultiplier;
+        player.x += player.speed*player.horizMultiplier;
 
-        player.onGround=false;
+        player.onGround = false;
         for(let plat of platforms){
             if(player.x+player.width>plat.x && player.x<plat.x+plat.width &&
                player.y+player.height>plat.y && player.y+player.height<plat.y+plat.height+player.vy){
                 if(player.vy>=0){
-                    player.y=plat.y-player.height; player.vy=0; player.onGround=true; player.jumpsLeft=2;
+                    player.y = plat.y-player.height; player.vy = 0; player.onGround=true; player.jumpsLeft=2;
                     spawnParticles(player.x+player.width/2, player.y+player.height, "land");
                     plat.y += 2;
                 }
             }
-            if(!plat.passed && player.x>plat.x+plat.width){ score+=1; plat.passed=true; }
+            if(!plat.passed && player.x>plat.x+plat.width){ score += 1; plat.passed=true; }
         }
-        if(player.y>canvas.height) {player.jumpsLeft=1; tryDie();}
+        if(player.y>canvas.height) { player.jumpsLeft=1; tryDie(); }
 
         for(let spike of spikes){
             if(checkSpikeCollision(spike)) tryDie(spike);
-            if(!spike.passed && player.x>spike.x+spike.width){ score+=1; spike.passed=true; }
+            if(!spike.passed && player.x>spike.x+spike.width){ score += 1; spike.passed=true; }
         }
 
         for(let g of gems){
             if(!g.collected && player.x+player.width>g.x && player.x<g.x+g.size && player.y+player.height>g.y && player.y<g.y+g.size){
-                score+=50; g.collected=true; spawnParticles(g.x+g.size/2,g.y+g.size/2,"double");
+                score += 50; g.collected=true; spawnParticles(g.x+g.size/2,g.y+g.size/2,"double");
             }
         }
 
@@ -252,16 +244,18 @@ function update(time){
         addLine();
     }
 
-    const targetCamX=player.x-150;
-    const targetCamY=player.y - canvas.height/2 + player.height*1.5;
+    // Camera smoothing
+    const targetCamX = player.x - 150;
+    const targetCamY = player.y - canvas.height/2 + player.height*1.5;
     cameraX = cameraX*0.9 + targetCamX*0.1;
     cameraY = cameraY*0.9 + targetCamY*0.1;
 
+    // --- DRAW ---
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
     ctx.fillText(score,20,50);
 
-    // Platforms with gradient
+    // Platforms
     for(let plat of platforms){
         let glow = Math.sin(globalTime*3)*10 + 15;
         ctx.shadowColor = plat.color; 
@@ -275,7 +269,7 @@ function update(time){
             ctx.fillStyle = grd;
             ctx.fillRect(plat.x-cameraX, y-cameraY, plat.width, BLOCK_SIZE);
         }
-        ctx.shadowBlur=0;
+        ctx.shadowBlur = 0;
     }
 
     // Spikes
@@ -303,6 +297,21 @@ function update(time){
         ctx.restore();
     }
 
+    // --- PLAYER TRAIL ---
+    if(player.visible){
+        trail.push({x:player.x+player.width/2, y:player.y+player.height/2});
+        if(trail.length>50) trail.shift();
+        ctx.strokeStyle = "#0ff"; ctx.lineWidth = 6; ctx.shadowBlur = 20;
+        ctx.beginPath();
+        for(let i=0;i<trail.length;i++){
+            let p = trail[i];
+            if(i===0) ctx.moveTo(p.x-cameraX,p.y-cameraY);
+            else ctx.lineTo(p.x-cameraX,p.y-cameraY);
+        }
+        ctx.stroke();
+        ctx.shadowBlur=0;
+    }
+
     // Player
     if(player.visible){
         ctx.shadowColor="#0ff"; ctx.shadowBlur=20;
@@ -324,7 +333,7 @@ function update(time){
     }
     particles = particles.filter(p=>p.life>0);
 
-    // Horizontal lines now move with platforms
+    // Horizontal lines
     for(let l of lines){
         l.x -= player.speed*0.5*player.horizMultiplier; 
         ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.lineWidth=2;
@@ -392,28 +401,12 @@ window.addEventListener("keydown", e => {
             }
         }
 
-        // --- /code ---
         if(command === "/code") {
-            if(root1 === "770709") {
-                testMode = !testMode;
-                alert(testMode ? "TEST MODE ON" : "TEST MODE OFF");
-            }
-            else if(root1 === "lanseyaoji") {
-                if(player.speed < 5) player.speed = 5;
-                else player.speed *= 1.5;
-                console.log("Player speed:", player.speed);
-            }
-            else if(root1 === "jinyumantang") {
-                gemEveryBlock = !gemEveryBlock;
-                console.log("Gem generation mode:", gemEveryBlock ? "every block" : "standard");
-            }
+            if(root1 === "770709") { testMode = !testMode; alert(testMode ? "TEST MODE ON" : "TEST MODE OFF"); }
+            else if(root1 === "lanseyaoji") { if(player.speed < 5) player.speed = 5; else player.speed *= 1.5; console.log("Player speed:", player.speed); }
+            else if(root1 === "jinyumantang") { gemEveryBlock = !gemEveryBlock; console.log("Gem generation mode:", gemEveryBlock ? "every block" : "standard"); }
             else if(root1 === "JiMmYiStHeCoOlEsTgUy|2025.letmecheat|L^UP++0U+L0UD") {
-                if(account !== "𐀒𐀒𐀒") {
-                    oldAccount = account;
-                    account = "𐀒𐀒𐀒";
-                } else {
-                    account = oldAccount || "player";
-                }
+                if(account !== "𐀒𐀒𐀒") { oldAccount = account; account = "𐀒𐀒𐀒"; } else { account = oldAccount || "player"; }
                 console.log("Account:", account);
             }
         }
@@ -424,28 +417,12 @@ window.addEventListener("keydown", e => {
 document.addEventListener("keydown", function(event){
     if(!testMode) return;
 
-    if(event.code === "KeyG") {
-        cheats.float = !cheats.float;
-        console.log("Float:", cheats.float);
-    }
-    if(event.code === "KeyJ") {
-        cheats.infiniteJump = !cheats.infiniteJump;
-        console.log("Infinite Jump:", cheats.infiniteJump);
-    }
-    if(event.code === "KeyI") {
-        cheats.invincible = !cheats.invincible;
-        console.log("Death enabled:", !cheats.invincible);
-    }
-    if(event.code === "KeyQ") {
-        player.speed = Math.max(0.5, player.speed - 0.5);
-        console.log("Player Speed decreased:", player.speed);
-    }
-    if(event.code === "KeyE") {
-        player.speed += 0.5;
-        console.log("Player Speed increased:", player.speed);
-    }
+    if(event.code === "KeyG") { cheats.float = !cheats.float; console.log("Float:", cheats.float); }
+    if(event.code === "KeyJ") { cheats.infiniteJump = !cheats.infiniteJump; console.log("Infinite Jump:", cheats.infiniteJump); }
+    if(event.code === "KeyI") { cheats.invincible = !cheats.invincible; console.log("Death enabled:", !cheats.invincible); }
+    if(event.code === "KeyQ") { player.speed = Math.max(0.5, player.speed - 0.5); console.log("Player Speed decreased:", player.speed); }
+    if(event.code === "KeyE") { player.speed += 0.5; console.log("Player Speed increased:", player.speed); }
 });
 </script>
 </body>
 </html>
-
