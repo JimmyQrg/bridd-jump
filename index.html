@@ -305,7 +305,7 @@ function update(time){
     }
 
     // Keep the trail longer
-    if(trail.length > 50) trail.shift(); // last 50 clones
+    if(trail.length > 30) trail.shift(); // last 50 clones
 
     for(let i=0;i<trail.length;i++){
         let t = trail[i];
