@@ -299,12 +299,18 @@ function update(time){
 
     // --- PLAYER TRAIL ---
     if(player.visible){
-    trail.push({x:player.x, y:player.y, width:player.width, height:player.height, color:player.color});
-    if(trail.length>20) trail.shift(); // keep last 20 clones
+    // Only add a clone every few pixels to space them out
+    if(trail.length === 0 || Math.hypot(player.x - trail[trail.length-1].x, player.y - trail[trail.length-1].y) > 15){
+        trail.push({x:player.x, y:player.y, width:player.width, height:player.height, color:player.color});
+    }
+
+    // Keep the trail longer
+    if(trail.length > 50) trail.shift(); // last 50 clones
+
     for(let i=0;i<trail.length;i++){
         let t = trail[i];
         ctx.save();
-        let alpha = (i+1)/trail.length; // older clones are more transparent
+        let alpha = (i+1)/trail.length; // older clones more transparent
         ctx.globalAlpha = alpha * 0.6; 
         ctx.shadowColor = t.color;
         ctx.shadowBlur = 15*alpha;
