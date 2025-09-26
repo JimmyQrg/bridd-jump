@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Settings | Infinite Campus</title>
+<style>
+body { font-family: Arial, sans-serif; padding: 20px; background:#111; color:#0ff; }
+label { display: block; margin-top: 15px; font-weight: bold; }
+select, input[type="range"] { margin-top: 5px; padding: 5px; width: 250px; }
+.slider-label { font-size: 14px; margin-top: 5px; }
+.buttons { margin-top: 20px; }
+button { padding: 10px 15px; cursor: pointer; margin-right: 10px; border:2px solid #0ff; background:black; color:#0ff; border-radius:8px; }
+button:hover { background:#0ff; color:black; }
+.advanced { margin-top: 25px; padding: 15px; border: 2px solid #0ff; border-radius: 8px; background:#000; }
+</style>
+</head>
+<body>
+<h1>Game Settings</h1>
+
+<label for="fps">Max FPS:</label>
+<select id="fps">
+  <option>5</option><option>10</option><option>15</option>
+  <option>20</option><option>25</option><option>30</option>
+  <option>35</option><option>40</option><option>45</option>
+  <option>50</option><option>60</option><option>70</option>
+  <option>80</option><option>90</option><option>100</option>
+  <option>120</option><option>140</option><option>160</option>
+  <option>180</option><option>190</option><option>200</option>
+  <option>Unlimited</option>
+</select>
+
+<label for="quality">Quality:</label>
+<select id="quality">
+  <option>Potato</option>
+  <option>Low</option>
+  <option>Medium</option>
+  <option>Medium+</option>
+  <option>High</option>
+  <option>High+</option>
+  <option>Extreme</option>
+  <option>Extreme+</option>
+  <option>Ultra</option>
+  <option>Ultra+</option>
+  <option>Highest</option>
+</select>
+
+<div class="advanced">
+  <h2>Advanced Settings</h2>
+  <label>Jump Effects <span id="jumpVal">100%</span></label>
+  <input type="range" id="jump" min="0" max="200" value="100">
+
+  <label>Walk Effects <span id="walkVal">100%</span></label>
+  <input type="range" id="walk" min="0" max="200" value="100">
+
+  <label>Die Effects <span id="dieVal">100%</span></label>
+  <input type="range" id="die" min="0" max="200" value="100">
+
+  <label>Horizontal Line Effects <span id="lineVal">100%</span></label>
+  <input type="range" id="line" min="0" max="200" value="100">
+
+  <label>Glow <span id="glowVal">100%</span></label>
+  <input type="range" id="glow" min="0" max="200" value="100">
+
+  <label>Trail <span id="trailVal">100%</span></label>
+  <input type="range" id="trail" min="0" max="200" value="100">
+
+  <label>
+    <input type="checkbox" id="blockTexture" checked>
+    Block Texture Enabled
+  </label>
+</div>
+
+<div class="buttons">
+  <button id="cancelBtn">Cancel</button>
+  <button id="saveBtn">Save</button>
+</div>
+
+<script>
+document.getElementById("fps").value = localStorage.getItem("fps") || "60";
+document.getElementById("quality").value = localStorage.getItem("quality") || "Extreme+";
+
+const defaultAdv = { jump:100, walk:100, die:100, line:100, glow:100, trail:100, blockTexture:true };
+const advSettings = JSON.parse(localStorage.getItem("advancedSettings") || JSON.stringify(defaultAdv));
+
+// Populate sliders
+for (const key in advSettings) {
+  if (document.getElementById(key)) {
+    document.getElementById(key).value = advSettings[key];
+  }
+}
+document.getElementById("blockTexture").checked = advSettings.blockTexture;
+
+// Update labels
+function updateLabel(id) {
+  document.getElementById(id+"Val").textContent = document.getElementById(id).value + "%";
+}
+["jump","walk","die","line","glow","trail"].forEach(id=>{
+  updateLabel(id);
+  document.getElementById(id).addEventListener("input", ()=>updateLabel(id));
+});
+
+// Save
+document.getElementById("saveBtn").addEventListener("click", ()=>{
+  localStorage.setItem("fps", document.getElementById("fps").value);
+  localStorage.setItem("quality", document.getElementById("quality").value);
+
+  const adv = {
+    jump: parseInt(document.getElementById("jump").value),
+    walk: parseInt(document.getElementById("walk").value),
+    die: parseInt(document.getElementById("die").value),
+    line: parseInt(document.getElementById("line").value),
+    glow: parseInt(document.getElementById("glow").value),
+    trail: parseInt(document.getElementById("trail").value),
+    blockTexture: document.getElementById("blockTexture").checked
+  };
+  localStorage.setItem("advancedSettings", JSON.stringify(adv));
+
+  alert("Settings saved!");
+  window.location.href="index.html";
+});
+
+// Cancel
+document.getElementById("cancelBtn").addEventListener("click", ()=>{
+  window.location.href="index.html";
+});
+</script>
+</body>
+</html>
