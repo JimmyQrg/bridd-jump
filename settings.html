@@ -11,12 +11,19 @@
               cursor:pointer; border-radius:10px; }
   #console { position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
              width:400px; padding:5px; background:#000; border:2px solid #0ff; color:#0ff; }
+  #uiBox { position:absolute; top:10px; right:10px; padding:10px;
+           background:rgba(0,0,0,0.7); border:2px solid #0ff; border-radius:10px; }
 </style>
 </head>
 <body>
 <button id="startBtn">Start</button>
 <canvas id="gameCanvas" width="800" height="600"></canvas>
 <input id="console" placeholder="Enter command (e.g. /score add 10)" />
+<div id="uiBox">
+  <div id="scoreDisplay">Score: 0</div>
+  <div id="bestDisplay">Best: 0</div>
+  <div id="lastDisplay">Last Point: 0</div>
+</div>
 
 <script>
 const canvas = document.getElementById("gameCanvas");
@@ -30,17 +37,24 @@ fps = (fps === "Unlimited") ? 0 : parseInt(fps);
 
 let quality = localStorage.getItem("quality") || "Extreme+";
 let adv = JSON.parse(localStorage.getItem("advancedSettings") || "{}");
-
-// Fill defaults if missing
 adv = Object.assign({jump:0,walk:0,die:0,line:0,glow:0,trail:0,blockTexture:true}, adv);
 
 // ===== GAME STATE =====
 let score = 0;
 let bestScore = parseInt(localStorage.getItem("bestScore") || "0");
+let lastScore = parseInt(localStorage.getItem("lastScore") || "0");
 let player = { x: 100, y: 300, vy:0, trail:[] };
 let platforms = [];
 let dieParticles = [];
 let scanOffset = 0;
+
+// UI updates
+function updateUI(){
+  document.getElementById("scoreDisplay").textContent = "Score: " + score;
+  document.getElementById("bestDisplay").textContent = "Best: " + bestScore;
+  document.getElementById("lastDisplay").textContent = "Last Point: " + lastScore;
+}
+updateUI();
 
 // ===== PLATFORM GENERATOR =====
 function spawnPlatform(){
@@ -91,11 +105,10 @@ function loop(timestamp){
   }
 
   // Draw platforms
-  if(adv.blockTexture){
-    ctx.fillStyle = "#0ff";
-    platforms.forEach(p=>{
-      ctx.fillRect(p.x, p.y, p.w, p.h);
-      // Texture effect
+  ctx.fillStyle = "#0ff";
+  platforms.forEach(p=>{
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    if(adv.blockTexture){
       ctx.strokeStyle = "rgba(0,0,0,0.5)";
       for(let i=0;i<p.w;i+=10){
         ctx.beginPath();
@@ -103,15 +116,9 @@ function loop(timestamp){
         ctx.lineTo(p.x+i, p.y+p.h);
         ctx.stroke();
       }
-      p.x -= 2;
-    });
-  } else {
-    ctx.fillStyle = "#0ff";
-    platforms.forEach(p=>{
-      ctx.fillRect(p.x, p.y, p.w, p.h);
-      p.x -= 2;
-    });
-  }
+    }
+    p.x -= 2;
+  });
 
   // Trail Effect
   if(adv.trail>0){
@@ -171,9 +178,7 @@ function loop(timestamp){
     bestScore = score;
     localStorage.setItem("bestScore", bestScore);
   }
-  ctx.fillStyle = "#0ff";
-  ctx.fillText("Score: " + score, 20, 20);
-  ctx.fillText("Best: " + bestScore, 20, 40);
+  updateUI();
 
   requestAnimationFrame(loop);
 }
@@ -197,11 +202,15 @@ document.getElementById("console").addEventListener("keydown", e=>{
       if(adv.die>0){
         makeParticles(player.x,player.y,adv.die/2,"#0ff",5);
       }
+      lastScore = score;
+      localStorage.setItem("lastScore", lastScore);
       alert("You died! Final score: "+score);
       if(score > bestScore){
         bestScore = score;
         localStorage.setItem("bestScore", bestScore);
       }
+      updateUI();
+      document.getElementById("startBtn").style.display="block";
     }
   }
 });
