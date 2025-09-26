@@ -1,454 +1,257 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
-<link rel="icon" type="image/png" href="infinite-campus.png">
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Schedule | Infinite Campus</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bridd Jump with Trail</title>
 <link rel="icon" type="image/png" href="infinite-campus-icon.png">
 <style>
-/* --- Original neon styling preserved --- */
-:root { --cyan: #0ff; --bg:#000; --panel: rgba(0,0,0,0.85); }
-html,body{height:100%; margin:0; background:var(--bg); font-family: "Segoe UI", Roboto, Arial, sans-serif;}
-canvas{display:block; width:100vw; height:100vh;}
-#ui{position:absolute; inset:0; pointer-events:none;}
-#startScreen{
-  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-  width:420px; padding:40px; background:var(--panel);
-  display:flex; flex-direction:column; align-items:center; gap:8px;
-  pointer-events:all; color:var(--cyan); border:3px solid var(--cyan); border-radius:20px;
-  box-shadow:0 0 40px rgba(0,255,255,0.06);
+body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
+canvas { display:block; }
+#ui { position:absolute; top:0; left:0; width:100%; height:100%; text-align:center; pointer-events:none; }
+#startScreen {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:400px; padding:40px; background:rgba(0,0,0,0.9);
+    display:flex; flex-direction:column; justify-content:center; align-items:center;
+    pointer-events:all; font-size:30px; color:#0ff; text-shadow:0 0 20px #0ff;
+    border:3px solid #0ff; border-radius:20px;
 }
-h1{font-size:64px; margin:0; text-shadow:0 0 20px var(--cyan),0 0 40px var(--cyan); animation:glow 1.5s infinite alternate;}
-@keyframes glow{0%{text-shadow:0 0 10px var(--cyan);}100%{text-shadow:0 0 40px var(--cyan);}}
-#bestScore,#lastScore{font-size:20px}
-#startBtn{font-size:28px; padding:12px 34px; background:black; color:var(--cyan); border:3px solid var(--cyan); border-radius:12px; cursor:pointer;}
-#startBtn:hover{background:var(--cyan); color:black;}
-#settingsBtn{
-  position:absolute; top:18px; right:18px; pointer-events:all; background:none; border:none; color:var(--cyan);
-  font-size:30px; cursor:pointer; text-shadow:0 0 8px var(--cyan);
-}
-#settingsBtn:hover{color:#fff;}
-/* small UI overlay in corner is hidden until start screen removed */
-#hud {
-  position: absolute; top:12px; left:12px; pointer-events:none; color:#0ff;
-  text-shadow:0 0 6px rgba(0,255,255,0.1); font-weight:600;
-}
-/* command hint */
-#hint{ position:absolute; bottom:14px; left:50%; transform:translateX(-50%); color:rgba(255,255,255,0.06); font-size:13px; pointer-events:none;}
+button { font-size:32px; padding:15px 40px; cursor:pointer; margin-top:30px; color:#0ff; background:black; border:3px solid #0ff; border-radius:12px; transition:0.3s; }
+button:hover { color:black; background:#0ff; }
+h1 { font-size:60px; margin-bottom:20px; text-shadow: 0 0 20px #0ff, 0 0 40px #0ff, 0 0 60px #0ff; animation: glow 1.5s infinite alternate; }
+@keyframes glow { 0% { text-shadow:0 0 10px #0ff,0 0 20px #0ff;} 100% {text-shadow:0 0 40px #0ff,0 0 80px #0ff;} }
 </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
-
 <div id="ui">
   <div id="startScreen">
     <h1>BRIDD JUMP</h1>
     <div id="bestScore">Best Score: 0</div>
-    <div id="lastScore">Last Point: 0</div>
     <button id="startBtn">START</button>
   </div>
 </div>
 
-<button id="settingsBtn" title="Settings">⚙️</button>
-<div id="hud" aria-hidden="true"></div>
-<div id="hint">Press Ctrl+Shift+A to open command prompt (e.g. <code>/score set 100</code>)</div>
-
 <script>
-/* =================== Core game with Advanced Settings integrated =================== */
+// --- GLOBAL VARIABLES ---
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-/* ---------- Canvas & resize ---------- */
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; }
-addEventListener('resize', resize);
-resize();
+const BLOCK_SIZE = 50;
+const JUMP_SPEED = -15;
+const GRAVITY = 0.7;
 
-/* ---------- Settings load ---------- */
-const qualityPresets = {
-  "Potato":   {jump:0, walk:0, die:0, line:0, glow:0, trail:0, blockTexture:false},
-  "Low":      {jump:5, walk:0, die:0, line:0, glow:0, trail:0, blockTexture:false},
-  "Medium":   {jump:10, walk:0, die:10, line:0, glow:0, trail:0, blockTexture:true},
-  "Medium+":  {jump:15, walk:15, die:15, line:0, glow:0, trail:0, blockTexture:true},
-  "High":     {jump:15, walk:15, die:15, line:15, glow:0, trail:0, blockTexture:true},
-  "High+":    {jump:33, walk:33, die:33, line:33, glow:0, trail:0, blockTexture:true},
-  "Extreme":  {jump:60, walk:60, die:60, line:60, glow:0, trail:0, blockTexture:true},
-  "Extreme+": {jump:64, walk:64, die:64, line:64, glow:64, trail:0, blockTexture:true},
-  "Ultra":    {jump:100,walk:100,die:100,line:100,glow:100,trail:0, blockTexture:true},
-  "Ultra+":   {jump:120,walk:120,die:120,line:120,glow:120,trail:120,blockTexture:true},
-  "Highest":  {jump:200,walk:200,die:200,line:200,glow:150,trail:200,blockTexture:true}
+let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
+let lastTime = 0, gameStarted = false, animationFrameId;
+let crashPieces = [], particles = [], gems = [], trail = [];
+
+let baseColors = [{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,b:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
+let colorIndex = 0, platformColor = {r:255,g:0,b:0}, nextColor = baseColors[1], colorLerp = 0;
+let globalTime = 0;
+
+let player = {
+    x:100, y:0, width:50, height:50,
+    color:"#0ff", vy:0, speed:8,
+    hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true,
+    horizMultiplier:1, vertMultiplier:1
 };
 
-function loadSettings(){
-  const fpsRaw = localStorage.getItem('fps') || '60';
-  const fps = fpsRaw === 'Unlimited' ? 0 : parseInt(fpsRaw,10) || 60;
-  const quality = localStorage.getItem('quality') || 'Extreme+';
-  const advRaw = localStorage.getItem('advancedSettings');
-  const adv = advRaw ? JSON.parse(advRaw) : (qualityPresets[quality] || qualityPresets['Extreme+']);
-  // ensure keys
-  const advDefaults = {jump:0,walk:0,die:0,line:0,glow:0,trail:0,blockTexture:true};
-  for(const k in advDefaults) if(!(k in adv)) adv[k]=advDefaults[k];
-  return {fps, quality, adv};
-}
-let settings = loadSettings();
+let platforms = [], spikes = [], lines = [], lastPlatformX = 0, lastPlatformY = 0;
 
-/* ---------- Game state ---------- */
-const BLOCK_SIZE = 50;
-let score = 0;
-let bestScore = parseInt(localStorage.getItem('bestScore')||'0',10) || 0;
-let lastScore = parseInt(localStorage.getItem('lastScore')||'0',10) || 0;
-
-const player = { x:150, y:300, width:40, height:40, vy:0, jumpsLeft:2, onGround:false, trail:[] };
-let platforms = [];
-let particles = []; // generic particles (jump/walk/die)
-let lines = []; // horizontal lines for visual effect
-let running = false;
-let lastTime = 0;
-
-/* ---------- Utility helpers ---------- */
-function rgb(r,g,b,a=1){ return `rgba(${r},${g},${b},${a})`; }
-function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
-
-/* ---------- Platform generation & init ---------- */
-function initPlatforms(){
-  platforms = [];
-  const groundY = Math.round(canvas.height*0.75);
-  // start with a long starting platform
-  platforms.push({x:0,y:groundY,width:BLOCK_SIZE*12,height:BLOCK_SIZE,color:{r:0,g:255,b:255},passed:false});
-  // add a few more
-  let lastX = platforms[0].x + platforms[0].width;
-  for(let i=0;i<6;i++){
-    const x = lastX + 150 + Math.random()*200;
-    const y = groundY + (Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
-    const w = BLOCK_SIZE * (2 + Math.floor(Math.random()*4));
-    platforms.push({x,y,width:w,height:BLOCK_SIZE,color:{r:0,g:255,b:255},passed:false});
-    lastX = x + w;
-  }
-}
-
-/* ---------- Spawn single platform (used in loop if needed) ---------- */
-function spawnPlatformAfter(lastPlat){
-  const gap = (3 + Math.floor(Math.random()*5)) * BLOCK_SIZE;
-  const blockCount = 1 + Math.floor(Math.random()*4);
-  let x = lastPlat.x + lastPlat.width + gap;
-  let y = lastPlat.y + (Math.floor(Math.random()*3)-1) * BLOCK_SIZE;
-  y = clamp(y, BLOCK_SIZE, canvas.height - 3*BLOCK_SIZE);
-  for(let i=0;i<blockCount;i++){
-    platforms.push({x: x + i*BLOCK_SIZE, y, width: BLOCK_SIZE, height: BLOCK_SIZE, color:{r:0,g:255,b:255}, passed:false});
-  }
-}
-
-/* ---------- Particle spawn ---------- */
-function spawnParticles(x,y,count,type){
-  const amt = Math.max(1, Math.round(count/5));
-  for(let i=0;i<amt;i++){
-    const angle = Math.random()*Math.PI*2;
-    const speed = Math.random()*3 + 1;
-    particles.push({
-      x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed - (type==='jump'?2:0),
-      life: 40 + Math.random()*30,
-      size: 4 + Math.random()*4,
-      color: type==='die' ? '#ff0' : '#0ff'
-    });
-  }
-}
-
-/* ---------- Command handler (Ctrl+Shift+A like original) ---------- */
-window.addEventListener('keydown', e=>{
-  if(e.ctrlKey && e.shiftKey && e.code === 'KeyA'){
-    const input = prompt('Enter command:');
-    if(!input) return;
-    const args = input.trim().split(/\s+/);
-    const cmd = args[0];
-    const a1 = args[1], a2 = args[2];
-    if(cmd === '/score'){
-      if(a1 === 'set' && !isNaN(parseInt(a2,10))){ score = parseInt(a2,10); }
-      if(a1 === 'add' && !isNaN(parseInt(a2,10))){ score += parseInt(a2,10); }
-    }
-    if(cmd === '/clear' && a1 === 'bestScore'){
-      bestScore = 0; localStorage.setItem('bestScore',0);
-      document.getElementById('bestScore').innerText = 'Best Score: 0';
-    }
-    if(cmd === '/die'){
-      // trigger death
-      if(settings.adv.die>0) spawnParticles(player.x + player.width/2, player.y + player.height/2, settings.adv.die, 'die');
-      endGame();
-    }
-  }
+// --- INPUT ---
+window.addEventListener("keydown", e=>{ 
+    if(["KeyW","ArrowUp","Space"].includes(e.code)) jump(); 
+    keys[e.code] = true;
 });
+window.addEventListener("keyup", e => keys[e.code] = false);
+window.addEventListener("mousedown", () => jump());
+window.addEventListener("touchstart", () => jump());
 
-/* ---------- Input: jump on click/touch/keys ---------- */
-window.addEventListener('keydown', e=>{
-  if(['Space','KeyW','ArrowUp'].includes(e.code)) {
-    doJump();
-  }
-});
-window.addEventListener('mousedown', doJump);
-window.addEventListener('touchstart', e=>{ e.preventDefault(); doJump(); }, {passive:false});
-function doJump(){
-  if(!running) return;
-  if(player.jumpsLeft > 0){
-    player.vy = -12;
-    spawnParticles(player.x + player.width/2, player.y + player.height, settings.adv.jump, 'jump');
-    player.jumpsLeft--;
-  }
+function jump(){
+    if(!player.visible) return;
+    if(player.jumpsLeft>0){
+        player.vy = JUMP_SPEED;
+        spawnParticles(player.x+player.width/2, player.y+player.height, player.jumpsLeft===2?"jump":"double");
+        player.jumpsLeft--;
+    }
 }
 
-/* ---------- Game start / end UI ---------- */
-const startBtn = document.getElementById('startBtn');
-const startScreen = document.getElementById('startScreen');
-const bestScoreLabel = document.getElementById('bestScore');
-const lastScoreLabel = document.getElementById('lastScore');
-const hud = document.getElementById('hud');
+document.getElementById("startBtn").addEventListener("click", resetGame);
 
-function showStartScreen(){
-  bestScoreLabel.innerText = 'Best Score: ' + bestScore;
-  lastScoreLabel.innerText = 'Last Point: ' + lastScore;
-  startScreen.style.display = 'flex';
-  hud.style.display = 'none';
-}
-function hideStartScreen(){
-  startScreen.style.display = 'none';
-  hud.style.display = 'block';
-}
-
-/* ---------- Settings button ---------- */
-document.getElementById('settingsBtn').addEventListener('click', ()=>{
-  // open settings page in same folder
-  window.location.href = 'settings.html';
-});
-
-/* ---------- game reset/start/end ---------- */
 function resetGame(){
-  score = 0;
-  player.x = Math.round(canvas.width * 0.15);
-  player.y = Math.round(canvas.height * 0.5);
-  player.vy = 0;
-  player.jumpsLeft = 2;
-  player.onGround = false;
-  player.trail = [];
-  particles = [];
-  lines = [];
-  initPlatforms();
-  lastTime = performance.now();
-  running = true;
-  hideStartScreen();
-  requestAnimationFrame(update);
+    if(animationFrameId) cancelAnimationFrame(animationFrameId);
+    score = 0; colorLerp = 0; globalTime = 0; trail = [];
+    player.x = 100; player.y = canvas.height/2-player.height; player.vy = 0; player.speed = 8;
+    player.jumpsLeft = 2; player.onGround = false; player.visible = true;
+    player.horizMultiplier = 1; player.vertMultiplier = 1;
+    platforms = []; spikes = []; crashPieces = []; particles = []; gems = []; lines = [];
+    platformColor = {...baseColors[0]}; colorIndex = 0; nextColor = baseColors[1];
+
+    platforms.push({x:0,y:player.y+player.height,width:BLOCK_SIZE*10,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
+    lastPlatformX = 0; lastPlatformY = player.y+player.height;
+
+    lastTime = performance.now();
+    hideStartScreen();
+    gameStarted = true;
+    animationFrameId = requestAnimationFrame(update);
 }
 
-function endGame(){
-  running = false;
-  lastScore = Math.max(0, Math.floor(score));
-  localStorage.setItem('lastScore', lastScore);
-  if(score > bestScore){ bestScore = Math.floor(score); localStorage.setItem('bestScore', bestScore); }
-  showStartScreen();
-}
+function generateBlockPlatform(lastX,lastY){
+    let blockCount = Math.floor(Math.random()*8)+1;
+    if(Math.random()<0.7) blockCount = Math.min(blockCount,Math.floor(Math.random()*3+1));
 
-/* ---------- update loop (delta-time aware) ---------- */
-function update(t){
-  if(!running) return;
-  const dt = Math.min(0.05, (t - lastTime)/1000); // clamp
-  lastTime = t;
+    let gap = Math.floor(Math.random()*5+3)*BLOCK_SIZE;
+    let x = lastX+gap;
+    let y = lastY+(Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
+    y = Math.max(BLOCK_SIZE, Math.min(canvas.height-3*BLOCK_SIZE, y));
 
-  // load settings fps cap
-  const fpsCap = settings.fps || 0;
-  if(fpsCap>0){
-    // skip frames to respect fps cap
-    const minDt = 1 / fpsCap;
-    if(dt < minDt){ requestAnimationFrame(update); return; }
-  }
-
-  // physics
-  player.vy += 30 * dt; // gravity px/s^2 style
-  player.y += player.vy;
-
-  // platform collision (simple)
-  player.onGround = false;
-  for(let p of platforms){
-    const px = p.x, py = p.y, pw = p.width, ph = p.height;
-    // horizontal overlap
-    if(player.x + player.width > px && player.x < px + pw){
-      const prevBottom = player.y - player.vy + player.height;
-      const curBottom = player.y + player.height;
-      if(prevBottom <= py && curBottom >= py && player.vy >= 0){
-        // land
-        player.y = py - player.height;
-        player.vy = 0;
-        player.onGround = true;
-        player.jumpsLeft = 2;
-      }
+    for(let i=0;i<blockCount;i++){
+        platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
     }
-  }
 
-  // move camera/world: shift platforms left by worldSpeed * dt
-  const worldSpeed = 250; // px/sec
-  for(let p of platforms) p.x -= worldSpeed * dt;
-
-  // remove offscreen platforms
-  platforms = platforms.filter(p => p.x + p.width > -200);
-
-  // spawn new platforms when needed
-  if(platforms.length === 0) initPlatforms();
-  const lastPlat = platforms[platforms.length - 1];
-  if(lastPlat && lastPlat.x + lastPlat.width < canvas.width){
-    spawnPlatformAfter(lastPlat);
-  }
-
-  // Trail effect list
-  if(settings.adv.trail > 0){
-    player.trail.push({x: player.x + player.width/2, y: player.y + player.height/2, life: 18});
-    if(player.trail.length > 60) player.trail.shift();
-  } else {
-    player.trail = [];
-  }
-
-  // particles update
-  for(let i = particles.length-1; i >= 0; i--){
-    const part = particles[i];
-    part.x += part.vx;
-    part.y += part.vy;
-    part.vy += 0.3; // gravity small
-    part.life--;
-    if(part.life <= 0) particles.splice(i,1);
-  }
-
-  // particles from die (separate array)
-  // not necessary separate here (we used particles for all)
-
-  // background horizontal lines effect (visual only)
-  if(settings.adv.line > 0){
-    // lines are drawn each frame, we just move an offset
-  }
-
-  // scoring
-  score += Math.max(0, 1 * dt * 60); // roughly +1 per frame at 60fps scaled by dt
-  hud.innerText = `Score: ${Math.floor(score)}  •  Best: ${bestScore}`;
-
-  // render
-  render();
-
-  requestAnimationFrame(update);
+    return {x:x+blockCount*BLOCK_SIZE,y};
 }
 
-/* ---------- rendering ---------- */
-function render(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  // background faint
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  // horizontal scan lines effect if enabled
-  if(settings.adv.line > 0){
-    const intensity = clamp(settings.adv.line/200, 0, 1) * 0.2;
-    const step = 18;
-    const offset = (performance.now()/30) % step;
-    ctx.fillStyle = `rgba(0,255,255,${intensity})`;
-    for(let y=0;y<canvas.height;y+=step){
-      ctx.fillRect(0, (y + offset) % canvas.height, canvas.width, 1);
+function spawnParticles(x,y,type){
+    const color = type==="jump"?"#0ff":"#ff0";
+    for(let i=0;i<15;i++){
+        particles.push({x,y,vx:(Math.random()-0.5)*5,vy:(Math.random()-1.5)*5,life:Math.random()*30+20,color});
     }
-  }
+}
 
-  // draw platforms (with optional texture)
-  for(const p of platforms){
-    if(settings.adv.blockTexture){
-      // gradient / block color
-      const color = 'rgba(0,200,200,1)';
-      ctx.fillStyle = color;
-      ctx.fillRect(p.x, p.y, p.width, p.height);
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-      ctx.lineWidth = 2;
-      for(let gx = p.x; gx < p.x + p.width; gx += 10){
-        ctx.beginPath();
-        ctx.moveTo(gx, p.y);
-        ctx.lineTo(gx, p.y + p.height);
-        ctx.stroke();
-      }
-    } else {
-      ctx.fillStyle = 'rgba(0,200,200,1)';
-      ctx.fillRect(p.x, p.y, p.width, p.height);
+function showStartScreen(){ 
+    document.getElementById("startScreen").style.display="flex"; 
+}
+function hideStartScreen(){ document.getElementById("startScreen").style.display="none"; }
+
+let cameraX = 0, cameraY = 0;
+
+function update(time){
+    let delta = (time-lastTime)/1000; lastTime = time;
+    globalTime += delta;
+
+    if(gameStarted && player.visible){
+        player.speed += 0.002;
+
+        colorLerp += delta/25;
+        if(colorLerp >= 1){
+            colorIndex = (colorIndex+1)%baseColors.length;
+            nextColor = baseColors[(colorIndex+1)%baseColors.length];
+            colorLerp = 0;
+        }
+        platformColor = lerpColor(baseColors[colorIndex],nextColor,colorLerp);
+
+        player.y += player.vy*player.vertMultiplier; 
+        player.vy += GRAVITY*player.vertMultiplier;
+        player.x += player.speed*player.horizMultiplier;
+
+        player.onGround = false;
+        for(let plat of platforms){
+            if(player.x+player.width>plat.x && player.x<plat.x+plat.width &&
+               player.y+player.height>plat.y && player.y+player.height<plat.y+player.vy){
+                if(player.vy>=0){
+                    player.y = plat.y-player.height; player.vy = 0; player.onGround=true; player.jumpsLeft=2;
+                    spawnParticles(player.x+player.width/2, player.y+player.height, "land");
+                    plat.y += 2;
+                }
+            }
+            if(!plat.passed && player.x>plat.x+plat.width){ score += 1; plat.passed=true; }
+        }
+
+        let lastPlatform = platforms[platforms.length-1];
+        if(lastPlatform.x < player.x + canvas.width){
+            generateBlockPlatform(lastPlatform.x, lastPlatform.y);
+        }
     }
-  }
 
-  // draw trail
-  if(settings.adv.trail > 0){
-    for(const t of player.trail){
-      const a = (t.life/18) * (settings.adv.trail/200);
-      ctx.fillStyle = `rgba(0,255,255,${a})`;
-      ctx.beginPath();
-      ctx.arc(t.x, t.y, 6 * (settings.adv.trail/200), 0, Math.PI*2);
-      ctx.fill();
-      t.life--;
+    // Camera smoothing
+    const targetCamX = player.x - 150;
+    const targetCamY = player.y - canvas.height/2 + player.height*1.5;
+    cameraX = cameraX*0.9 + targetCamX*0.1;
+    cameraY = cameraY*0.9 + targetCamY*0.1;
+
+    // --- DRAW ---
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
+    ctx.fillText(score,20,50);
+
+        // Platforms
+    for(let i=0;i<platforms.length;i++){
+        const plat = platforms[i];
+        ctx.fillStyle="#333";
+        ctx.fillRect(plat.x - cameraX, plat.y - cameraY, plat.width, plat.height);
     }
-  }
 
-  // glow behind player
-  if(settings.adv.glow > 0){
-    const g = settings.adv.glow/200;
-    const grd = ctx.createRadialGradient(player.x + player.width/2, player.y + player.height/2, 4,
-      player.x + player.width/2, player.y + player.height/2, 60);
-    grd.addColorStop(0, `rgba(0,255,255,${0.35 * g})`);
-    grd.addColorStop(1, 'rgba(0,255,255,0)');
-    ctx.fillStyle = grd;
-    ctx.fillRect(player.x-70, player.y-70, 140, 140);
-  }
+    // Player
+    ctx.fillStyle = "#f00";
+    ctx.fillRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
 
-  // player
-  ctx.fillStyle = '#0ff';
-  ctx.fillRect(player.x, player.y, player.width, player.height);
-  // outline glow
-  ctx.strokeStyle = 'rgba(0,255,255,0.6)';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(player.x, player.y, player.width, player.height);
+    // Simple gravity and collision
+    player.vy += gravity;
+    player.x += player.vx;
+    player.y += player.vy;
 
-  // draw particles
-  for(const p of particles){
-    ctx.fillStyle = p.color;
-    ctx.globalAlpha = clamp(p.life/60, 0, 1);
-    ctx.fillRect(p.x, p.y, p.size, p.size);
-    ctx.globalAlpha = 1;
-  }
+    // Platform collision
+    let onGround = false;
+    for(let i=0;i<platforms.length;i++){
+        const plat = platforms[i];
+        if(player.x + player.width > plat.x && player.x < plat.x + plat.width &&
+           player.y + player.height > plat.y && player.y + player.height < plat.y + plat.height + player.vy){
+            player.y = plat.y - player.height;
+            player.vy = 0;
+            onGround = true;
+        }
+    }
+
+    // Jumping
+    if(keys['ArrowUp'] && onGround){
+        player.vy = -jumpStrength;
+    }
+
+    // Left/Right movement
+    if(keys['ArrowLeft']) player.vx = -moveSpeed;
+    else if(keys['ArrowRight']) player.vx = moveSpeed;
+    else player.vx = 0;
+
+    // Update score
+    score = Math.max(score, Math.floor(player.y * -0.1));
+
+    // Loop
+    requestAnimationFrame(gameLoop);
 }
 
-/* ---------- initialize / export UI ---------- */
-document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
-document.getElementById('lastScore').innerText = 'Last Point: ' + lastScore;
-document.getElementById('startBtn').addEventListener('click', ()=>{
-  resetGame();
-});
+// --- INPUT HANDLING ---
+const keys = {};
+document.addEventListener('keydown', e => { keys[e.key] = true; });
+document.addEventListener('keyup', e => { keys[e.key] = false; });
 
-/* ---------- load settings variables into runtime ---------- */
-// set local runtime settings
-function refreshSettings(){
-  settings = loadSettings();
-  // apply defaults if missing
-  if(!settings.adv) settings.adv = qualityPresets[settings.quality] || qualityPresets['Extreme+'];
-}
-refreshSettings();
+// --- INITIALIZATION ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = 800;
+canvas.height = 600;
 
-/* ---------- endGame when player falls below screen (simple) ---------- */
-function checkOutOfBounds(){
-  if(player.y > canvas.height + 200 && running){
-    // died by falling
-    if(settings.adv.die > 0) spawnParticles(player.x+player.width/2, player.y+player.height/2, settings.adv.die, 'die');
-    endGame();
-  }
-}
-setInterval(checkOutOfBounds, 200);
+const gravity = 0.5;
+const moveSpeed = 5;
+const jumpStrength = 12;
 
-/* ---------- small loop to step UI/hud when start screen hidden ---------- */
-setInterval(()=>{
-  if(!running){
-    // show animated subtle title glow via CSS already
-  } else {
-    // nothing
-  }
-}, 500);
+let cameraX = 0;
+let cameraY = 0;
+let score = 0;
 
-/* ---------- expose for debugging (optional) ---------- */
-window.__bridd = { settings, qualityPresets, resetGame, endGame };
+const player = {x:100, y:100, width:50, height:50, vx:0, vy:0};
 
-showStartScreen();
+const platforms = [
+    {x:0, y:550, width:800, height:50},
+    {x:200, y:400, width:150, height:20},
+    {x:400, y:300, width:150, height:20},
+    {x:600, y:200, width:150, height:20}
+];
+
+// --- START GAME LOOP ---
+requestAnimationFrame(gameLoop);
 </script>
 </body>
 </html>
