@@ -2,177 +2,190 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Schedule | Infinite Campus</title>
 <style>
-body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
-canvas { display:block; }
-#ui { position:absolute; top:0; left:0; width:100%; height:100%; text-align:center; pointer-events:none; }
-#startScreen {
-    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-    width:400px; padding:40px; background:rgba(0,0,0,0.9);
-    display:flex; flex-direction:column; justify-content:center; align-items:center;
-    pointer-events:all; font-size:30px; color:#0ff; text-shadow:0 0 20px #0ff;
-    border:3px solid #0ff; border-radius:20px;
-}
-button { font-size:32px; padding:15px 40px; cursor:pointer; margin-top:30px; color:#0ff; background:black; border:3px solid #0ff; border-radius:12px; transition:0.3s; }
-button:hover { color:black; background:#0ff; }
-h1 { font-size:60px; margin-bottom:20px; text-shadow: 0 0 20px #0ff, 0 0 40px #0ff, 0 0 60px #0ff; animation: glow 1.5s infinite alternate; }
-@keyframes glow { 0% { text-shadow:0 0 10px #0ff,0 0 20px #0ff;} 100% {text-shadow:0 0 40px #0ff,0 0 80px #0ff;} }
-#settingsBtn {
-    position:absolute; top:15px; right:15px;
-    font-size:28px; cursor:pointer;
-    color:#0ff; background:none; border:none;
-    text-shadow:0 0 10px #0ff;
-    pointer-events:all;
-}
-#settingsBtn:hover { color:white; }
+  body { margin:0; background:#111; color:#0ff; font-family:Arial, sans-serif; overflow:hidden; }
+  canvas { display:block; margin:0 auto; background:#222; }
+  #startBtn { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+              padding:20px 40px; border:2px solid #0ff; background:black; color:#0ff;
+              cursor:pointer; border-radius:10px; }
+  #console { position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
+             width:400px; padding:5px; background:#000; border:2px solid #0ff; color:#0ff; }
+  #uiBox { position:absolute; top:10px; right:10px; padding:10px;
+           background:rgba(0,0,0,0.7); border:2px solid #0ff; border-radius:10px; }
 </style>
 </head>
 <body>
-<canvas id="gameCanvas"></canvas>
-<div id="ui">
-  <div id="startScreen">
-    <h1>BRIDD JUMP</h1>
-    <div id="bestScore">Best Score: 0</div>
-    <button id="startBtn">START</button>
-  </div>
+<button id="startBtn">Start</button>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<input id="console" placeholder="Enter command (e.g. /score add 10)" />
+<div id="uiBox">
+  <div id="scoreDisplay">Score: 0</div>
+  <div id="bestDisplay">Best: 0</div>
+  <div id="lastDisplay">Last Point: 0</div>
 </div>
-<button id="settingsBtn">⚙️</button>
 
 <script>
-// ========== CANVAS ==========
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+let running = false;
+let lastFrameTime = 0;
 
-// ========== CONSTANTS ==========
-const BLOCK_SIZE = 50;
-const JUMP_SPEED = -15;
-const GRAVITY = 0.7;
+// ===== SETTINGS =====
+let fps = localStorage.getItem("fps") || "60";
+fps = (fps === "Unlimited") ? 0 : parseInt(fps);
 
-// ========== PLAYER ==========
-let player = {
-    x:100, y:0, width:50, height:50,
-    color:"#0ff", vy:0, speed:8,
-    jumpsLeft:2, onGround:false, visible:true
-};
+let quality = localStorage.getItem("quality") || "Extreme+";
+let adv = JSON.parse(localStorage.getItem("advancedSettings") || "{}");
+adv = Object.assign({jump:20,walk:20,die:40,line:20,glow:20,trail:20,blockTexture:true}, adv);
 
-// ========== GAME STATE ==========
-let platforms = [];
+// ===== GAME STATE =====
 let score = 0;
 let bestScore = parseInt(localStorage.getItem("bestScore") || "0");
-let animationFrameId;
-let gameStarted = false;
+let lastScore = parseInt(localStorage.getItem("lastScore") || "0");
+let player = { x: 150, y: 500, vy:0, onGround:false, trail:[] };
+let platforms = [];
+let dieParticles = [];
+let scanOffset = 0;
 
-// ========== INPUT ==========
-let keys = {};
-window.addEventListener("keydown", e=>{
-    keys[e.code] = true;
-    if(["KeyW","ArrowUp","Space"].includes(e.code)) jump();
+// UI updates
+function updateUI(){
+  document.getElementById("scoreDisplay").textContent = "Score: " + score;
+  document.getElementById("bestDisplay").textContent = "Best: " + bestScore;
+  document.getElementById("lastDisplay").textContent = "Last Point: " + lastScore;
+}
+updateUI();
+
+// ===== PLATFORM GENERATOR =====
+function spawnPlatform(){
+  let x = canvas.width;
+  let y = 450 + (Math.random()*100 - 50);
+  let w = 100 + Math.random()*100;
+  platforms.push({x, y, w, h:20});
+}
+function initPlatforms(){
+  platforms = [];
+  for(let i=0;i<6;i++){
+    platforms.push({x:i*150, y:500, w:120, h:20});
+  }
+}
+
+// ===== PARTICLE HELPERS =====
+function makeParticles(x,y,count,color,size){
+  for(let i=0;i<count;i++){
+    dieParticles.push({
+      x, y,
+      vx:(Math.random()*2-1)*2,
+      vy:(Math.random()*2-1)*2,
+      life:50,
+      color, size
+    });
+  }
+}
+
+// ===== GAME LOOP =====
+function loop(timestamp){
+  if(!running) return;
+
+  if(fps>0){
+    const interval = 1000/fps;
+    if(timestamp - lastFrameTime < interval){
+      requestAnimationFrame(loop);
+      return;
+    }
+    lastFrameTime = timestamp;
+  }
+
+  ctx.fillStyle = "#111";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Move & draw platforms
+  ctx.fillStyle = "#0ff";
+  platforms.forEach(p=>{
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    p.x -= 3;
+  });
+  // Remove old platforms
+  platforms = platforms.filter(p=>p.x+p.w>0);
+  // Ensure new platforms spawn
+  if(platforms.length<6 || platforms[platforms.length-1].x<canvas.width-200){
+    spawnPlatform();
+  }
+
+  // Apply gravity
+  player.vy += 0.5;
+  player.y += player.vy;
+  player.onGround = false;
+
+  // Check collisions
+  for(let p of platforms){
+    if(player.x>p.x && player.x<p.x+p.w &&
+       player.y+20>=p.y && player.y+20<=p.y+p.h+10 && player.vy>=0){
+      player.y = p.y-20;
+      player.vy = 0;
+      player.onGround = true;
+    }
+  }
+
+  // Draw player
+  ctx.fillStyle="#0ff";
+  ctx.fillRect(player.x-10, player.y-20, 20, 20);
+
+  // Score
+  score++;
+  if(score > bestScore){
+    bestScore = score;
+    localStorage.setItem("bestScore", bestScore);
+  }
+  updateUI();
+
+  requestAnimationFrame(loop);
+}
+
+// ===== COMMAND HANDLER =====
+document.getElementById("console").addEventListener("keydown", e=>{
+  if(e.key==="Enter"){
+    const cmd = e.target.value.trim();
+    e.target.value = "";
+    if(cmd.startsWith("/score")){
+      const parts = cmd.split(" ");
+      if(parts[1]==="set" && !isNaN(parts[2])) score = parseInt(parts[2]);
+      if(parts[1]==="add" && !isNaN(parts[2])) score += parseInt(parts[2]);
+    }
+    if(cmd==="/clear bestScore"){
+      bestScore = 0;
+      localStorage.setItem("bestScore", 0);
+    }
+    if(cmd==="/die"){
+      running = false;
+      makeParticles(player.x,player.y,adv.die,"#0ff",5);
+      lastScore = score;
+      localStorage.setItem("lastScore", lastScore);
+      alert("You died! Final score: "+score);
+      updateUI();
+      document.getElementById("startBtn").style.display="block";
+    }
+  }
 });
-window.addEventListener("keyup", e=>keys[e.code] = false);
-window.addEventListener("mousedown", ()=>jump());
-window.addEventListener("touchstart", ()=>jump());
 
-function jump(){
-    if(player.jumpsLeft>0){
-        player.vy = JUMP_SPEED;
-        player.jumpsLeft--;
-    }
-}
-
-// ========== COMMANDS ==========
-window.addEventListener("keydown", e=>{
-    if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
-        const input = prompt("Enter command:");
-        if(!input) return;
-        const args = input.trim().split(/\s+/);
-        const command = args[0];
-        const root1 = args[1];
-        const root2 = args[2];
-
-        if(command==="/score"){
-            if(root1==="set" && !isNaN(parseInt(root2))) score = parseInt(root2);
-            if(root1==="add" && !isNaN(parseInt(root2))) score += parseInt(root2);
-        }
-        if(command==="/clear" && root1==="bestScore"){
-            bestScore = 0;
-            localStorage.setItem("bestScore", 0);
-        }
-        if(command==="/die"){
-            score = 0;
-            player.y = canvas.height + 100; // kill player
-        }
-    }
+// ===== CONTROLS =====
+document.addEventListener("keydown", e=>{
+  if(e.code==="Space" && player.onGround){
+    player.vy = -10; // jump
+  }
 });
 
-// ========== GAME LOOP ==========
-function update(){
-    // Apply gravity
-    player.vy += GRAVITY;
-    player.y += player.vy;
-
-    // Simple floor/platform
-    if(player.y + player.height >= canvas.height-50){
-        player.y = canvas.height-50 - player.height;
-        player.vy = 0;
-        player.jumpsLeft = 2;
-        player.onGround = true;
-    } else {
-        player.onGround = false;
-    }
-
-    // Increase score
-    score++;
-
-    // Update best score
-    if(score > bestScore){
-        bestScore = score;
-        localStorage.setItem("bestScore", bestScore);
-    }
-
-    // RENDER
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    // Player
-    ctx.fillStyle = player.color;
-    ctx.fillRect(player.x, player.y, player.width, player.height);
-
-    // Score text
-    ctx.fillStyle="white";
-    ctx.font="24px Arial";
-    ctx.fillText("Score: "+score, 20,40);
-    ctx.fillText("Best: "+bestScore, 20,70);
-
-    animationFrameId = requestAnimationFrame(update);
-}
-
-// ========== START / RESET ==========
-function resetGame(){
-    if(animationFrameId) cancelAnimationFrame(animationFrameId);
-    score = 0;
-    player.x = 100;
-    player.y = canvas.height/2;
-    player.vy = 0;
-    player.jumpsLeft = 2;
-    hideStartScreen();
-    gameStarted = true;
-    animationFrameId = requestAnimationFrame(update);
-}
-
-// ========== UI ==========
-function showStartScreen(){
-    document.getElementById("bestScore").innerText="Best Score: "+bestScore;
-    document.getElementById("startScreen").style.display="flex";
-}
-function hideStartScreen(){ document.getElementById("startScreen").style.display="none"; }
-
-document.getElementById("startBtn").addEventListener("click", resetGame);
-document.getElementById("settingsBtn").addEventListener("click", ()=>{ window.location.href="settings.html"; });
-
-showStartScreen();
+// ===== START =====
+document.getElementById("startBtn").addEventListener("click", ()=>{
+  running = true;
+  score = 0;
+  initPlatforms();
+  player.x = 150;
+  player.y = 500;
+  player.vy = 0;
+  document.getElementById("startBtn").style.display="none";
+  requestAnimationFrame(loop);
+});
 </script>
 </body>
 </html>
