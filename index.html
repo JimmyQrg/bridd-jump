@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bridd Jump | Infinite Campus</title>
+<title>BRIDD JUMP</title>
 <link rel="icon" type="image/png" href="infinite-campus-icon.png">
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
 canvas { display:block; }
-#ui { position:absolute; top:0; left:0; width:100%; height:100%; text-align:center; pointer-events:none; }
+#ui { position:absolute; top:0; left:0; width:100%; height:100%; text-align:center; pointer-events:none; color:#0ff; font-size:24px; }
 #startScreen {
     position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
     width:400px; padding:40px; background:rgba(0,0,0,0.9);
@@ -16,153 +16,320 @@ canvas { display:block; }
     pointer-events:all; font-size:30px; color:#0ff; text-shadow:0 0 20px #0ff;
     border:3px solid #0ff; border-radius:20px;
 }
-button { font-size:28px; padding:12px 36px; cursor:pointer; margin-top:20px; color:#0ff; background:black; border:3px solid #0ff; border-radius:12px; transition:0.3s; }
+button { font-size:32px; padding:15px 40px; cursor:pointer; margin-top:20px; color:#0ff; background:black; border:3px solid #0ff; border-radius:12px; transition:0.3s; }
 button:hover { color:black; background:#0ff; }
 h1 { font-size:60px; margin-bottom:20px; text-shadow: 0 0 20px #0ff, 0 0 40px #0ff, 0 0 60px #0ff; animation: glow 1.5s infinite alternate; }
-@keyframes glow { 0% { text-shadow:0 0 10px #0ff,0 0 20px #0ff;} 100% {text-shadow:0 0 40px #0ff,0 0 80px #0ff;} }
-
-#advancedPanel {
-    display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-    width:460px; background:rgba(0,0,0,0.95); border:3px solid #0ff; border-radius:20px; color:#0ff;
-    font-size:18px; padding:20px; pointer-events:all; flex-direction:column;
+#settingsBtn { position:absolute; top:10px; right:10px; width:40px; height:40px; border:none; background:none; cursor:pointer; pointer-events:all; }
+#settingsBtn svg { width:100%; height:100%; fill:#0ff; }
+#settingsScreen {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:600px; padding:30px; background:rgba(0,0,0,0.95);
+    display:none; flex-direction:column; color:#0ff; border:3px solid #0ff; border-radius:20px;
 }
-#advancedPanel h2 { font-size:22px; margin:0; }
-.adv-row { display:flex; justify-content:space-between; align-items:center; margin:6px 0; }
-.adv-slider { width:220px; }
-.adv-buttons { display:flex; justify-content:flex-end; gap:10px; margin-top:10px; }
-.adv-buttons button { font-size:18px; padding:6px 20px; }
-#openAdvanced {position:absolute; top:20px; right:20px; width:50px; height:50px; border-radius:50%; border:3px solid #0ff; background:black; color:#0ff; font-size:24px;}
+.settingRow { display:flex; justify-content:space-between; margin:10px 0; align-items:center; }
+input[type=range]{ width:200px; }
+.switch { position:relative; display:inline-block; width:50px; height:24px; }
+.switch input { opacity:0; width:0; height:0; }
+.slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#0ff; transition:.4s; border-radius:24px; }
+.slider:before { position:absolute; content:""; height:20px; width:20px; left:2px; bottom:2px; background-color:black; transition:.4s; border-radius:50%; }
+input:checked + .slider { background-color:#0ff; }
+input:checked + .slider:before { transform:translateX(26px); }
+button.smallBtn{ font-size:20px; padding:8px 20px; margin:5px; }
 </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
 <div id="ui">
-  <div id="startScreen">
-    <h1>BRIDD JUMP</h1>
-    <div id="bestScore">Best Score: 0</div>
-    <div id="lastScore">Last Score: 0</div>
-    <button id="startBtn">START</button>
-    <button id="openAdvanced">⚙</button>
-  </div>
-</div>
-
-<div id="advancedPanel">
-    <h2>Advanced Options</h2>
-    <hr style="border-color:#0ff;">
-    <div class="adv-row">Walk Particles <input type="range" id="walkParticles" class="adv-slider" min="0" max="100" value="100"> <span id="walkParticlesVal">100%</span></div>
-    <div class="adv-row">Jump Particles <input type="range" id="jumpParticles" class="adv-slider" min="0" max="100" value="100"> <span id="jumpParticlesVal">100%</span></div>
-    <div class="adv-row">2-Jump Particles <input type="range" id="doubleJumpParticles" class="adv-slider" min="0" max="100" value="100"> <span id="doubleJumpParticlesVal">100%</span></div>
-    <div class="adv-row">Gem-Collect Particles <input type="range" id="gemParticles" class="adv-slider" min="0" max="100" value="100"> <span id="gemParticlesVal">100%</span></div>
-    <div class="adv-row">White Lines <input type="range" id="whiteLines" class="adv-slider" min="0" max="100" value="100"> <span id="whiteLinesVal">100%</span></div>
-    <div class="adv-row">Block Texture <input type="checkbox" id="blockTexture" checked></div>
-    <div class="adv-row">Block Press Down <input type="checkbox" id="blockPressDown" checked></div>
-    <div class="adv-buttons">
-        <button id="cancelAdv">Cancel</button>
-        <button id="saveAdv">Save</button>
+    <div id="startScreen">
+        <h1>BRIDD JUMP</h1>
+        <div id="bestScore">Best Score: 0</div>
+        <div id="lastScore">Last Score: 0</div>
+        <button id="startBtn">START</button>
+        <button id="settingsBtn">
+            <svg viewBox="0 0 512 512"><path d="M487.4 315.7l-42.6-24.6c2.1-13.3 2.1-27 0-40.3l42.6-24.6c9.7-5.6 13.6-17.8 9.7-28.4l-45.6-78.9c-3.9-10.6-14.9-16.6-26.2-14.2l-42.6 9.6c-11.5-9.5-24.1-17.4-37.8-23.6l-9.6-42.6c-2.4-11.4-12.6-20.1-24-20.1h-91.2c-11.4 0-21.6 8.7-24 20.1l-9.6 42.6c-13.7 6.2-26.3 14.1-37.8 23.6l-42.6-9.6c-11.3-2.4-22.3 3.6-26.2 14.2l-45.6 78.9c-3.9 10.6 .05 22.8 9.7 28.4l42.6 24.6c-2.1 13.3-2.1 27 0 40.3l-42.6 24.6c-9.7 5.6-13.6 17.8-9.7 28.4l45.6 78.9c3.9 10.6 14.9 16.6 26.2 14.2l42.6-9.6c11.5 9.5 24.1 17.4 37.8 23.6l9.6 42.6c2.4 11.4 12.6 20.1 24 20.1h91.2c11.4 0 21.6-8.7 24-20.1l9.6-42.6c13.7-6.2 26.3-14.1 37.8-23.6l42.6 9.6c11.3 2.4 22.3-3.6 26.2-14.2l45.6-78.9c3.9-10.6-.05-22.8-9.7-28.4zM256 336c-44.1 0-80-35.9-80-80s35.9-80 80-80 80 35.9 80 80-35.9 80-80 80z"/></svg>
+        </button>
+    </div>
+    <div id="settingsScreen">
+        <h2>Settings</h2>
+        <div class="settingRow">
+            <label>Quality:</label>
+            <select id="qualitySelect">
+                <option>Lowest</option>
+                <option>Low</option>
+                <option>Medium</option>
+                <option>Medium+</option>
+                <option>High</option>
+                <option>High+</option>
+                <option>Extreme</option>
+                <option>Extreme+</option>
+                <option>Ultra</option>
+                <option>Ultra+++ (Trail)</option>
+                <option>Custom</option>
+            </select>
+        </div>
+        <div class="settingRow">
+            <label>Max FPS:</label>
+            <select id="fpsSelect">
+                <option>5</option><option>10</option><option>15</option><option>20</option><option>25</option><option>30</option>
+                <option>35</option><option>40</option><option>45</option><option>50</option><option>60</option>
+                <option>70</option><option>80</option><option>90</option><option>100</option><option>120</option>
+                <option>140</option><option>160</option><option>180</option><option>200</option>
+                <option>Unlimited</option>
+            </select>
+        </div>
+        <div class="settingRow">
+            <label>Show FPS:</label>
+            <label class="switch"><input type="checkbox" id="showFpsSwitch"><span class="slider"></span></label>
+        </div>
+        <h3>Advanced Settings</h3>
+        <div id="advancedSettings"></div>
+        <div style="display:flex; justify-content:flex-end;">
+            <button class="smallBtn" id="cancelBtn">Cancel</button>
+            <button class="smallBtn" id="saveBtn">Save</button>
+        </div>
     </div>
 </div>
 
 <script>
-const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d");
-canvas.width=window.innerWidth; canvas.height=window.innerHeight;
-const BLOCK_SIZE=50,JUMP_SPEED=-15,GRAVITY=0.7;
-let score=0,lastScore=0,bestScore=localStorage.getItem("bestScore")?parseInt(localStorage.getItem("bestScore")):0;
-let gameStarted=false,animationFrameId,scorePaused=false;
-let player={x:100,y:0,width:50,height:50,color:"#0ff",vy:0,speed:8,jumpsLeft:2,onGround:false,visible:true,horizMultiplier:1,vertMultiplier:1};
-let platforms=[],spikes=[],crashPieces=[],particles=[],gems=[],lines=[],trailClones=[];
-let cameraX=0,cameraY=0; let cheats={float:false,invincible:false,infiniteJump:false};
-let qualitySettings={walk:100,jump:100,doubleJump:100,gem:100,lines:100,texture:true,press:true};
-let vanish=false,vanishY=0;
+// --- GLOBAL VARIABLES ---
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-// INPUT
-let keys={};
-window.addEventListener("keydown",e=>{keys[e.code]=true;if(["KeyW","ArrowUp","Space"].includes(e.code)) jump();});
-window.addEventListener("keyup",e=>keys[e.code]=false);
-window.addEventListener("mousedown",()=>jump());
-window.addEventListener("touchstart",()=>jump());
+const BLOCK_SIZE = 50;
+const JUMP_SPEED = -15;
+const GRAVITY = 0.7;
 
-function jump(){if(!player.visible)return;if(cheats.infiniteJump||player.jumpsLeft>0){player.vy=JUMP_SPEED;if(!cheats.infiniteJump)player.jumpsLeft--;spawnParticles(player.x+player.width/2,player.y+player.height,"jump");}}
+let score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")):0;
+let lastScore = localStorage.getItem("lastScore") ? parseInt(localStorage.getItem("lastScore")):0;
+let lastTime = 0, gameStarted = false, animationFrameId;
+let crashPieces = [], particles = [], gems = [], trails = [], lines = [];
+let cheats = { float:false, invincible:false, infiniteJump:false };
+let addScoreEnabled = true;
+let vanish=false, vanishY=0;
 
-// GAME
-function resetGame(){
-    if(animationFrameId) cancelAnimationFrame(animationFrameId);
-    lastScore=score; score=0; scorePaused=false;
-    player.x=100;player.y=canvas.height/2-player.height;player.vy=0;player.jumpsLeft=2;player.onGround=false;player.visible=true;
-    platforms=[{x:0,y:player.y+player.height,width:BLOCK_SIZE*10,height:BLOCK_SIZE,color:"#0ff"}];
-    spikes=[]; crashPieces=[]; particles=[]; gems=[]; lines=[]; trailClones=[];
-    hideStartScreen(); gameStarted=true; animationFrameId=requestAnimationFrame(update);
-}
-function hideStartScreen(){document.getElementById("startScreen").style.display="none";}
-function showStartScreen(){document.getElementById("bestScore").innerText="Best Score: "+bestScore; document.getElementById("lastScore").innerText="Last Score: "+lastScore; document.getElementById("startScreen").style.display="flex";}
+let baseColors = [
+    { r:255,g:0,b:0 },
+    { r:255,g:153,b:0 },
+    { r:255,g:255,b:0 },
+    { r:0,g:255,b:0 },
+    { r:0,g:255,b:255 },
+    { r:0,g:0,b:255 },
+    { r:153,g:0,b:255 }
+];
+let colorIndex=0, platformColor={...baseColors[0]}, nextColor=baseColors[1], colorLerp=0, globalTime=0;
 
-// ADVANCED SETTINGS
-const openAdvanced=document.getElementById("openAdvanced");
-const advancedPanel=document.getElementById("advancedPanel");
-const cancelAdv=document.getElementById("cancelAdv");
-const saveAdv=document.getElementById("saveAdv");
-openAdvanced.addEventListener("click",()=>advancedPanel.style.display="flex");
-cancelAdv.addEventListener("click",()=>advancedPanel.style.display="none");
-saveAdv.addEventListener("click",()=>{advancedPanel.style.display="none";});
+let player = { x:100, y:0, width:50, height:50, color:"#0ff", vy:0, speed:8, hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true, horizMultiplier:1, vertMultiplier:1 };
 
-// SLIDERS
-["walkParticles","jumpParticles","doubleJumpParticles","gemParticles","whiteLines"].forEach(id=>{
-    const slider=document.getElementById(id);
-    const label=document.getElementById(id+"Val");
-    slider.addEventListener("input",()=>{label.innerText=slider.value==0?"DISABLED":slider.value==100?"MAX":slider.value+"%"; qualitySettings[id.replace("Particles","").replace("whiteLines","lines")]=parseInt(slider.value);});
-});
-document.getElementById("blockTexture").addEventListener("change",e=>qualitySettings.texture=e.target.checked);
-document.getElementById("blockPressDown").addEventListener("change",e=>qualitySettings.press=e.target.checked);
+let platforms=[], spikes=[], lastPlatformX=0, lastPlatformY=0;
 
-// PARTICLES
-function spawnParticles(x,y,type){
-    let amount=type==="walk"?qualitySettings.walk/10:type==="jump"?qualitySettings.jump/10:type==="double"?qualitySettings.doubleJump/10:qualitySettings.gem/10;
-    for(let i=0;i<amount;i++){particles.push({x,y,vx:(Math.random()-0.5)*5,vy:(Math.random()-1.5)*5,life:Math.random()*30+20,color:type==="jump"?"#0ff":"#fff"});}
-}
+// --- INPUT ---
+window.addEventListener("keydown", e => { if(["KeyW","ArrowUp","Space"].includes(e.code)) jump(); });
+window.addEventListener("mousedown", jump);
+window.addEventListener("touchstart", jump);
 
-// TRAIL
-function updateTrail(){trailClones.push({x:player.x,y:player.y,color:player.color,lifetime:75}); trailClones=trailClones.filter(t=>t.lifetime>0); trailClones.forEach(t=>{t.lifetime--; ctx.fillStyle=t.color; ctx.fillRect(t.x-cameraX,t.y-cameraY,player.width,player.height);});}
-
-// VOID DEATH
-function checkVoidDeath(){if(player.y>canvas.height) tryDie();}
-function tryDie(){player.visible=false; gameStarted=false; if(score>bestScore){bestScore=score; localStorage.setItem("bestScore",bestScore);} setTimeout(showStartScreen,1000);}
-
-// COMMANDS
-window.addEventListener("keydown",e=>{
-    if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
-        const input=prompt("Enter command:"); if(!input) return;
-        const args=input.trim().split(/\s+/); const command=args[0]; const root1=args[1]; const root2=args[2];
-        if(command==="/die"){tryDie();}
-        else if(command==="/clear"&&root1==="bestScore"){bestScore=0; localStorage.setItem("bestScore",0);}
-        else if(command==="/score"){if(root1==="add"&&!isNaN(parseInt(root2))){score+=parseInt(root2);}else if(root1==="set"&&!isNaN(parseInt(root2))){score=parseInt(root2);}else if(root1==="pausd"){scorePaused=true;}else if(root1==="continue"){scorePaused=false;}}
-        else if(command==="/pause"){scorePaused=true;}
-        else if(command==="/continue"){scorePaused=false;}
-        else if(command==="/vanish"){if(root1==="true"){vanish=true; vanishY=player.y;}else if(root1==="false"){vanish=false; player.y=vanishY; player.visible=true;}}
+function jump(){
+    if(!player.visible) return;
+    if(cheats.infiniteJump || player.jumpsLeft>0){
+        player.vy=JUMP_SPEED;
+        spawnParticles(player.x+player.width/2, player.y+player.height, player.jumpsLeft===2?"jump":"double");
+        if(!cheats.infiniteJump) player.jumpsLeft--;
     }
-});
+}
 
-// UPDATE LOOP
-function update(){
-    if(!gameStarted) return;
-    if(!scorePaused) score+=0.1;
-    if(!vanish){player.y+=player.vy; player.vy+=GRAVITY;}
-    cameraX=player.x-150; cameraY=vanish?vanishY-canvas.height/2+player.height*1.5:player.y-canvas.height/2+player.height*1.5;
+// --- RESET & GAME INIT ---
+function resetGame(){
+    cancelAnimationFrame(animationFrameId);
+    lastScore=Math.floor(score);
+    localStorage.setItem("lastScore", lastScore);
+    score=0; colorLerp=0; globalTime=0;
+    player.x=100; player.y=canvas.height/2 - player.height; player.vy=0; player.speed=8; player.jumpsLeft=2; player.onGround=false; player.visible=true;
+    player.horizMultiplier=1; player.vertMultiplier=1;
+    platforms=[]; spikes=[]; crashPieces=[]; particles=[]; gems=[]; lines=[]; trails=[];
+    platformColor={...baseColors[0]}; colorIndex=0; nextColor=baseColors[1];
 
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    // Horizontal lines
-    lines.push({x:canvas.width,y:Math.random()*canvas.height,width:50});
-    lines.forEach(l=>{l.x-=player.speed*1.5; ctx.strokeStyle="rgba(255,255,255,"+qualitySettings.lines/100+")"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(l.x-cameraX,l.y-cameraY); ctx.lineTo(l.x+50-cameraX,l.y-cameraY); ctx.stroke();});
-    lines=lines.filter(l=>l.x>0);
+    platforms.push({x:0,y:player.y+player.height,width:BLOCK_SIZE*10,height:BLOCK_SIZE,color:{...platformColor},passed:false});
+    lastPlatformX=0; lastPlatformY=player.y+player.height;
 
-    // Platforms
-    platforms.forEach(p=>{ctx.fillStyle=p.color; ctx.fillRect(p.x-cameraX,p.y-cameraY,p.width,p.height);});
-    updateTrail();
-    if(player.visible){ctx.fillStyle=player.color; ctx.fillRect(player.x-cameraX,player.y-cameraY,player.width,player.height);}
+    lastTime=performance.now();
+    hideStartScreen();
+    gameStarted=true;
     animationFrameId=requestAnimationFrame(update);
 }
 
-// START BUTTON
-document.getElementById("startBtn").addEventListener("click",resetGame);
+// --- PLATFORM GENERATION ---
+function generateBlockPlatform(lastX,lastY){
+    let blockCount=Math.floor(Math.random()*8)+1;
+    if(Math.random()<0.7) blockCount=Math.min(blockCount,Math.floor(Math.random()*3+1));
+    let gap=Math.floor(Math.random()*5+3)*BLOCK_SIZE;
+    let x=lastX+gap;
+    let y=lastY+(Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
+    y=Math.max(BLOCK_SIZE, Math.min(canvas.height-3*BLOCK_SIZE, y));
+
+    for(let i=0;i<blockCount;i++){
+        platforms.push({x:x+i*BLOCK_SIZE, y, width:BLOCK_SIZE, height:BLOCK_SIZE, color:{...platformColor}, passed:false});
+        if(Math.random()<0.2) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2, y:y-BLOCK_SIZE+BLOCK_SIZE*0.2, width:BLOCK_SIZE*0.6, height:BLOCK_SIZE*0.6, baseY:y-BLOCK_SIZE+BLOCK_SIZE*0.2, hit:true, passed:false});
+    }
+    for(let i=0;i<blockCount;i++){
+        if(Math.random()<0.1){
+            let gemX=x+i*BLOCK_SIZE+BLOCK_SIZE/4;
+            let gemY=y-BLOCK_SIZE*1.5;
+            let safe=true;
+            for(let s of spikes){ if(Math.abs(gemX-s.x)<BLOCK_SIZE*2) safe=false; }
+            if(safe) gems.push({x:gemX, y:gemY, size:20, collected:false, floatOffset:Math.random()*Math.PI*2});
+        }
+    }
+    return {x:x+blockCount*BLOCK_SIZE, y};
+}
+
+// --- COLLISIONS ---
+function checkSpikeCollision(spike){
+    if(!spike.hit) return false;
+    const hbW=player.width*player.hitboxScale, hbH=player.height*player.hitboxScale;
+    const hbX=player.x+(player.width-hbW)/2, hbY=player.y+(player.height-hbH)/2;
+    return hbX+hbW>spike.x && hbX<spike.x+spike.width && hbY+hbH>spike.y && hbY<spike.y+spike.height;
+}
+
+// --- PARTICLES & CRASH ---
+function createCrash(){
+    for(let i=0;i<20;i++){
+        crashPieces.push({ x:player.x+Math.random()*player.width, y:player.y+Math.random()*player.height, vx:(Math.random()-0.5)*15, vy:(Math.random()-1)*15, size:Math.random()*player.width/4+5, color:player.color });
+    }
+}
+function spawnParticles(x,y,type){
+    const color=type==="jump"?"#0ff":type==="double"?"#ff0":"#fff";
+    for(let i=0;i<15;i++){
+        particles.push({x,y,vx:(Math.random()-0.5)*5,vy:(Math.random()-1.5)*5,life:Math.random()*30+20,color});
+    }
+}
+
+// --- DIE ---
+function tryDie(spike){
+    if(!player.visible) return;
+    if(cheats.invincible) return;
+    player.visible=false; if(spike) spike.hit=false;
+    createCrash(); gameStarted=false;
+
+    if(score>bestScore){ bestScore=Math.floor(score); localStorage.setItem("bestScore", bestScore); }
+    localStorage.setItem("lastScore", Math.floor(score));
+    setTimeout(()=>showStartScreen(), 1000);
+}
+
+// --- UI ---
+function showStartScreen(){ 
+    document.getElementById("bestScore").innerText="Best Score: "+bestScore;
+    document.getElementById("lastScore").innerText="Last Score: "+lastScore;
+    document.getElementById("startScreen").style.display="flex"; 
+}
+function hideStartScreen(){document.getElementById("startScreen").style.display="none";}
+
+// --- LINES ---
+function addLine(){ 
+    lines.push({x:canvas.width, y:Math.random()*canvas.height, width:Math.random()*50+20}); 
+}
+
+// --- LERP COLOR ---
+function lerpColor(c1,c2,t){return {r:c1.r+(c2.r-c1.r)*t,g:c1.g+(c2.g-c1.g)*t,b:c1.b+(c2.b-c1.b)*t};}
+
+// --- CAMERA ---
+let cameraX=0, cameraY=0;
+
+// --- MAIN UPDATE LOOP ---
+function update(time){
+    let delta=(time-lastTime)/1000; lastTime=time; globalTime+=delta;
+
+    if(gameStarted && player.visible){
+        if(addScoreEnabled) score+=delta*10;
+        player.speed+=0.002;
+        colorLerp+=delta/25;
+        if(colorLerp>=1){ colorIndex=(colorIndex+1)%baseColors.length; nextColor=baseColors[(colorIndex+1)%baseColors.length]; colorLerp=0; }
+        platformColor=lerpColor(baseColors[colorIndex],nextColor,colorLerp);
+
+        player.y+=player.vy*player.vertMultiplier;
+        if(cheats.float && player.vy>0) player.vy*=0.5;
+        player.vy+=GRAVITY*player.vertMultiplier;
+        player.x+=player.speed*player.horizMultiplier;
+
+        trails.push({x:player.x, y:player.y, width:player.width, height:player.height, color:player.color, life:60});
+        trails = trails.filter(t => t.life-->0);
+
+        player.onGround=false;
+        for(let plat of platforms){
+            if(player.x+player.width>plat.x && player.x<plat.x+plat.width &&
+               player.y+player.height>plat.y && player.y+player.height<plat.y+player.vy){
+                if(player.vy>=0){ player.y=plat.y-player.height; player.vy=0; player.onGround=true; player.jumpsLeft=2; spawnParticles(player.x+player.width/2, player.y+player.height, "land"); }
+            }
+            if(!plat.passed && player.x>plat.x+plat.width){ score+=1; plat.passed=true; }
+        }
+
+        if(player.y>canvas.height){ player.jumpsLeft=1; tryDie(); }
+
+        for(let spike of spikes){ if(checkSpikeCollision(spike)) tryDie(spike); if(!spike.passed && player.x>spike.x+spike.width){ score+=1; spike.passed=true; } }
+
+        for(let g of gems){ if(!g.collected && player.x+player.width>g.x && player.x<g.x+g.size && player.y+player.height>g.y && player.y<g.y+g.size){ score+=50; g.collected=true; spawnParticles(g.x+g.size/2,g.y+g.size/2,"double"); } }
+
+        let lastPlatform = platforms[platforms.length-1];
+        if(lastPlatform.x < player.x + canvas.width){ generateBlockPlatform(lastPlatform.x, lastPlatform.y); }
+
+        addLine();
+    }
+
+    // Camera
+    const targetCamX = player.x-150;
+    const targetCamY = vanish ? vanishY : player.y - canvas.height/2 + player.height*1.5;
+    cameraX = cameraX*0.9 + targetCamX*0.1;
+    cameraY = cameraY*0.9 + targetCamY*0.1;
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // FPS
+    if(showFps) ctx.fillStyle="#fff"; ctx.font="40px sans-serif"; ctx.fillText(Math.floor(score),20,50);
+
+    // Trails
+    for(let t of trails){ ctx.fillStyle=t.color; ctx.globalAlpha=t.life/60; ctx.fillRect(t.x-cameraX, t.y-cameraY, t.width, t.height); }
+    ctx.globalAlpha=1;
+
+    // Platforms
+    for(let plat of platforms){ ctx.fillStyle=`rgb(${plat.color.r},${plat.color.g},${plat.color.b})`; ctx.fillRect(plat.x-cameraX, plat.y-cameraY, plat.width, plat.height); }
+
+    // Spikes
+    for(let spike of spikes){ ctx.fillStyle="red"; ctx.beginPath(); ctx.moveTo(spike.x-cameraX,spike.baseY+spike.height-cameraY); ctx.lineTo(spike.x+spike.width/2-cameraX,spike.baseY-cameraY); ctx.lineTo(spike.x+spike.width-cameraX,spike.baseY+spike.height-cameraY); ctx.closePath(); ctx.fill(); }
+
+    // Lines
+    for(let l of lines){ ctx.fillStyle="#fff"; ctx.fillRect(l.x-cameraX, l.y-cameraY, l.width,2); l.x-=10; }
+
+    // Player
+    if(player.visible){ ctx.fillStyle=player.color; ctx.fillRect(player.x-cameraX, player.y-cameraY, player.width, player.height); }
+
+    animationFrameId=requestAnimationFrame(update);
+}
+
+// --- START BUTTON ---
+document.getElementById("startBtn").addEventListener("click", resetGame);
 showStartScreen();
+
+// --- COMMANDS ---
+window.addEventListener("keydown", e => {
+    if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
+        const input=prompt("Enter command:"); if(!input) return;
+        const args=input.trim().split(/\s+/); const command=args[0]; const root1=args[1]; const root2=args[2];
+        if(command==="/clear" && root1==="bestScore"){ bestScore=0; localStorage.setItem("bestScore",0); alert("Best score cleared!"); }
+        if(command==="/die") tryDie();
+        if(command==="/score" && root1){
+            if(root1==="add") score+=parseFloat(root2)||0;
+            if(root1==="set") score=parseFloat(root2)||0;
+            if(root1==="pause") addScoreEnabled=false;
+            if(root1==="continue") addScoreEnabled=true;
+        }
+        if(command==="/pause") addScoreEnabled=false;
+        if(command==="/continue") addScoreEnabled=true;
+        if(command==="/vanish" && root1){
+            if(root1==="true"){ vanish=true; vanishY=player.y-canvas.height/2+player.height*1.5; }
+            if(root1==="false"){ vanish=false; player.y=vanishY+canvas.height/2-player.height*1.5; }
+        }
+    }
+});
 </script>
 </body>
 </html>
