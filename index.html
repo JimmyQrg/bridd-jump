@@ -1,259 +1,453 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Schedule | Infinite Campus</title>
+<link rel="icon" type="image/png" href="infinite-campus-icon.png">
 <style>
-  body { margin:0; background:#111; color:#0ff; font-family:Arial, sans-serif; overflow:hidden; }
-  canvas { display:block; margin:0 auto; background:#222; }
-  #startBtn { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-              padding:20px 40px; border:2px solid #0ff; background:black; color:#0ff;
-              cursor:pointer; border-radius:10px; }
-  #console { position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
-             width:400px; padding:5px; background:#000; border:2px solid #0ff; color:#0ff; }
-  #uiBox { position:absolute; top:10px; right:10px; padding:10px;
-           background:rgba(0,0,0,0.7); border:2px solid #0ff; border-radius:10px; }
+/* --- Original neon styling preserved --- */
+:root { --cyan: #0ff; --bg:#000; --panel: rgba(0,0,0,0.85); }
+html,body{height:100%; margin:0; background:var(--bg); font-family: "Segoe UI", Roboto, Arial, sans-serif;}
+canvas{display:block; width:100vw; height:100vh;}
+#ui{position:absolute; inset:0; pointer-events:none;}
+#startScreen{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:420px; padding:40px; background:var(--panel);
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  pointer-events:all; color:var(--cyan); border:3px solid var(--cyan); border-radius:20px;
+  box-shadow:0 0 40px rgba(0,255,255,0.06);
+}
+h1{font-size:64px; margin:0; text-shadow:0 0 20px var(--cyan),0 0 40px var(--cyan); animation:glow 1.5s infinite alternate;}
+@keyframes glow{0%{text-shadow:0 0 10px var(--cyan);}100%{text-shadow:0 0 40px var(--cyan);}}
+#bestScore,#lastScore{font-size:20px}
+#startBtn{font-size:28px; padding:12px 34px; background:black; color:var(--cyan); border:3px solid var(--cyan); border-radius:12px; cursor:pointer;}
+#startBtn:hover{background:var(--cyan); color:black;}
+#settingsBtn{
+  position:absolute; top:18px; right:18px; pointer-events:all; background:none; border:none; color:var(--cyan);
+  font-size:30px; cursor:pointer; text-shadow:0 0 8px var(--cyan);
+}
+#settingsBtn:hover{color:#fff;}
+/* small UI overlay in corner is hidden until start screen removed */
+#hud {
+  position: absolute; top:12px; left:12px; pointer-events:none; color:#0ff;
+  text-shadow:0 0 6px rgba(0,255,255,0.1); font-weight:600;
+}
+/* command hint */
+#hint{ position:absolute; bottom:14px; left:50%; transform:translateX(-50%); color:rgba(255,255,255,0.06); font-size:13px; pointer-events:none;}
 </style>
 </head>
 <body>
-<button id="startBtn">Start</button>
-<canvas id="gameCanvas" width="800" height="600"></canvas>
-<input id="console" placeholder="Enter command (e.g. /score add 10)" />
-<div id="uiBox">
-  <div id="scoreDisplay">Score: 0</div>
-  <div id="bestDisplay">Best: 0</div>
-  <div id="lastDisplay">Last Point: 0</div>
+<canvas id="gameCanvas"></canvas>
+
+<div id="ui">
+  <div id="startScreen">
+    <h1>BRIDD JUMP</h1>
+    <div id="bestScore">Best Score: 0</div>
+    <div id="lastScore">Last Point: 0</div>
+    <button id="startBtn">START</button>
+  </div>
 </div>
 
+<button id="settingsBtn" title="Settings">⚙️</button>
+<div id="hud" aria-hidden="true"></div>
+<div id="hint">Press Ctrl+Shift+A to open command prompt (e.g. <code>/score set 100</code>)</div>
+
 <script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-let running = false;
-let lastFrameTime = 0;
+/* =================== Core game with Advanced Settings integrated =================== */
 
-// ===== SETTINGS =====
-let fps = localStorage.getItem("fps") || "60";
-fps = (fps === "Unlimited") ? 0 : parseInt(fps);
+/* ---------- Canvas & resize ---------- */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; }
+addEventListener('resize', resize);
+resize();
 
-let quality = localStorage.getItem("quality") || "Extreme+";
-let adv = JSON.parse(localStorage.getItem("advancedSettings") || "{}");
-adv = Object.assign({jump:20,walk:20,die:40,line:20,glow:20,trail:20,blockTexture:true}, adv);
+/* ---------- Settings load ---------- */
+const qualityPresets = {
+  "Potato":   {jump:0, walk:0, die:0, line:0, glow:0, trail:0, blockTexture:false},
+  "Low":      {jump:5, walk:0, die:0, line:0, glow:0, trail:0, blockTexture:false},
+  "Medium":   {jump:10, walk:0, die:10, line:0, glow:0, trail:0, blockTexture:true},
+  "Medium+":  {jump:15, walk:15, die:15, line:0, glow:0, trail:0, blockTexture:true},
+  "High":     {jump:15, walk:15, die:15, line:15, glow:0, trail:0, blockTexture:true},
+  "High+":    {jump:33, walk:33, die:33, line:33, glow:0, trail:0, blockTexture:true},
+  "Extreme":  {jump:60, walk:60, die:60, line:60, glow:0, trail:0, blockTexture:true},
+  "Extreme+": {jump:64, walk:64, die:64, line:64, glow:64, trail:0, blockTexture:true},
+  "Ultra":    {jump:100,walk:100,die:100,line:100,glow:100,trail:0, blockTexture:true},
+  "Ultra+":   {jump:120,walk:120,die:120,line:120,glow:120,trail:120,blockTexture:true},
+  "Highest":  {jump:200,walk:200,die:200,line:200,glow:150,trail:200,blockTexture:true}
+};
 
-// ===== GAME STATE =====
+function loadSettings(){
+  const fpsRaw = localStorage.getItem('fps') || '60';
+  const fps = fpsRaw === 'Unlimited' ? 0 : parseInt(fpsRaw,10) || 60;
+  const quality = localStorage.getItem('quality') || 'Extreme+';
+  const advRaw = localStorage.getItem('advancedSettings');
+  const adv = advRaw ? JSON.parse(advRaw) : (qualityPresets[quality] || qualityPresets['Extreme+']);
+  // ensure keys
+  const advDefaults = {jump:0,walk:0,die:0,line:0,glow:0,trail:0,blockTexture:true};
+  for(const k in advDefaults) if(!(k in adv)) adv[k]=advDefaults[k];
+  return {fps, quality, adv};
+}
+let settings = loadSettings();
+
+/* ---------- Game state ---------- */
+const BLOCK_SIZE = 50;
 let score = 0;
-let bestScore = parseInt(localStorage.getItem("bestScore") || "0");
-let lastScore = parseInt(localStorage.getItem("lastScore") || "0");
-let player = { x: 150, y: 500, vy:0, onGround:false, trail:[] };
+let bestScore = parseInt(localStorage.getItem('bestScore')||'0',10) || 0;
+let lastScore = parseInt(localStorage.getItem('lastScore')||'0',10) || 0;
+
+const player = { x:150, y:300, width:40, height:40, vy:0, jumpsLeft:2, onGround:false, trail:[] };
 let platforms = [];
-let dieParticles = [];
-let scanOffset = 0;
+let particles = []; // generic particles (jump/walk/die)
+let lines = []; // horizontal lines for visual effect
+let running = false;
+let lastTime = 0;
 
-// UI updates
-function updateUI(){
-  document.getElementById("scoreDisplay").textContent = "Score: " + score;
-  document.getElementById("bestDisplay").textContent = "Best: " + bestScore;
-  document.getElementById("lastDisplay").textContent = "Last Point: " + lastScore;
-}
-updateUI();
+/* ---------- Utility helpers ---------- */
+function rgb(r,g,b,a=1){ return `rgba(${r},${g},${b},${a})`; }
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
 
-// ===== PLATFORM GENERATOR =====
-function spawnPlatform(){
-  let x = canvas.width;
-  let y = 450 + (Math.random()*100 - 50);
-  let w = 100 + Math.random()*100;
-  platforms.push({x, y, w, h:20});
-}
+/* ---------- Platform generation & init ---------- */
 function initPlatforms(){
   platforms = [];
+  const groundY = Math.round(canvas.height*0.75);
+  // start with a long starting platform
+  platforms.push({x:0,y:groundY,width:BLOCK_SIZE*12,height:BLOCK_SIZE,color:{r:0,g:255,b:255},passed:false});
+  // add a few more
+  let lastX = platforms[0].x + platforms[0].width;
   for(let i=0;i<6;i++){
-    platforms.push({x:i*150, y:500, w:120, h:20});
+    const x = lastX + 150 + Math.random()*200;
+    const y = groundY + (Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
+    const w = BLOCK_SIZE * (2 + Math.floor(Math.random()*4));
+    platforms.push({x,y,width:w,height:BLOCK_SIZE,color:{r:0,g:255,b:255},passed:false});
+    lastX = x + w;
   }
 }
 
-// ===== PARTICLE HELPERS =====
-function makeParticles(x,y,count,color,size){
-  for(let i=0;i<count;i++){
-    dieParticles.push({
-      x, y,
-      vx:(Math.random()*2-1)*2,
-      vy:(Math.random()*2-1)*2,
-      life:50,
-      color, size
+/* ---------- Spawn single platform (used in loop if needed) ---------- */
+function spawnPlatformAfter(lastPlat){
+  const gap = (3 + Math.floor(Math.random()*5)) * BLOCK_SIZE;
+  const blockCount = 1 + Math.floor(Math.random()*4);
+  let x = lastPlat.x + lastPlat.width + gap;
+  let y = lastPlat.y + (Math.floor(Math.random()*3)-1) * BLOCK_SIZE;
+  y = clamp(y, BLOCK_SIZE, canvas.height - 3*BLOCK_SIZE);
+  for(let i=0;i<blockCount;i++){
+    platforms.push({x: x + i*BLOCK_SIZE, y, width: BLOCK_SIZE, height: BLOCK_SIZE, color:{r:0,g:255,b:255}, passed:false});
+  }
+}
+
+/* ---------- Particle spawn ---------- */
+function spawnParticles(x,y,count,type){
+  const amt = Math.max(1, Math.round(count/5));
+  for(let i=0;i<amt;i++){
+    const angle = Math.random()*Math.PI*2;
+    const speed = Math.random()*3 + 1;
+    particles.push({
+      x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed - (type==='jump'?2:0),
+      life: 40 + Math.random()*30,
+      size: 4 + Math.random()*4,
+      color: type==='die' ? '#ff0' : '#0ff'
     });
   }
 }
 
-// ===== GAME LOOP =====
-function loop(timestamp){
-  if(!running) return;
-
-  if(fps>0){
-    const interval = 1000/fps;
-    if(timestamp - lastFrameTime < interval){
-      requestAnimationFrame(loop);
-      return;
+/* ---------- Command handler (Ctrl+Shift+A like original) ---------- */
+window.addEventListener('keydown', e=>{
+  if(e.ctrlKey && e.shiftKey && e.code === 'KeyA'){
+    const input = prompt('Enter command:');
+    if(!input) return;
+    const args = input.trim().split(/\s+/);
+    const cmd = args[0];
+    const a1 = args[1], a2 = args[2];
+    if(cmd === '/score'){
+      if(a1 === 'set' && !isNaN(parseInt(a2,10))){ score = parseInt(a2,10); }
+      if(a1 === 'add' && !isNaN(parseInt(a2,10))){ score += parseInt(a2,10); }
     }
-    lastFrameTime = timestamp;
+    if(cmd === '/clear' && a1 === 'bestScore'){
+      bestScore = 0; localStorage.setItem('bestScore',0);
+      document.getElementById('bestScore').innerText = 'Best Score: 0';
+    }
+    if(cmd === '/die'){
+      // trigger death
+      if(settings.adv.die>0) spawnParticles(player.x + player.width/2, player.y + player.height/2, settings.adv.die, 'die');
+      endGame();
+    }
+  }
+});
+
+/* ---------- Input: jump on click/touch/keys ---------- */
+window.addEventListener('keydown', e=>{
+  if(['Space','KeyW','ArrowUp'].includes(e.code)) {
+    doJump();
+  }
+});
+window.addEventListener('mousedown', doJump);
+window.addEventListener('touchstart', e=>{ e.preventDefault(); doJump(); }, {passive:false});
+function doJump(){
+  if(!running) return;
+  if(player.jumpsLeft > 0){
+    player.vy = -12;
+    spawnParticles(player.x + player.width/2, player.y + player.height, settings.adv.jump, 'jump');
+    player.jumpsLeft--;
+  }
+}
+
+/* ---------- Game start / end UI ---------- */
+const startBtn = document.getElementById('startBtn');
+const startScreen = document.getElementById('startScreen');
+const bestScoreLabel = document.getElementById('bestScore');
+const lastScoreLabel = document.getElementById('lastScore');
+const hud = document.getElementById('hud');
+
+function showStartScreen(){
+  bestScoreLabel.innerText = 'Best Score: ' + bestScore;
+  lastScoreLabel.innerText = 'Last Point: ' + lastScore;
+  startScreen.style.display = 'flex';
+  hud.style.display = 'none';
+}
+function hideStartScreen(){
+  startScreen.style.display = 'none';
+  hud.style.display = 'block';
+}
+
+/* ---------- Settings button ---------- */
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  // open settings page in same folder
+  window.location.href = 'settings.html';
+});
+
+/* ---------- game reset/start/end ---------- */
+function resetGame(){
+  score = 0;
+  player.x = Math.round(canvas.width * 0.15);
+  player.y = Math.round(canvas.height * 0.5);
+  player.vy = 0;
+  player.jumpsLeft = 2;
+  player.onGround = false;
+  player.trail = [];
+  particles = [];
+  lines = [];
+  initPlatforms();
+  lastTime = performance.now();
+  running = true;
+  hideStartScreen();
+  requestAnimationFrame(update);
+}
+
+function endGame(){
+  running = false;
+  lastScore = Math.max(0, Math.floor(score));
+  localStorage.setItem('lastScore', lastScore);
+  if(score > bestScore){ bestScore = Math.floor(score); localStorage.setItem('bestScore', bestScore); }
+  showStartScreen();
+}
+
+/* ---------- update loop (delta-time aware) ---------- */
+function update(t){
+  if(!running) return;
+  const dt = Math.min(0.05, (t - lastTime)/1000); // clamp
+  lastTime = t;
+
+  // load settings fps cap
+  const fpsCap = settings.fps || 0;
+  if(fpsCap>0){
+    // skip frames to respect fps cap
+    const minDt = 1 / fpsCap;
+    if(dt < minDt){ requestAnimationFrame(update); return; }
   }
 
-  ctx.fillStyle = "#111";
+  // physics
+  player.vy += 30 * dt; // gravity px/s^2 style
+  player.y += player.vy;
+
+  // platform collision (simple)
+  player.onGround = false;
+  for(let p of platforms){
+    const px = p.x, py = p.y, pw = p.width, ph = p.height;
+    // horizontal overlap
+    if(player.x + player.width > px && player.x < px + pw){
+      const prevBottom = player.y - player.vy + player.height;
+      const curBottom = player.y + player.height;
+      if(prevBottom <= py && curBottom >= py && player.vy >= 0){
+        // land
+        player.y = py - player.height;
+        player.vy = 0;
+        player.onGround = true;
+        player.jumpsLeft = 2;
+      }
+    }
+  }
+
+  // move camera/world: shift platforms left by worldSpeed * dt
+  const worldSpeed = 250; // px/sec
+  for(let p of platforms) p.x -= worldSpeed * dt;
+
+  // remove offscreen platforms
+  platforms = platforms.filter(p => p.x + p.width > -200);
+
+  // spawn new platforms when needed
+  if(platforms.length === 0) initPlatforms();
+  const lastPlat = platforms[platforms.length - 1];
+  if(lastPlat && lastPlat.x + lastPlat.width < canvas.width){
+    spawnPlatformAfter(lastPlat);
+  }
+
+  // Trail effect list
+  if(settings.adv.trail > 0){
+    player.trail.push({x: player.x + player.width/2, y: player.y + player.height/2, life: 18});
+    if(player.trail.length > 60) player.trail.shift();
+  } else {
+    player.trail = [];
+  }
+
+  // particles update
+  for(let i = particles.length-1; i >= 0; i--){
+    const part = particles[i];
+    part.x += part.vx;
+    part.y += part.vy;
+    part.vy += 0.3; // gravity small
+    part.life--;
+    if(part.life <= 0) particles.splice(i,1);
+  }
+
+  // particles from die (separate array)
+  // not necessary separate here (we used particles for all)
+
+  // background horizontal lines effect (visual only)
+  if(settings.adv.line > 0){
+    // lines are drawn each frame, we just move an offset
+  }
+
+  // scoring
+  score += Math.max(0, 1 * dt * 60); // roughly +1 per frame at 60fps scaled by dt
+  hud.innerText = `Score: ${Math.floor(score)}  •  Best: ${bestScore}`;
+
+  // render
+  render();
+
+  requestAnimationFrame(update);
+}
+
+/* ---------- rendering ---------- */
+function render(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // background faint
+  ctx.fillStyle = '#000';
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // Horizontal Line Effect
-  if(adv.line>0){
-    scanOffset += adv.line/50;
-    ctx.fillStyle = "rgba(0,255,255,0.1)";
-    for(let i=0;i<canvas.height;i+=20){
-      ctx.fillRect(0, (i+scanOffset)%canvas.height, canvas.width, 2);
+  // horizontal scan lines effect if enabled
+  if(settings.adv.line > 0){
+    const intensity = clamp(settings.adv.line/200, 0, 1) * 0.2;
+    const step = 18;
+    const offset = (performance.now()/30) % step;
+    ctx.fillStyle = `rgba(0,255,255,${intensity})`;
+    for(let y=0;y<canvas.height;y+=step){
+      ctx.fillRect(0, (y + offset) % canvas.height, canvas.width, 1);
     }
   }
 
-  // Move & draw platforms
-  platforms.forEach(p=>{
-    ctx.fillStyle = "#0ff";
-    ctx.fillRect(p.x, p.y, p.w, p.h);
-
-    if(adv.blockTexture){
-      ctx.strokeStyle = "rgba(0,0,0,0.5)";
-      for(let i=0;i<p.w;i+=10){
+  // draw platforms (with optional texture)
+  for(const p of platforms){
+    if(settings.adv.blockTexture){
+      // gradient / block color
+      const color = 'rgba(0,200,200,1)';
+      ctx.fillStyle = color;
+      ctx.fillRect(p.x, p.y, p.width, p.height);
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      ctx.lineWidth = 2;
+      for(let gx = p.x; gx < p.x + p.width; gx += 10){
         ctx.beginPath();
-        ctx.moveTo(p.x+i, p.y);
-        ctx.lineTo(p.x+i, p.y+p.h);
+        ctx.moveTo(gx, p.y);
+        ctx.lineTo(gx, p.y + p.height);
         ctx.stroke();
       }
-    }
-    p.x -= 3;
-  });
-  platforms = platforms.filter(p=>p.x+p.w>0);
-  if(platforms.length<6 || platforms[platforms.length-1].x<canvas.width-200){
-    spawnPlatform();
-  }
-
-  // Gravity
-  player.vy += 0.5;
-  player.y += player.vy;
-  player.onGround = false;
-
-  // Collision
-  for(let p of platforms){
-    if(player.x>p.x && player.x<p.x+p.w &&
-       player.y>=p.y-20 && player.y<=p.y && player.vy>=0){
-      player.y = p.y-20;
-      player.vy = 0;
-      player.onGround = true;
+    } else {
+      ctx.fillStyle = 'rgba(0,200,200,1)';
+      ctx.fillRect(p.x, p.y, p.width, p.height);
     }
   }
 
-  // Trail Effect
-  if(adv.trail>0){
-    player.trail.push({x:player.x,y:player.y,life:30});
-    if(player.trail.length>50) player.trail.shift();
-    ctx.fillStyle="rgba(0,255,255,0.3)";
-    player.trail.forEach(t=>{
-      ctx.globalAlpha=t.life/30 * (adv.trail/100);
+  // draw trail
+  if(settings.adv.trail > 0){
+    for(const t of player.trail){
+      const a = (t.life/18) * (settings.adv.trail/200);
+      ctx.fillStyle = `rgba(0,255,255,${a})`;
       ctx.beginPath();
-      ctx.arc(t.x,t.y,5,0,Math.PI*2);
+      ctx.arc(t.x, t.y, 6 * (settings.adv.trail/200), 0, Math.PI*2);
       ctx.fill();
       t.life--;
-    });
-    ctx.globalAlpha=1;
+    }
   }
 
-  // Glow Effect
-  if(adv.glow>0){
-    let grd = ctx.createRadialGradient(player.x,player.y,10,player.x,player.y,50);
-    grd.addColorStop(0,"rgba(0,255,255,"+(adv.glow/200)+")");
-    grd.addColorStop(1,"transparent");
-    ctx.fillStyle=grd;
-    ctx.fillRect(player.x-50,player.y-50,100,100);
+  // glow behind player
+  if(settings.adv.glow > 0){
+    const g = settings.adv.glow/200;
+    const grd = ctx.createRadialGradient(player.x + player.width/2, player.y + player.height/2, 4,
+      player.x + player.width/2, player.y + player.height/2, 60);
+    grd.addColorStop(0, `rgba(0,255,255,${0.35 * g})`);
+    grd.addColorStop(1, 'rgba(0,255,255,0)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(player.x-70, player.y-70, 140, 140);
   }
 
-  // Player
-  ctx.fillStyle="#0ff";
-  ctx.fillRect(player.x-10, player.y-20, 20, 20);
+  // player
+  ctx.fillStyle = '#0ff';
+  ctx.fillRect(player.x, player.y, player.width, player.height);
+  // outline glow
+  ctx.strokeStyle = 'rgba(0,255,255,0.6)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(player.x, player.y, player.width, player.height);
 
-  // Walk Effect
-  if(adv.walk>0 && player.onGround && timestamp%10<5){
-    ctx.fillStyle="rgba(0,255,255,0.5)";
-    ctx.fillRect(player.x-15, player.y+10,5,5);
+  // draw particles
+  for(const p of particles){
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = clamp(p.life/60, 0, 1);
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+    ctx.globalAlpha = 1;
   }
-
-  // Jump Effect
-  if(adv.jump>0 && player.vy<-0.5){
-    ctx.fillStyle="rgba(0,255,255,0.5)";
-    ctx.beginPath();
-    ctx.arc(player.x,player.y+15,5+adv.jump/20,0,Math.PI*2);
-    ctx.fill();
-  }
-
-  // Die Particles
-  dieParticles.forEach(p=>{
-    ctx.fillStyle=p.color;
-    ctx.globalAlpha=p.life/50;
-    ctx.fillRect(p.x,p.y,p.size,p.size);
-    p.x+=p.vx; p.y+=p.vy; p.life--;
-  });
-  dieParticles=dieParticles.filter(p=>p.life>0);
-  ctx.globalAlpha=1;
-
-  // Score
-  score++;
-  if(score > bestScore){
-    bestScore = score;
-    localStorage.setItem("bestScore", bestScore);
-  }
-  updateUI();
-
-  requestAnimationFrame(loop);
 }
 
-// ===== COMMAND HANDLER =====
-document.getElementById("console").addEventListener("keydown", e=>{
-  if(e.key==="Enter"){
-    const cmd = e.target.value.trim();
-    e.target.value = "";
-    if(cmd.startsWith("/score")){
-      const parts = cmd.split(" ");
-      if(parts[1]==="set" && !isNaN(parts[2])) score = parseInt(parts[2]);
-      if(parts[1]==="add" && !isNaN(parts[2])) score += parseInt(parts[2]);
-    }
-    if(cmd==="/clear bestScore"){
-      bestScore = 0;
-      localStorage.setItem("bestScore", 0);
-    }
-    if(cmd==="/die"){
-      running = false;
-      if(adv.die>0){
-        makeParticles(player.x,player.y,adv.die,"#0ff",5);
-      }
-      lastScore = score;
-      localStorage.setItem("lastScore", lastScore);
-      alert("You died! Final score: "+score);
-      updateUI();
-      document.getElementById("startBtn").style.display="block";
-    }
-  }
+/* ---------- initialize / export UI ---------- */
+document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
+document.getElementById('lastScore').innerText = 'Last Point: ' + lastScore;
+document.getElementById('startBtn').addEventListener('click', ()=>{
+  resetGame();
 });
 
-// ===== CONTROLS =====
-document.addEventListener("keydown", e=>{
-  if(e.code==="Space" && player.onGround){
-    player.vy = -10;
-  }
-});
+/* ---------- load settings variables into runtime ---------- */
+// set local runtime settings
+function refreshSettings(){
+  settings = loadSettings();
+  // apply defaults if missing
+  if(!settings.adv) settings.adv = qualityPresets[settings.quality] || qualityPresets['Extreme+'];
+}
+refreshSettings();
 
-// ===== START =====
-document.getElementById("startBtn").addEventListener("click", ()=>{
-  running = true;
-  score = 0;
-  initPlatforms();
-  player.x = 150;
-  player.y = 500;
-  player.vy = 0;
-  player.trail = [];
-  document.getElementById("startBtn").style.display="none";
-  requestAnimationFrame(loop);
-});
+/* ---------- endGame when player falls below screen (simple) ---------- */
+function checkOutOfBounds(){
+  if(player.y > canvas.height + 200 && running){
+    // died by falling
+    if(settings.adv.die > 0) spawnParticles(player.x+player.width/2, player.y+player.height/2, settings.adv.die, 'die');
+    endGame();
+  }
+}
+setInterval(checkOutOfBounds, 200);
+
+/* ---------- small loop to step UI/hud when start screen hidden ---------- */
+setInterval(()=>{
+  if(!running){
+    // show animated subtle title glow via CSS already
+  } else {
+    // nothing
+  }
+}, 500);
+
+/* ---------- expose for debugging (optional) ---------- */
+window.__bridd = { settings, qualityPresets, resetGame, endGame };
+
+showStartScreen();
 </script>
 </body>
 </html>
