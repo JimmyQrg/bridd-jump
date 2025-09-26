@@ -450,21 +450,24 @@ window.addEventListener("keydown", e => {
         }
         if(command === "/die") {
             if(player.visible) {
-                player.visible = false;
-                createCrash();  // make player shatter
-                gameStarted = false;
-                // Update last score before showing start screen
+            // Save last score
                 localStorage.setItem("lastScore", Math.floor(score));
-                if(score > bestScore) {
+                // Update best score if necessary
+                if(score > bestScore){
                     bestScore = Math.floor(score);
                     localStorage.setItem("bestScore", bestScore);
                 }
+                // Trigger crash effect
+                createCrash();
+                // Fully reset game state like a normal death
+                player.visible = false;
+                gameStarted = false;
+                cancelAnimationFrame(animationFrameId);
+                setTimeout(() => {
+                    showStartScreen();
+                }, 500);
             }
         }
-        setTimeout(() => { showStartScreen(); }, 500);
-    }
-}
-
         if(command === "/code") {
             if(root1 === "770709") { testMode = !testMode; alert(testMode ? "TEST MODE ON" : "TEST MODE OFF"); }
             else if(root1 === "lanseyaoji") { if(player.speed < 5) player.speed = 5; else player.speed *= 1.5; console.log("Player speed:", player.speed); }
