@@ -1,9 +1,9 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bridd Jump with Trail</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Schedule | Infinite Campus</title>
 <link rel="icon" type="image/png" href="infinite-campus-icon.png">
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
@@ -16,14 +16,48 @@ canvas { display:block; }
     pointer-events:all; font-size:30px; color:#0ff; text-shadow:0 0 20px #0ff;
     border:3px solid #0ff; border-radius:20px;
 }
-button { font-size:32px; padding:15px 40px; cursor:pointer; margin-top:30px; color:#0ff; background:black; border:3px solid #0ff; border-radius:12px; transition:0.3s; }
+button { font-size:32px; padding:15px 40px; cursor:pointer; margin-top:30px; color:#0ff; background:black; border:3px solid #0ff; border-radius:12px; transition:0.3s; pointer-events:all;}
 button:hover { color:black; background:#0ff; }
 h1 { font-size:60px; margin-bottom:20px; text-shadow: 0 0 20px #0ff, 0 0 40px #0ff, 0 0 60px #0ff; animation: glow 1.5s infinite alternate; }
 @keyframes glow { 0% { text-shadow:0 0 10px #0ff,0 0 20px #0ff;} 100% {text-shadow:0 0 40px #0ff,0 0 80px #0ff;} }
+
+/* Gear/settings button */
+#settingsBtn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  border: 3px solid #0ff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  pointer-events:all;
+  z-index: 1000;
+}
+#settingsBtn svg { filter: drop-shadow(0 0 8px #0ff); }
+#settingsBtn:hover { background: #0ff; }
+#settingsBtn:hover svg { filter: none; color: black; fill:black; }
+
+/* small label for FPS/quality when overlayed */
+#settingsLabel {
+  position: absolute;
+  top: 80px;
+  right: 16px;
+  color:#0ff;
+  text-shadow: 0 0 10px #0ff;
+  pointer-events:none;
+  z-index: 1000;
+  font-size:14px;
+}
 </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
+
 <div id="ui">
   <div id="startScreen">
     <h1>BRIDD JUMP</h1>
@@ -32,8 +66,18 @@ h1 { font-size:60px; margin-bottom:20px; text-shadow: 0 0 20px #0ff, 0 0 40px #0
   </div>
 </div>
 
+<!-- Settings gear -->
+<div id="settingsBtn" title="Settings (Open)" aria-label="Settings">
+  <!-- simple gear SVG -->
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z" fill="#0ff"/>
+    <path d="M19.4 13.5c.04-.5.1-1.01.1-1.5s-.06-1.01-.1-1.5l2.11-1.65a.5.5 0 0 0 .12-.63l-2-3.46a.5.5 0 0 0-.6-.22l-2.49 1a7.9 7.9 0 0 0-2.6-1.5L13 2.5a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.5L7.86 4.1c-.92.28-1.77.72-2.6 1.3l-2.49-1a.5.5 0 0 0-.6.22l-2 3.46a.5.5 0 0 0 .12.63L4.06 10c-.04.5-.1 1.01-.1 1.5s.06 1.01.1 1.5l-2.11 1.65a.5.5 0 0 0-.12.63l2 3.46c.14.24.44.34.7.22l2.49-1c.83.58 1.68 1.02 2.6 1.3L8.5 21.5a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5l.14-2.1c.92-.28 1.77-.72 2.6-1.3l2.49 1c.26.12.56.02.7-.22l2-3.46a.5.5 0 0 0-.12-.63L19.4 13.5z" fill="#0ff"/>
+  </svg>
+</div>
+<div id="settingsLabel"></div>
+
 <script>
-// --- GLOBAL VARIABLES ---
+// --- GLOBAL VARIABLES (original + new) ---
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
@@ -43,9 +87,17 @@ const BLOCK_SIZE = 50;
 const JUMP_SPEED = -15;
 const GRAVITY = 0.7;
 
+let testMode = false;
+let gemEveryBlock = false;
+let oldAccount = null;
+let account = "player";
+
 let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
 let lastTime = 0, gameStarted = false, animationFrameId;
 let crashPieces = [], particles = [], gems = [], trail = [];
+let cheatsUnlocked = false;
+let cheats = {float:false, invincible:false, infiniteJump:false};
+let startPressCount = 0;
 
 let baseColors = [{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,b:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
 let colorIndex = 0, platformColor = {r:255,g:0,b:0}, nextColor = baseColors[1], colorLerp = 0;
@@ -55,12 +107,152 @@ let player = {
     x:100, y:0, width:50, height:50,
     color:"#0ff", vy:0, speed:8,
     hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true,
-    horizMultiplier:1, vertMultiplier:1
+    horizMultiplier:1, vertMultiplier:1,
+    accountEmail:"player@example.com"
 };
 
 let platforms = [], spikes = [], lines = [], lastPlatformX = 0, lastPlatformY = 0;
 
-// --- INPUT ---
+/* ---------------------------
+   NEW SETTINGS/QUALITY SYSTEM
+   --------------------------- */
+
+/* default settings (will be overridden by saved settings if any) */
+const defaultSettings = {
+  maxFPS: 0, // 0 == Unlimited
+  qualityPreset: "Extreme+", // default per your request
+  quality: {
+    // These are percentages (0-200+) for advanced adjustments
+    jumpEffect: 120,
+    walkEffect: 120,
+    dieEffect: 120,
+    horizontalLines: 120,
+    trail: 120,
+    blockTexture: 100 // texture percent (100 = texture on, 0 = full color)
+  },
+  // derived booleans are computed when applying settings
+  meta: {}
+};
+
+/* map quality presets to values */
+const qualityPresets = {
+  "Potato":      { blockTexture:0, jumpEffect:0, walkEffect:0, dieEffect:0, horizontalLines:0, trail:0, glow:false, lines:false },
+  "Low":         { blockTexture:0, jumpEffect:5, walkEffect:0, dieEffect:0, horizontalLines:0, trail:0, glow:false, lines:false },
+  "Medium":      { blockTexture:1, jumpEffect:10, walkEffect:0, dieEffect:10, horizontalLines:0, trail:0, glow:false, lines:false },
+  "Medium+":     { blockTexture:1, jumpEffect:15, walkEffect:15, dieEffect:15, horizontalLines:0, trail:0, glow:false, lines:false },
+  "High":        { blockTexture:1, jumpEffect:15, walkEffect:15, dieEffect:15, horizontalLines:15, trail:0, glow:true, lines:true },
+  "High+":       { blockTexture:1, jumpEffect:33, walkEffect:33, dieEffect:33, horizontalLines:33, trail:0, glow:true, lines:true },
+  "Extreme":     { blockTexture:1, jumpEffect:60, walkEffect:60, dieEffect:60, horizontalLines:60, trail:0, glow:true, lines:true },
+  "Extreme+":    { blockTexture:1, jumpEffect:64, walkEffect:64, dieEffect:64, horizontalLines:64, trail:1, glow:true, lines:true },
+  "Ultra":       { blockTexture:1, jumpEffect:100, walkEffect:100, dieEffect:100, horizontalLines:100, trail:0, glow:true, lines:true },
+  "Ultra+":      { blockTexture:1, jumpEffect:120, walkEffect:120, dieEffect:120, horizontalLines:120, trail:1, glow:true, lines:true },
+  "Glow Highest":{ blockTexture:1, jumpEffect:200, walkEffect:200, dieEffect:200, horizontalLines:200, trail:1, glow:true, lines:true }
+};
+
+/* runtime applied settings */
+let settings = loadSettings();
+applySettings(settings); // ensure default applied once at start
+
+/* helper: load settings from localStorage */
+function loadSettings(){
+  try{
+    const raw = localStorage.getItem("briddSettings");
+    if(raw) {
+      const parsed = JSON.parse(raw);
+      // ensure structure
+      const merged = JSON.parse(JSON.stringify(defaultSettings));
+      if(parsed.maxFPS !== undefined) merged.maxFPS = parsed.maxFPS;
+      if(parsed.qualityPreset) merged.qualityPreset = parsed.qualityPreset;
+      if(parsed.quality) merged.quality = {...merged.quality, ...parsed.quality};
+      return merged;
+    }
+  }catch(e){ console.warn("Failed to load settings, using defaults.", e); }
+  return JSON.parse(JSON.stringify(defaultSettings));
+}
+
+/* helper: save settings into localStorage */
+function saveSettingsToStorage(){
+  localStorage.setItem("briddSettings", JSON.stringify(settings));
+}
+
+/* apply settings to runtime parameters */
+let runtime = {
+  minFrameTime: 0, // ms between frames (0 = unlimited)
+  effects: {
+    jumpEffectMul: 1,
+    walkEffectMul: 1,
+    dieEffectMul: 1,
+    horizontalLinesMul: 1,
+    trailMul: 1,
+    blockTextureMul: 1
+  },
+  glowEnabled: true,
+  linesEnabled: true,
+  trailEnabled: true
+};
+
+function applySettings(newSettings){
+  settings = newSettings || settings;
+  // FPS
+  if(!settings.maxFPS || settings.maxFPS === 0 || settings.maxFPS === "Unlimited") {
+    runtime.minFrameTime = 0;
+    settings.maxFPS = 0;
+    document.getElementById("settingsLabel").innerText = "FPS: Unlimited — Quality: " + settings.qualityPreset;
+  } else {
+    runtime.minFrameTime = 1000 / Number(settings.maxFPS);
+    document.getElementById("settingsLabel").innerText = "FPS: " + settings.maxFPS + " — Quality: " + settings.qualityPreset;
+  }
+
+  // quality preset base
+  const preset = qualityPresets[settings.qualityPreset] || {};
+  // apply preset as base, then override with advanced "quality" values (percentages)
+  function percentToMul(p){ return (Number(p) || 0) / 100; } // 100% => 1x
+
+  // blockTexture: treat as boolean-ish (if blockTexture <= 0 => no texture)
+  runtime.effects.blockTextureMul = percentToMul(settings.quality.blockTexture) || (preset.blockTexture ? 1 : 0);
+
+  // each effect multiplier
+  runtime.effects.jumpEffectMul = (percentToMul(settings.quality.jumpEffect) || (preset.jumpEffect ? preset.jumpEffect/100 : 0)) ;
+  runtime.effects.walkEffectMul = (percentToMul(settings.quality.walkEffect) || (preset.walkEffect ? preset.walkEffect/100 : 0)) ;
+  runtime.effects.dieEffectMul = (percentToMul(settings.quality.dieEffect) || (preset.dieEffect ? preset.dieEffect/100 : 0)) ;
+  runtime.effects.horizontalLinesMul = (percentToMul(settings.quality.horizontalLines) || (preset.horizontalLines ? preset.horizontalLines/100 : 0)) ;
+  runtime.effects.trailMul = (percentToMul(settings.quality.trail) || (preset.trail ? preset.trail/100 : 0)) ;
+
+  // glow and horizontal lines flags
+  runtime.glowEnabled = preset.glow !== undefined ? preset.glow : true;
+  runtime.linesEnabled = preset.lines !== undefined ? preset.lines : true;
+  runtime.trailEnabled = runtime.effects.trailMul > 0;
+
+  // If a preset specifies trail=1 while advanced override has 0, the advanced sliders take precedence because they are stored in settings.quality
+  if(settings.quality.trail !== undefined) runtime.trailEnabled = settings.quality.trail > 0;
+
+  // Save new settings to storage
+  saveSettingsToStorage();
+}
+
+/* convenience to set a preset name and apply */
+function setQualityPreset(name){
+  settings.qualityPreset = name;
+  // if the user picks a preset, set the advanced sliders to the preset defaults (so they can adjust in advanced)
+  const p = qualityPresets[name];
+  if(p){
+    settings.quality.jumpEffect = p.jumpEffect || 0;
+    settings.quality.walkEffect = p.walkEffect || 0;
+    settings.quality.dieEffect = p.dieEffect || 0;
+    settings.quality.horizontalLines = p.horizontalLines || 0;
+    settings.quality.trail = p.trail ? 100 : (p.trail === 0 ? 0 : settings.quality.trail);
+    settings.quality.blockTexture = (p.blockTexture ? 100 : 0);
+  }
+  applySettings(settings);
+}
+
+/* ---------------------------
+   END SETTINGS / QUALITY
+   --------------------------- */
+
+/* --- original variables that rely on these settings may be used inside the loops --- */
+
+/* --- INPUT --- */
 window.addEventListener("keydown", e=>{ 
     if(["KeyW","ArrowUp","Space"].includes(e.code)) jump(); 
     keys[e.code] = true;
@@ -71,17 +263,17 @@ window.addEventListener("touchstart", () => jump());
 
 function jump(){
     if(!player.visible) return;
-    if(player.jumpsLeft>0){
+    if(cheats.infiniteJump || player.jumpsLeft>0){
         player.vy = JUMP_SPEED;
-        spawnParticles(player.x+player.width/2, player.y+player.height, player.jumpsLeft===2?"jump":"double");
-        player.jumpsLeft--;
+        // spawn fewer/more particles according to runtime.effects.jumpEffectMul
+        spawnParticles(player.x+player.width/2, player.y+player.height, player.jumpsLeft===2?"jump":"double", runtime.effects.jumpEffectMul);
+        if(!cheats.infiniteJump) player.jumpsLeft--;
     }
 }
 
-document.getElementById("startBtn").addEventListener("click", resetGame);
-
 function resetGame(){
     if(animationFrameId) cancelAnimationFrame(animationFrameId);
+    startPressCount++;
     score = 0; colorLerp = 0; globalTime = 0; trail = [];
     player.x = 100; player.y = canvas.height/2-player.height; player.vy = 0; player.speed = 8;
     player.jumpsLeft = 2; player.onGround = false; player.visible = true;
@@ -109,26 +301,105 @@ function generateBlockPlatform(lastX,lastY){
 
     for(let i=0;i<blockCount;i++){
         platforms.push({x:x+i*BLOCK_SIZE,y,width:BLOCK_SIZE,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
+        if(Math.random()<0.2) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2,y: y - BLOCK_SIZE + BLOCK_SIZE*0.2,width:BLOCK_SIZE*0.6,height:BLOCK_SIZE*0.6, baseY:y-BLOCK_SIZE+BLOCK_SIZE*0.2, hit:true, passed:false});
+    }
+
+    // Gems
+    for(let i=0;i<blockCount;i++){
+        if(Math.random()<0.1 || gemEveryBlock){
+            let gemX = x+i*BLOCK_SIZE+BLOCK_SIZE/4;
+            let gemY = y-BLOCK_SIZE*1.5;
+            let safe = true;
+            for(let s of spikes){ if(Math.abs(gemX - s.x)<BLOCK_SIZE*2) safe=false; }
+            if(safe) gems.push({x:gemX,y:gemY,size:20, collected:false, floatOffset:Math.random()*Math.PI*2});
+        }
     }
 
     return {x:x+blockCount*BLOCK_SIZE,y};
 }
 
-function spawnParticles(x,y,type){
-    const color = type==="jump"?"#0ff":"#ff0";
-    for(let i=0;i<15;i++){
+function checkSpikeCollision(spike){
+    if(!spike.hit) return false;
+    const hbW = player.width*player.hitboxScale;
+    const hbH = player.height*player.hitboxScale;
+    const hbX = player.x+(player.width-hbW)/2;
+    const hbY = player.y+(player.height-hbH)/2;
+    return hbX+hbW>spike.x && hbX<spike.x+spike.width && hbY+hbH>spike.y && hbY<spike.y+spike.height;
+}
+
+function createCrash(multiplier = 1){
+    const pieces = Math.max(4, Math.floor(20 * (runtime.effects.dieEffectMul || multiplier)));
+    for(let i=0;i<pieces;i++){
+        crashPieces.push({
+            x:player.x+Math.random()*player.width,
+            y:player.y+Math.random()*player.height,
+            vx:(Math.random()-0.5)*15,
+            vy:(Math.random()-1)*15,
+            size:Math.random()*player.width/4+5,
+            color:player.color
+        });
+    }
+}
+
+function spawnParticles(x,y,type, amountMul=1){
+    // default 15 particles; scale by amountMul (0 = 0; 1 = full)
+    const base = 15;
+    const count = Math.max(0, Math.floor(base * (amountMul || runtime.effects.jumpEffectMul || 1)));
+    const color = type==="jump"?"#0ff":type==="double"?"#ff0":"#fff";
+    for(let i=0;i<count;i++){
         particles.push({x,y,vx:(Math.random()-0.5)*5,vy:(Math.random()-1.5)*5,life:Math.random()*30+20,color});
     }
 }
 
+function tryDie(spike){
+    if(!player.visible) return;
+    if(cheats.invincible) return;
+    if(player.onGround || player.vy>0){
+        player.visible=false;
+        if(spike) spike.hit=false;
+        createCrash();
+        gameStarted=false; 
+        if(score>bestScore) { bestScore = Math.floor(score); localStorage.setItem("bestScore", bestScore); }
+        setTimeout(()=>{showStartScreen();}, 1000);
+    }
+}
+
 function showStartScreen(){ 
+    document.getElementById("bestScore").innerText="Best Score: "+bestScore;
     document.getElementById("startScreen").style.display="flex"; 
 }
 function hideStartScreen(){ document.getElementById("startScreen").style.display="none"; }
 
+function addLine(){ 
+    // spawn lines according to horizontal lines multiplier (chance scaled)
+    if(!runtime.linesEnabled) return;
+    const chance = Math.min(1, 0.15 * (runtime.effects.horizontalLinesMul || 0));
+    if(Math.random() > chance) return;
+    lines.push({x:canvas.width, y:Math.random()*canvas.height, width:Math.random()*50+20}); 
+}
+
+function lerpColor(c1,c2,t){ return {r:c1.r+(c2.r-c1.r)*t, g:c1.g+(c2.g-c1.g)*t, b:c1.b+(c2.b-c1.b)*t}; }
+
 let cameraX = 0, cameraY = 0;
 
+/* For FPS limiting */
+let lastRenderTime = performance.now();
+
 function update(time){
+    // FPS limiter
+    if(runtime.minFrameTime > 0){
+      const sinceLast = time - lastRenderTime;
+      if(sinceLast < runtime.minFrameTime){
+        // skip this frame but still request next RAF
+        animationFrameId = requestAnimationFrame(update);
+        return;
+      }
+      lastRenderTime = time;
+    } else {
+      // unlimited uses RAF timing as normal
+      lastRenderTime = time;
+    }
+
     let delta = (time-lastTime)/1000; lastTime = time;
     globalTime += delta;
 
@@ -144,26 +415,41 @@ function update(time){
         platformColor = lerpColor(baseColors[colorIndex],nextColor,colorLerp);
 
         player.y += player.vy*player.vertMultiplier; 
+        if(cheats.float && player.vy>0) player.vy *= 0.5;
         player.vy += GRAVITY*player.vertMultiplier;
         player.x += player.speed*player.horizMultiplier;
 
         player.onGround = false;
         for(let plat of platforms){
             if(player.x+player.width>plat.x && player.x<plat.x+plat.width &&
-               player.y+player.height>plat.y && player.y+player.height<plat.y+player.vy){
+               player.y+player.height>plat.y && player.y+player.height<plat.y+plat.height+player.vy){
                 if(player.vy>=0){
                     player.y = plat.y-player.height; player.vy = 0; player.onGround=true; player.jumpsLeft=2;
-                    spawnParticles(player.x+player.width/2, player.y+player.height, "land");
+                    spawnParticles(player.x+player.width/2, player.y+player.height, "land", runtime.effects.walkEffectMul);
                     plat.y += 2;
                 }
             }
             if(!plat.passed && player.x>plat.x+plat.width){ score += 1; plat.passed=true; }
+        }
+        if(player.y>canvas.height) { player.jumpsLeft=1; tryDie(); }
+
+        for(let spike of spikes){
+            if(checkSpikeCollision(spike)) tryDie(spike);
+            if(!spike.passed && player.x>spike.x+spike.width){ score += 1; spike.passed=true; }
+        }
+
+        for(let g of gems){
+            if(!g.collected && player.x+player.width>g.x && player.x<g.x+g.size && player.y+player.height>g.y && player.y<g.y+g.size){
+                score += 50; g.collected=true; spawnParticles(g.x+g.size/2,g.y+g.size/2,"double", runtime.effects.jumpEffectMul);
+            }
         }
 
         let lastPlatform = platforms[platforms.length-1];
         if(lastPlatform.x < player.x + canvas.width){
             generateBlockPlatform(lastPlatform.x, lastPlatform.y);
         }
+
+        addLine();
     }
 
     // Camera smoothing
@@ -177,81 +463,492 @@ function update(time){
     ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
     ctx.fillText(score,20,50);
 
-        // Platforms
-    for(let i=0;i<platforms.length;i++){
-        const plat = platforms[i];
-        ctx.fillStyle="#333";
-        ctx.fillRect(plat.x - cameraX, plat.y - cameraY, plat.width, plat.height);
-    }
-
-    // Player
-    ctx.fillStyle = "#f00";
-    ctx.fillRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
-
-    // Simple gravity and collision
-    player.vy += gravity;
-    player.x += player.vx;
-    player.y += player.vy;
-
-    // Platform collision
-    let onGround = false;
-    for(let i=0;i<platforms.length;i++){
-        const plat = platforms[i];
-        if(player.x + player.width > plat.x && player.x < plat.x + plat.width &&
-           player.y + player.height > plat.y && player.y + player.height < plat.y + plat.height + player.vy){
-            player.y = plat.y - player.height;
-            player.vy = 0;
-            onGround = true;
+    // Platforms
+    for(let plat of platforms){
+        let glow = Math.sin(globalTime*3)*10 + 15;
+        // decide whether to draw gradient texture or flat block based on runtime.effects.blockTextureMul
+        const useTexture = runtime.effects.blockTextureMul > 0.5; // treat >0.5 as textured
+        if(useTexture){
+            // textured with gradient
+            for(let y=plat.y; y<canvas.height; y+=BLOCK_SIZE){
+                let darkFactor = y===plat.y ? 1 : 0.3;
+                const grd = ctx.createLinearGradient(plat.x-cameraX, y-cameraY, plat.x+plat.width-cameraX, y+BLOCK_SIZE-cameraY);
+                grd.addColorStop(0, `rgba(${Math.floor(plat.color.r*darkFactor)},${Math.floor(plat.color.g*darkFactor)},${Math.floor(plat.color.b*darkFactor)},1)`);
+                grd.addColorStop(1, "rgba(0,0,0,1)");
+                ctx.fillStyle = grd;
+                if(runtime.glowEnabled) ctx.shadowColor = `rgba(${plat.color.r},${plat.color.g},${plat.color.b},0.9)`, ctx.shadowBlur = plat===platforms[0]?glow:0;
+                ctx.fillRect(plat.x-cameraX, y-cameraY, plat.width, BLOCK_SIZE);
+                ctx.shadowBlur = 0;
+            }
+        } else {
+            // simple flat color
+            ctx.fillStyle = `rgb(${plat.color.r},${plat.color.g},${plat.color.b})`;
+            ctx.fillRect(plat.x-cameraX, plat.y-cameraY, plat.width, plat.height);
         }
     }
 
-    // Jumping
-    if(keys['ArrowUp'] && onGround){
-        player.vy = -jumpStrength;
+    // Spikes
+    for(let spike of spikes){
+        let pulse = Math.sin(globalTime*5 + spike.x)*5;
+        ctx.fillStyle="red"; ctx.beginPath();
+        ctx.moveTo(spike.x-cameraX,spike.baseY+spike.height-cameraY+pulse);
+        ctx.lineTo(spike.x-cameraX+spike.width/2,spike.baseY-cameraY+pulse);
+        ctx.lineTo(spike.x-cameraX+spike.width,spike.baseY+spike.height-cameraY+pulse);
+        ctx.closePath(); ctx.fill();
     }
 
-    // Left/Right movement
-    if(keys['ArrowLeft']) player.vx = -moveSpeed;
-    else if(keys['ArrowRight']) player.vx = moveSpeed;
-    else player.vx = 0;
+    // Gems
+    for(let g of gems){
+        if(g.collected) continue;
+        g.floatOffset = g.floatOffset || Math.random()*Math.PI*2;
+        let floatY = Math.sin(globalTime*3 + g.floatOffset) * 5;
+        ctx.save();
+        ctx.translate(g.x+g.size/2-cameraX, g.y+g.size/2-cameraY + floatY);
+        ctx.rotate(Math.PI/4);
+        ctx.fillStyle="white";
+        if(runtime.glowEnabled) { ctx.shadowColor="white"; ctx.shadowBlur = 20 + 10*Math.sin(globalTime*5); }
+        ctx.fillRect(-g.size/2,-g.size/2,g.size,g.size);
+        ctx.restore();
+        ctx.shadowBlur = 0;
+    }
 
-    // Update score
-    score = Math.max(score, Math.floor(player.y * -0.1));
+    // --- PLAYER TRAIL (clones) ---
+    if(player.visible && runtime.trailEnabled){
+        // Only add a clone every few pixels to space them out
+        if(trail.length === 0 || Math.hypot(player.x - trail[trail.length-1].x, player.y - trail[trail.length-1].y) > 15){
+            trail.push({x:player.x, y:player.y, width:player.width, height:player.height, color:player.color});
+        }
 
-    // Loop
-    requestAnimationFrame(gameLoop);
+        // Keep the trail longer, length scales with trail multiplier
+        const maxTrailLen = Math.max(10, Math.floor(50 * (runtime.effects.trailMul || 1)));
+        if(trail.length > maxTrailLen) trail.shift(); // keep last clones
+
+        for(let i=0;i<trail.length;i++){
+            let t = trail[i];
+            ctx.save();
+            let alpha = (i+1)/trail.length; // older clones more transparent
+            ctx.globalAlpha = alpha * 0.6; 
+            if(runtime.glowEnabled) ctx.shadowColor = t.color, ctx.shadowBlur = 15*alpha;
+            ctx.fillStyle = t.color;
+            ctx.fillRect(t.x-cameraX, t.y-cameraY, t.width, t.height);
+            ctx.strokeStyle = t.color;
+            ctx.lineWidth = 4;
+            ctx.strokeRect(t.x-cameraX, t.y-cameraY, t.width, t.height);
+            ctx.restore();
+        }
+        ctx.globalAlpha = 1; // reset alpha
+    } else {
+        // if trail disabled, keep trail array empty to save memory
+        trail = [];
+    }
+
+    // Player
+    if(player.visible){
+        if(runtime.glowEnabled) { ctx.shadowColor="#0ff"; ctx.shadowBlur=20; }
+        ctx.fillStyle=player.color; ctx.fillRect(player.x-cameraX, player.y-cameraY, player.width, player.height);
+        if(runtime.glowEnabled) ctx.shadowBlur=0;
+        ctx.strokeStyle="#0ff"; ctx.lineWidth=6; ctx.strokeRect(player.x-cameraX,player.y-cameraY,player.width,player.height);
+    }
+
+    // Crash pieces
+    for(let p of crashPieces){
+        p.vy+=GRAVITY; p.x+=p.vx; p.y+=p.vy;
+        ctx.fillStyle=p.color; ctx.fillRect(p.x-cameraX,p.y-cameraY,p.size,p.size);
+    }
+
+    // Particles
+    for(let i = particles.length - 1; i >= 0; i--){
+        let p = particles[i];
+        p.x+=p.vx; p.y+=p.vy; p.life--;
+        if(p.life>0){ ctx.fillStyle=p.color; ctx.fillRect(p.x-cameraX,p.y-cameraY,5,5); }
+        else particles.splice(i,1);
+    }
+
+    // Horizontal lines
+    for(let i=lines.length-1;i>=0;i--){
+        let l = lines[i];
+        l.x -= player.speed*0.5*player.horizMultiplier; 
+        if(runtime.linesEnabled){
+            ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.lineWidth=2;
+            ctx.beginPath(); ctx.moveTo(l.x-cameraX, l.y-cameraY); ctx.lineTo(l.x+50-cameraX,l.y-cameraY); ctx.stroke();
+        }
+        if(l.x+50 < 0) lines.splice(i,1);
+    }
+
+    animationFrameId=requestAnimationFrame(update);
 }
 
-// --- INPUT HANDLING ---
-const keys = {};
-document.addEventListener('keydown', e => { keys[e.key] = true; });
-document.addEventListener('keyup', e => { keys[e.key] = false; });
+/* --- START BUTTON --- */
+document.getElementById("startBtn").addEventListener("click", resetGame);
+showStartScreen();
 
-// --- INITIALIZATION ---
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-canvas.width = 800;
-canvas.height = 600;
+/* --- COMMANDS --- */
+document.addEventListener("keydown", e => {
+    if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
+        const input = prompt("Enter command:");
+        if(!input) return;
+        const args = input.trim().split(/\s+/);
+        const command = args[0];
+        const root1 = args[1];
+        const root2 = args[2];
+        const root3 = args[3];
+        const root4 = args[4];
 
-const gravity = 0.5;
-const moveSpeed = 5;
-const jumpStrength = 12;
+        if(command === "/gamerule"){
+            switch(root1){
+                case "infiniteJump":
+                    cheats.infiniteJump = (root2==="true");
+                    break;
+                case "death":
+                    cheats.invincible = (root2==="false");
+                    break;
+                case "speed":
+                    if(!player.speedMultiplier) player.speedMultiplier=1;
+                    if(root2==="reset") player.speedMultiplier=1;
+                    if(root2==="add" && !isNaN(parseFloat(root3))) player.speedMultiplier+=parseFloat(root3);
+                    if(root2==="set" && !isNaN(parseFloat(root3))) player.speedMultiplier=parseFloat(root3);
+                    if(root4){
+                        switch(root4.toLowerCase()){
+                            case "horizontal": player.horizMultiplier=player.speedMultiplier; break;
+                            case "vertical": player.vertMultiplier=player.speedMultiplier; break;
+                            case "both": player.horizMultiplier=player.vertMultiplier=player.speedMultiplier; break;
+                        }
+                    } else { player.horizMultiplier=player.vertMultiplier=player.speedMultiplier; }
+                    break;
+            }
+        }
+        if(command === "/variable"){
+            if(!root1){
+                let account = localStorage.getItem("account") || "player";
+                let isCreator = ["bw55133@pausd.us","ikunbeautiful@gmail.com","benranwu@gmail.com"].includes(account);
+                alert(
+                    "test mode: "+testMode+"\n"+
+                    "infinite jump: "+cheats.infiniteJump+"\n"+
+                    "float: "+cheats.float+"\n"+
+                    "death: "+(!cheats.invincible)+"\n"+
+                    "score: "+score+"\n"+
+                    "best score: "+bestScore+"\n"+
+                    "account: "+(isCreator?"creator":"player")+"\n"+
+                    "player speed: "+player.speed+"\n"+
+                    "jump height: "+(-JUMP_SPEED)
+                );
+            }
+        }
 
-let cameraX = 0;
-let cameraY = 0;
-let score = 0;
+        if(command === "/code") {
+            if(root1 === "770709") { testMode = !testMode; alert(testMode ? "TEST MODE ON" : "TEST MODE OFF"); }
+            else if(root1 === "lanseyaoji") { if(player.speed < 5) player.speed = 5; else player.speed *= 1.5; console.log("Player speed:", player.speed); }
+            else if(root1 === "jinyumantang") { gemEveryBlock = !gemEveryBlock; console.log("Gem generation mode:", gemEveryBlock ? "every block" : "standard"); }
+            else if(root1 === "JiMmYiStHeCoOlEsTgUy|2025.letmecheat|L^UP++0U+L0UD") {
+                if(account !== "𐀒𐀒𐀒") { oldAccount = account; account = "𐀒𐀒𐀒"; } else { account = oldAccount || "player"; }
+                console.log("Account:", account);
+            }
+        }
 
-const player = {x:100, y:100, width:50, height:50, vx:0, vy:0};
+        /* -----------------
+           NEW COMMANDS
+           ----------------- */
+        if(command === "/die"){
+            // kill the player instantly
+            if(player.visible){
+                player.visible = false;
+                createCrash();
+                gameStarted = false;
+                if(score>bestScore) { bestScore = Math.floor(score); localStorage.setItem("bestScore", bestScore); }
+                setTimeout(()=>{ showStartScreen(); }, 500);
+            }
+        }
 
-const platforms = [
-    {x:0, y:550, width:800, height:50},
-    {x:200, y:400, width:150, height:20},
-    {x:400, y:300, width:150, height:20},
-    {x:600, y:200, width:150, height:20}
-];
+        if(command === "/score"){
+            // usage: /score set 100 or /score add 50
+            if(root1 === "set" && root2 !== undefined){
+                const v = Number(root2);
+                if(!isNaN(v)) score = v;
+                else alert("Invalid value for score set.");
+            } else if(root1 === "add" && root2 !== undefined){
+                const v = Number(root2);
+                if(!isNaN(v)) score += v;
+                else alert("Invalid value for score add.");
+            } else {
+                alert("Usage: /score set <value>  OR  /score add <value>");
+            }
+        }
 
-// --- START GAME LOOP ---
-requestAnimationFrame(gameLoop);
+        if(command === "/clear"){
+            if(root1 === "bestScore"){
+                bestScore = 0;
+                localStorage.setItem("bestScore", 0);
+                alert("Best score cleared.");
+                document.getElementById("bestScore").innerText = "Best Score: "+bestScore;
+            }
+        }
+
+    }
+});
+
+/* --- TEST-MODE HOTKEYS --- */
+document.addEventListener("keydown", function(event){
+    if(!testMode) return;
+
+    if(event.code === "KeyG") { cheats.float = !cheats.float; console.log("Float:", cheats.float); }
+    if(event.code === "KeyJ") { cheats.infiniteJump = !cheats.infiniteJump; console.log("Infinite Jump:", cheats.infiniteJump); }
+    if(event.code === "KeyI") { cheats.invincible = !cheats.invincible; console.log("Death enabled:", !cheats.invincible); }
+    if(event.code === "KeyQ") { player.speed = Math.max(0.5, player.speed - 0.5); console.log("Player Speed decreased:", player.speed); }
+    if(event.code === "KeyE") { player.speed += 0.5; console.log("Player Speed increased:", player.speed); }
+});
+
+/* --- RESIZE --- */
+window.addEventListener("resize", () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+
+/* ----------------
+   SETTINGS BUTTON
+   ---------------- */
+const settingsBtn = document.getElementById("settingsBtn");
+settingsBtn.addEventListener("click", openSettingsPage);
+
+/* opens a new window and renders the settings UI there */
+function openSettingsPage(){
+  const w = 820; const h = 720;
+  const left = (screen.width/2)-(w/2);
+  const top = (screen.height/2)-(h/2);
+  const settingsWindow = window.open("", "BriddJumpSettings", `width=${w},height=${h},left=${left},top=${top},resizable=yes`);
+  if(!settingsWindow){
+    alert("Pop-up blocked. Allow popups for this site or use a browser that allows new windows.");
+    return;
+  }
+
+  // Build the settings HTML (simple, standalone page)
+  const html = `
+  <!doctype html>
+  <html>
+  <head>
+  <meta charset="utf-8"/>
+  <title>Bridd Jump Settings</title>
+  <style>
+    body{font-family:sans-serif;background:#061216;color:#cfeff4;margin:0;padding:20px;}
+    h1{color:#0ff;text-shadow:0 0 8px #0ff;}
+    .row{display:flex;gap:12px;align-items:center;margin:12px 0;}
+    label{min-width:120px}
+    select,input[type=range]{flex:1}
+    .section{background:rgba(0,0,0,0.5);padding:12px;border:1px solid #0ff;border-radius:8px;margin-bottom:12px;}
+    .buttons{display:flex;gap:12px;justify-content:flex-end;margin-top:18px;}
+    button{padding:8px 16px;border-radius:8px;border:2px solid #0ff;background:transparent;color:#0ff;cursor:pointer;}
+    button.save{background:#0ff;color:#000}
+    .preset-list{display:flex;flex-wrap:wrap;gap:8px}
+    .preset-item{padding:6px 10px;border-radius:6px;border:1px solid #0ff;cursor:pointer}
+    .preset-item.active{background:#0ff;color:#000}
+    .advanced{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    small{color:#9ad6e4}
+  </style>
+  </head>
+  <body>
+    <h1>Bridd Jump — Settings</h1>
+    <div class="section">
+      <div class="row"><label>Max FPS</label>
+        <select id="maxFpsSelect">
+          <option value="0">Unlimited</option>
+          <option>5</option><option>10</option><option>15</option><option>20</option><option>25</option>
+          <option>30</option><option>35</option><option>40</option><option>45</option><option>50</option>
+          <option>60</option><option>70</option><option>80</option><option>90</option><option>100</option>
+          <option>120</option><option>140</option><option>160</option><option>180</option><option>190</option>
+          <option>200</option>
+        </select>
+      </div>
+      <div class="row"><label>Quality Preset</label>
+        <div class="preset-list" id="presetList">
+          <div class="preset-item" data-preset="Potato">Potato</div>
+          <div class="preset-item" data-preset="Low">Low</div>
+          <div class="preset-item" data-preset="Medium">Medium</div>
+          <div class="preset-item" data-preset="Medium+">Medium+</div>
+          <div class="preset-item" data-preset="High">High</div>
+          <div class="preset-item" data-preset="High+">High+</div>
+          <div class="preset-item" data-preset="Extreme">Extreme</div>
+          <div class="preset-item" data-preset="Extreme+">Extreme+</div>
+          <div class="preset-item" data-preset="Ultra">Ultra</div>
+          <div class="preset-item" data-preset="Ultra+">Ultra+</div>
+          <div class="preset-item" data-preset="Glow Highest">Glow Highest</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Advanced Settings (0% - 200%)</h3>
+      <div class="advanced">
+        <div>
+          <label>Jump Effects <small id="jumpVal"></small></label>
+          <input type="range" id="jumpEffect" min="0" max="200">
+        </div>
+        <div>
+          <label>Walk Effects <small id="walkVal"></small></label>
+          <input type="range" id="walkEffect" min="0" max="200">
+        </div>
+        <div>
+          <label>Die Effects <small id="dieVal"></small></label>
+          <input type="range" id="dieEffect" min="0" max="200">
+        </div>
+        <div>
+          <label>Horizontal Lines <small id="hlineVal"></small></label>
+          <input type="range" id="hlineEffect" min="0" max="200">
+        </div>
+        <div>
+          <label>Trail <small id="trailVal"></small></label>
+          <input type="range" id="trailEffect" min="0" max="200">
+        </div>
+        <div>
+          <label>Block Texture <small id="blockVal"></small></label>
+          <input type="range" id="blockEffect" min="0" max="200">
+        </div>
+      </div>
+      <small>Tip: Presets update advanced sliders — adjust and Save to keep.</small>
+    </div>
+
+    <div class="buttons">
+      <button id="cancelBtn">Cancel</button>
+      <button id="saveBtn" class="save">Save</button>
+    </div>
+
+    <script>
+      // load current settings from opener (if available) or localStorage
+      const openerExists = !!(window.opener && !window.opener.closed);
+      let curSettings;
+      if(openerExists && typeof window.opener.getCurrentSettings === "function"){
+        curSettings = window.opener.getCurrentSettings();
+      } else {
+        try{ curSettings = JSON.parse(localStorage.getItem("briddSettings") || '${JSON.stringify(defaultSettings)}'); } catch(e){ curSettings = ${JSON.stringify(defaultSettings)}; }
+      }
+
+      // populate UI
+      const fpsSelect = document.getElementById('maxFpsSelect');
+      fpsSelect.value = curSettings.maxFPS === 0 ? "0" : String(curSettings.maxFPS || 0);
+
+      // preset handling
+      const presetList = document.getElementById('presetList');
+      function markActivePreset(name){
+        Array.from(presetList.children).forEach(n=> n.classList.toggle('active', n.dataset.preset === name));
+      }
+      markActivePreset(curSettings.qualityPreset || 'Extreme+');
+
+      presetList.addEventListener('click', e=>{
+        const p = e.target && e.target.dataset && e.target.dataset.preset;
+        if(!p) return;
+        markActivePreset(p);
+        // if opener exists, tell it to set preset (so it can update sliders)
+        if(openerExists && typeof window.opener.setQualityPreset === "function"){
+          window.opener.setQualityPreset(p);
+          // retrieve new settings back (opener updated the briddSettings in localStorage)
+          curSettings = window.opener.getCurrentSettings();
+          populateAdvancedFromCur();
+        } else {
+          // fallback: update local representation
+          curSettings.qualityPreset = p;
+          // update advanced fields according to presets
+          const presets = ${JSON.stringify(qualityPresets)};
+          if(presets[p]){
+            curSettings.quality.jumpEffect = presets[p].jumpEffect || 0;
+            curSettings.quality.walkEffect = presets[p].walkEffect || 0;
+            curSettings.quality.dieEffect = presets[p].dieEffect || 0;
+            curSettings.quality.horizontalLines = presets[p].horizontalLines || 0;
+            curSettings.quality.trail = presets[p].trail ? 100 : 0;
+            curSettings.quality.blockTexture = (presets[p].blockTexture ? 100 : 0);
+            populateAdvancedFromCur();
+          }
+        }
+      });
+
+      // advanced sliders
+      const jumpEffect = document.getElementById('jumpEffect');
+      const walkEffect = document.getElementById('walkEffect');
+      const dieEffect = document.getElementById('dieEffect');
+      const hlineEffect = document.getElementById('hlineEffect');
+      const trailEffect = document.getElementById('trailEffect');
+      const blockEffect = document.getElementById('blockEffect');
+
+      const jumpVal = document.getElementById('jumpVal');
+      const walkVal = document.getElementById('walkVal');
+      const dieVal = document.getElementById('dieVal');
+      const hlineVal = document.getElementById('hlineVal');
+      const trailVal = document.getElementById('trailVal');
+      const blockVal = document.getElementById('blockVal');
+
+      function populateAdvancedFromCur(){
+        jumpEffect.value = curSettings.quality.jumpEffect || 0;
+        walkEffect.value = curSettings.quality.walkEffect || 0;
+        dieEffect.value = curSettings.quality.dieEffect || 0;
+        hlineEffect.value = curSettings.quality.horizontalLines || 0;
+        trailEffect.value = curSettings.quality.trail || 0;
+        blockEffect.value = curSettings.quality.blockTexture || 0;
+        jumpVal.innerText = jumpEffect.value + "%";
+        walkVal.innerText = walkEffect.value + "%";
+        dieVal.innerText = dieEffect.value + "%";
+        hlineVal.innerText = hlineEffect.value + "%";
+        trailVal.innerText = trailEffect.value + "%";
+        blockVal.innerText = blockEffect.value + "%";
+      }
+
+      // show initial
+      populateAdvancedFromCur();
+
+      // attach change handlers
+      [jumpEffect,walkEffect,dieEffect,hlineEffect,trailEffect,blockEffect].forEach(el=>{
+        el.addEventListener('input', ()=>{
+          document.getElementById(el.id.replace('Effect','Val') || (el.id+'Val')).innerText = el.value + "%";
+        });
+      });
+
+      document.getElementById('cancelBtn').addEventListener('click', ()=>{ window.close(); });
+      document.getElementById('saveBtn').addEventListener('click', ()=>{
+        // build settings object from fields
+        const newSettings = curSettings || {};
+        newSettings.maxFPS = fpsSelect.value === "0" ? 0 : Number(fpsSelect.value);
+        // preserve preset choice (if any active)
+        const activePreset = Array.from(presetList.children).find(n=>n.classList.contains('active'));
+        if(activePreset) newSettings.qualityPreset = activePreset.dataset.preset;
+        newSettings.quality = newSettings.quality || {};
+        newSettings.quality.jumpEffect = Number(jumpEffect.value);
+        newSettings.quality.walkEffect = Number(walkEffect.value);
+        newSettings.quality.dieEffect = Number(dieEffect.value);
+        newSettings.quality.horizontalLines = Number(hlineEffect.value);
+        newSettings.quality.trail = Number(trailEffect.value);
+        newSettings.quality.blockTexture = Number(blockEffect.value);
+
+        // save to localStorage
+        localStorage.setItem('briddSettings', JSON.stringify(newSettings));
+
+        // if opener exists, call its applySettings to apply instantly
+        if(openerExists && typeof window.opener.applySettings === "function"){
+          window.opener.applySettings(newSettings);
+        }
+
+        alert('Settings saved.');
+        window.close();
+      });
+    </script>
+  </body>
+  </html>
+  `;
+
+  // write to the new window
+  settingsWindow.document.open();
+  settingsWindow.document.write(html);
+  settingsWindow.document.close();
+}
+
+/* allow settings window to call this to get current settings */
+function getCurrentSettings(){
+  return settings;
+}
+window.getCurrentSettings = getCurrentSettings;
+window.applySettings = applySettings;
+window.setQualityPreset = setQualityPreset;
+
+/* final: show settings label */
+document.getElementById("settingsLabel").innerText = settings.maxFPS === 0 ? "FPS: Unlimited — Quality: " + settings.qualityPreset : "FPS: " + settings.maxFPS + " — Quality: " + settings.qualityPreset;
+
+/* --- END OF SCRIPT --- */
+
 </script>
 </body>
 </html>
