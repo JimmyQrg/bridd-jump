@@ -2,176 +2,218 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Settings | Infinite Campus</title>
+<title>Schedule | Infinite Campus</title>
 <style>
-body { font-family: Arial, sans-serif; padding: 20px; background:#111; color:#0ff; }
-label { display: block; margin-top: 15px; font-weight: bold; }
-select, input[type="range"] { margin-top: 5px; padding: 5px; width: 250px; }
-.slider-label { font-size: 14px; margin-top: 5px; }
-.buttons { margin-top: 20px; }
-button { padding: 10px 15px; cursor: pointer; margin-right: 10px; border:2px solid #0ff; background:black; color:#0ff; border-radius:8px; }
-button:hover { background:#0ff; color:black; }
-.advanced { margin-top: 25px; padding: 15px; border: 2px solid #0ff; border-radius: 8px; background:#000; }
+  body { margin:0; background:#111; color:#0ff; font-family:Arial, sans-serif; overflow:hidden; }
+  canvas { display:block; margin:0 auto; background:#222; }
+  #startBtn { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+              padding:20px 40px; border:2px solid #0ff; background:black; color:#0ff;
+              cursor:pointer; border-radius:10px; }
+  #console { position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
+             width:400px; padding:5px; background:#000; border:2px solid #0ff; color:#0ff; }
 </style>
 </head>
 <body>
-<h1>Game Settings</h1>
-
-<label for="fps">Max FPS:</label>
-<select id="fps">
-  <option>5</option><option>10</option><option>15</option>
-  <option>20</option><option>25</option><option>30</option>
-  <option>35</option><option>40</option><option>45</option>
-  <option>50</option><option>60</option><option>70</option>
-  <option>80</option><option>90</option><option>100</option>
-  <option>120</option><option>140</option><option>160</option>
-  <option>180</option><option>190</option><option>200</option>
-  <option>Unlimited</option>
-</select>
-
-<label for="quality">Quality:</label>
-<select id="quality">
-  <option>Potato</option>
-  <option>Low</option>
-  <option>Medium</option>
-  <option>Medium+</option>
-  <option>High</option>
-  <option>High+</option>
-  <option>Extreme</option>
-  <option>Extreme+</option>
-  <option>Ultra</option>
-  <option>Ultra+</option>
-  <option>Highest</option>
-  <option>Custom</option>
-</select>
-
-<div class="advanced">
-  <h2>Advanced Settings</h2>
-  <label>Jump Effects <span id="jumpVal">100%</span></label>
-  <input type="range" id="jump" min="0" max="200" value="100">
-
-  <label>Walk Effects <span id="walkVal">100%</span></label>
-  <input type="range" id="walk" min="0" max="200" value="100">
-
-  <label>Die Effects <span id="dieVal">100%</span></label>
-  <input type="range" id="die" min="0" max="200" value="100">
-
-  <label>Horizontal Line Effects <span id="lineVal">100%</span></label>
-  <input type="range" id="line" min="0" max="200" value="100">
-
-  <label>Glow <span id="glowVal">100%</span></label>
-  <input type="range" id="glow" min="0" max="200" value="100">
-
-  <label>Trail <span id="trailVal">100%</span></label>
-  <input type="range" id="trail" min="0" max="200" value="100">
-
-  <label>
-    <input type="checkbox" id="blockTexture" checked>
-    Block Texture Enabled
-  </label>
-</div>
-
-<div class="buttons">
-  <button id="cancelBtn">Cancel</button>
-  <button id="saveBtn">Save</button>
-</div>
+<button id="startBtn">Start</button>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<input id="console" placeholder="Enter command (e.g. /score add 10)" />
 
 <script>
-// ===== QUALITY PRESETS =====
-const qualityPresets = {
-  "Potato":   {jump:0,   walk:0,   die:0,   line:0,   glow:0,   trail:0,   blockTexture:false},
-  "Low":      {jump:5,   walk:0,   die:0,   line:0,   glow:0,   trail:0,   blockTexture:false},
-  "Medium":   {jump:10,  walk:0,   die:10,  line:0,   glow:0,   trail:0,   blockTexture:true},
-  "Medium+":  {jump:15,  walk:15,  die:15,  line:0,   glow:0,   trail:0,   blockTexture:true},
-  "High":     {jump:15,  walk:15,  die:15,  line:15,  glow:0,   trail:0,   blockTexture:true},
-  "High+":    {jump:33,  walk:33,  die:33,  line:33,  glow:0,   trail:0,   blockTexture:true},
-  "Extreme":  {jump:60,  walk:60,  die:60,  line:60,  glow:0,   trail:0,   blockTexture:true},
-  "Extreme+": {jump:64,  walk:64,  die:64,  line:64,  glow:64,  trail:0,   blockTexture:true},
-  "Ultra":    {jump:100, walk:100, die:100, line:100, glow:100, trail:0,   blockTexture:true},
-  "Ultra+":   {jump:120, walk:120, die:120, line:120, glow:120, trail:120, blockTexture:true},
-  "Highest":  {jump:200, walk:200, die:200, line:200, glow:150, trail:200, blockTexture:true}
-};
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+let running = false;
+let lastFrameTime = 0;
 
-// ===== LOAD SETTINGS =====
-document.getElementById("fps").value = localStorage.getItem("fps") || "60";
-let savedQuality = localStorage.getItem("quality") || "Extreme+";
-document.getElementById("quality").value = savedQuality;
+// ===== SETTINGS =====
+let fps = localStorage.getItem("fps") || "60";
+fps = (fps === "Unlimited") ? 0 : parseInt(fps);
 
-const defaultAdv = qualityPresets[savedQuality] || qualityPresets["Extreme+"];
-let advSettings = JSON.parse(localStorage.getItem("advancedSettings") || JSON.stringify(defaultAdv));
+let quality = localStorage.getItem("quality") || "Extreme+";
+let adv = JSON.parse(localStorage.getItem("advancedSettings") || "{}");
 
-// ===== HELPER: UPDATE SLIDERS =====
-function setSliders(values){
-  for(const k in values){
-    if(document.getElementById(k)){
-      if(k==="blockTexture") document.getElementById(k).checked = values[k];
-      else document.getElementById(k).value = values[k];
+// Fill defaults if missing
+adv = Object.assign({jump:0,walk:0,die:0,line:0,glow:0,trail:0,blockTexture:true}, adv);
+
+// ===== GAME STATE =====
+let score = 0;
+let bestScore = parseInt(localStorage.getItem("bestScore") || "0");
+let player = { x: 100, y: 300, vy:0, trail:[] };
+let platforms = [];
+let dieParticles = [];
+let scanOffset = 0;
+
+// ===== PLATFORM GENERATOR =====
+function spawnPlatform(){
+  let x = canvas.width;
+  let y = 400 + (Math.random()*100 - 50);
+  platforms.push({x, y, w:120, h:20});
+}
+setInterval(()=>{ if(running) spawnPlatform(); },2000);
+
+// ===== PARTICLE HELPERS =====
+function makeParticles(x,y,count,color,size){
+  for(let i=0;i<count;i++){
+    dieParticles.push({
+      x, y,
+      vx:(Math.random()*2-1)*2,
+      vy:(Math.random()*2-1)*2,
+      life:50,
+      color, size
+    });
+  }
+}
+
+// ===== GAME LOOP =====
+function loop(timestamp){
+  if(!running) return;
+
+  // FPS limiter
+  if(fps>0){
+    const interval = 1000/fps;
+    if(timestamp - lastFrameTime < interval){
+      requestAnimationFrame(loop);
+      return;
+    }
+    lastFrameTime = timestamp;
+  }
+
+  // Clear
+  ctx.fillStyle = "#111";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Horizontal Line Effect
+  if(adv.line>0){
+    scanOffset += adv.line/50;
+    ctx.fillStyle = "rgba(0,255,255,0.1)";
+    for(let i=0;i<canvas.height;i+=20){
+      ctx.fillRect(0, (i+scanOffset)%canvas.height, canvas.width, 2);
     }
   }
-  updateLabels();
-}
 
-// ===== HELPER: READ SLIDERS =====
-function getSliders(){
-  return {
-    jump: parseInt(document.getElementById("jump").value),
-    walk: parseInt(document.getElementById("walk").value),
-    die: parseInt(document.getElementById("die").value),
-    line: parseInt(document.getElementById("line").value),
-    glow: parseInt(document.getElementById("glow").value),
-    trail: parseInt(document.getElementById("trail").value),
-    blockTexture: document.getElementById("blockTexture").checked
-  };
-}
-
-// ===== UPDATE LABELS =====
-function updateLabels(){
-  ["jump","walk","die","line","glow","trail"].forEach(id=>{
-    document.getElementById(id+"Val").textContent = document.getElementById(id).value+"%";
-  });
-}
-updateLabels();
-
-// ===== APPLY QUALITY CHANGE =====
-document.getElementById("quality").addEventListener("change", ()=>{
-  let q = document.getElementById("quality").value;
-  if(qualityPresets[q]){
-    setSliders(qualityPresets[q]);
+  // Draw platforms
+  if(adv.blockTexture){
+    ctx.fillStyle = "#0ff";
+    platforms.forEach(p=>{
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      // Texture effect
+      ctx.strokeStyle = "rgba(0,0,0,0.5)";
+      for(let i=0;i<p.w;i+=10){
+        ctx.beginPath();
+        ctx.moveTo(p.x+i, p.y);
+        ctx.lineTo(p.x+i, p.y+p.h);
+        ctx.stroke();
+      }
+      p.x -= 2;
+    });
+  } else {
+    ctx.fillStyle = "#0ff";
+    platforms.forEach(p=>{
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      p.x -= 2;
+    });
   }
-});
 
-// ===== DETECT CUSTOM SETTINGS =====
-["jump","walk","die","line","glow","trail","blockTexture"].forEach(id=>{
-  document.getElementById(id).addEventListener("input", ()=>{
-    const sliders = getSliders();
-    let q = document.getElementById("quality").value;
-    if(qualityPresets[q]){
-      // compare to preset
-      const preset = qualityPresets[q];
-      let matches = Object.keys(preset).every(k => sliders[k]===preset[k]);
-      if(!matches){
-        document.getElementById("quality").value = "Custom";
+  // Trail Effect
+  if(adv.trail>0){
+    player.trail.push({x:player.x,y:player.y,life:30});
+    if(player.trail.length>50) player.trail.shift();
+    ctx.fillStyle="rgba(0,255,255,0.3)";
+    player.trail.forEach(t=>{
+      ctx.globalAlpha=t.life/30 * (adv.trail/100);
+      ctx.beginPath();
+      ctx.arc(t.x,t.y,5,0,Math.PI*2);
+      ctx.fill();
+      t.life--;
+    });
+    ctx.globalAlpha=1;
+  }
+
+  // Glow Effect
+  if(adv.glow>0){
+    let grd = ctx.createRadialGradient(player.x,player.y,10,player.x,player.y,50);
+    grd.addColorStop(0,"rgba(0,255,255,"+(adv.glow/200)+")");
+    grd.addColorStop(1,"transparent");
+    ctx.fillStyle=grd;
+    ctx.fillRect(player.x-50,player.y-50,100,100);
+  }
+
+  // Player
+  ctx.fillStyle="#0ff";
+  ctx.fillRect(player.x-10, player.y-10, 20, 20);
+
+  // Walk Effects
+  if(adv.walk>0 && timestamp%10<5){
+    ctx.fillStyle="rgba(0,255,255,0.5)";
+    ctx.fillRect(player.x-15, player.y+10,5,5);
+  }
+
+  // Jump Effects
+  if(adv.jump>0 && player.vy<-0.5){
+    ctx.fillStyle="rgba(0,255,255,0.5)";
+    ctx.beginPath();
+    ctx.arc(player.x,player.y+15,5+adv.jump/20,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // Die Particles
+  dieParticles.forEach(p=>{
+    ctx.fillStyle=p.color;
+    ctx.globalAlpha=p.life/50;
+    ctx.fillRect(p.x,p.y,p.size,p.size);
+    p.x+=p.vx; p.y+=p.vy; p.life--;
+  });
+  dieParticles=dieParticles.filter(p=>p.life>0);
+  ctx.globalAlpha=1;
+
+  // Score
+  score++;
+  if(score > bestScore){
+    bestScore = score;
+    localStorage.setItem("bestScore", bestScore);
+  }
+  ctx.fillStyle = "#0ff";
+  ctx.fillText("Score: " + score, 20, 20);
+  ctx.fillText("Best: " + bestScore, 20, 40);
+
+  requestAnimationFrame(loop);
+}
+
+// ===== COMMAND HANDLER =====
+document.getElementById("console").addEventListener("keydown", e=>{
+  if(e.key==="Enter"){
+    const cmd = e.target.value.trim();
+    e.target.value = "";
+    if(cmd.startsWith("/score")){
+      const parts = cmd.split(" ");
+      if(parts[1]==="set" && !isNaN(parts[2])) score = parseInt(parts[2]);
+      if(parts[1]==="add" && !isNaN(parts[2])) score += parseInt(parts[2]);
+    }
+    if(cmd==="/clear bestScore"){
+      bestScore = 0;
+      localStorage.setItem("bestScore", 0);
+    }
+    if(cmd==="/die"){
+      running = false;
+      if(adv.die>0){
+        makeParticles(player.x,player.y,adv.die/2,"#0ff",5);
+      }
+      alert("You died! Final score: "+score);
+      if(score > bestScore){
+        bestScore = score;
+        localStorage.setItem("bestScore", bestScore);
       }
     }
-    updateLabels();
-  });
+  }
 });
 
-// ===== INIT =====
-setSliders(advSettings);
-
-// ===== SAVE =====
-document.getElementById("saveBtn").addEventListener("click", ()=>{
-  localStorage.setItem("fps", document.getElementById("fps").value);
-  localStorage.setItem("quality", document.getElementById("quality").value);
-  localStorage.setItem("advancedSettings", JSON.stringify(getSliders()));
-  alert("Settings saved!");
-  window.location.href="index.html";
-});
-
-// ===== CANCEL =====
-document.getElementById("cancelBtn").addEventListener("click", ()=>{
-  window.location.href="index.html";
+// ===== START =====
+document.getElementById("startBtn").addEventListener("click", ()=>{
+  running = true;
+  score = 0;
+  player.trail = [];
+  spawnPlatform();
+  document.getElementById("startBtn").style.display="none";
+  requestAnimationFrame(loop);
 });
 </script>
 </body>
