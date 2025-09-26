@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BRIDD JUMP</title>
+<title>Schedule | Infinite Campus</title>
 <link rel="icon" type="image/png" href="infinite-campus-icon.png">
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
 canvas { display:block; }
-#ui { position:absolute; top:0; left:0; width:100%; height:100%; text-align:center; pointer-events:none; color:#0ff; font-size:24px; }
+#ui { position:absolute; top:0; left:0; width:100%; height:100%; text-align:center; pointer-events:none; }
 #startScreen {
     position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
     width:400px; padding:40px; background:rgba(0,0,0,0.9);
@@ -21,42 +21,29 @@ button:hover { color:black; background:#0ff; }
 h1 { font-size:60px; margin-bottom:20px; text-shadow: 0 0 20px #0ff, 0 0 40px #0ff, 0 0 60px #0ff; animation: glow 1.5s infinite alternate; }
 @keyframes glow { 0% { text-shadow:0 0 10px #0ff,0 0 20px #0ff;} 100% {text-shadow:0 0 40px #0ff,0 0 80px #0ff;} }
 
-/* Quality Custom Panel */
-#qualityCustomPanel {
-    position:absolute;
-    top:10%; left:50%;
-    transform:translateX(-50%);
-    width:500px; padding:20px;
-    background:rgba(0,0,0,0.95);
-    border:3px solid #0ff;
-    border-radius:20px;
-    color:#0ff; font-size:20px;
-    display:none; flex-direction:column; gap:10px;
+#settingsBtn {
+    position:absolute; top:15px; right:15px;
+    font-size:28px; cursor:pointer;
+    color:#0ff; background:none; border:none;
+    text-shadow:0 0 10px #0ff;
     pointer-events:all;
-    text-align:left;
 }
-#qualityCustomPanel h2 {
-    font-size:26px; text-align:center;
-    text-shadow:0 0 20px #0ff;
-}
+#settingsBtn:hover { color:white; }
 </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
 <div id="ui">
-    <div id="startScreen">
-        <h1>BRIDD JUMP</h1>
-        <div id="bestScore">Best Score: 0</div>
-        <div id="lastScore">Last Score: 0</div>
-        <button id="startBtn">START</button>
-    </div>
-    <div id="qualityCustomPanel">
-        <h2>Current Settings</h2>
-        <div id="qualityCustomContent"></div>
-    </div>
+  <div id="startScreen">
+    <h1>BRIDD JUMP</h1>
+    <div id="bestScore">Best Score: 0</div>
+    <button id="startBtn">START</button>
+  </div>
 </div>
+<button id="settingsBtn">⚙️</button>
 
 <script>
+// --- GLOBAL VARIABLES ---
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
@@ -66,268 +53,68 @@ const BLOCK_SIZE = 50;
 const JUMP_SPEED = -15;
 const GRAVITY = 0.7;
 
-let score = 0;
-let bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
-let lastScore = localStorage.getItem("lastScore") ? parseInt(localStorage.getItem("lastScore")) : 0;
+let testMode = false;
+let gemEveryBlock = false;
+let oldAccount = null;
+let account = "player";
+
+let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
 let lastTime = 0, gameStarted = false, animationFrameId;
-let crashPieces = [], particles = [], gems = [], trails = [];
-let cheats = { float: false, invincible: false, infiniteJump: false };
-let addScoreEnabled = true;
+let crashPieces = [], particles = [], gems = [], trail = [];
+let cheatsUnlocked = false;
+let cheats = {float:false, invincible:false, infiniteJump:false};
+let startPressCount = 0;
 
-let vanish = false;
-let vanishY = 0;
-
-let baseColors = [
-    { r:255,g:0,b:0 },
-    { r:255,g:153,b:0 },
-    { r:255,g:255,b:0 },
-    { r:0,g:255,b:0 },
-    { r:0,g:255,b:255 },
-    { r:0,g:0,b:255 },
-    { r:153,g:0,b:255 }
-];
-let colorIndex = 0, platformColor = {...baseColors[0]}, nextColor = baseColors[1], colorLerp = 0, globalTime = 0;
+let baseColors = [{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,b:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
+let colorIndex = 0, platformColor = {r:255,g:0,b:0}, nextColor = baseColors[1], colorLerp = 0;
+let globalTime = 0;
 
 let player = {
     x:100, y:0, width:50, height:50,
     color:"#0ff", vy:0, speed:8,
     hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true,
-    horizMultiplier:1, vertMultiplier:1
+    horizMultiplier:1, vertMultiplier:1,
+    accountEmail:"player@example.com"
 };
 
-let platforms = [], spikes = [], lines = [], lastPlatformX=0, lastPlatformY=0;
-
-// --- VIDEO SETTINGS ---
-let videoSettings = {
-    quality: "Extreme+",
-    particles: 0.75, // percent of particles shown
-    walkParticles: true,
-    jumpParticles: true,
-    doubleJumpParticles: true,
-    gemParticles: true,
-    whiteLines: true,
-    blockTexture: true,
-    blockPressDown: true,
-    trail: false,
-    fpsCap: 60,
-    showFps: false
-};
-
-function renderQualityCustomPanel() {
-    const panel = document.getElementById("qualityCustomPanel");
-    const content = document.getElementById("qualityCustomContent");
-    content.innerHTML = `
-        <b>Quality:</b> ${videoSettings.quality}<br>
-        <b>Particles:</b> ${Math.round(videoSettings.particles*100)}%<br>
-        <b>Walk Particles:</b> ${videoSettings.walkParticles}<br>
-        <b>Jump Particles:</b> ${videoSettings.jumpParticles}<br>
-        <b>Double Jump Particles:</b> ${videoSettings.doubleJumpParticles}<br>
-        <b>Gem Collect Particles:</b> ${videoSettings.gemParticles}<br>
-        <b>Horizontal Lines:</b> ${videoSettings.whiteLines}<br>
-        <b>Block Texture:</b> ${videoSettings.blockTexture}<br>
-        <b>Block Press Down:</b> ${videoSettings.blockPressDown}<br>
-        <b>Trail Enabled:</b> ${videoSettings.trail}<br>
-        <b>FPS Cap:</b> ${videoSettings.fpsCap}<br>
-        <b>Show FPS:</b> ${videoSettings.showFps}
-    `;
-}
+let platforms = [], spikes = [], lines = [], lastPlatformX = 0, lastPlatformY = 0;
 
 // --- INPUT ---
-window.addEventListener("keydown", e => { 
+window.addEventListener("keydown", e=>{ 
     if(["KeyW","ArrowUp","Space"].includes(e.code)) jump(); 
+    keys[e.code] = true;
 });
-window.addEventListener("mousedown", jump);
-window.addEventListener("touchstart", jump);
+window.addEventListener("keyup", e => keys[e.code] = false);
+window.addEventListener("mousedown", () => jump());
+window.addEventListener("touchstart", () => jump());
 
-function jump() {
+function jump(){
     if(!player.visible) return;
     if(cheats.infiniteJump || player.jumpsLeft>0){
         player.vy = JUMP_SPEED;
-        if(videoSettings.jumpParticles) spawnParticles(player.x + player.width/2, player.y + player.height, player.jumpsLeft===2?"jump":"double");
+        spawnParticles(player.x+player.width/2, player.y+player.height, player.jumpsLeft===2?"jump":"double");
         if(!cheats.infiniteJump) player.jumpsLeft--;
     }
 }
 
-function resetGame() {
-    cancelAnimationFrame(animationFrameId);
-    lastScore = Math.floor(score);
-    localStorage.setItem("lastScore", lastScore);
-
-    score = 0; colorLerp = 0; globalTime = 0;
-    player.x = 100;
-    player.y = canvas.height/2 - player.height;
-    player.vy = 0; player.speed = 8; player.jumpsLeft = 2;
-    player.onGround = false; player.visible = true;
+function resetGame(){
+    if(animationFrameId) cancelAnimationFrame(animationFrameId);
+    startPressCount++;
+    score = 0; colorLerp = 0; globalTime = 0; trail = [];
+    player.x = 100; player.y = canvas.height/2-player.height; player.vy = 0; player.speed = 8;
+    player.jumpsLeft = 2; player.onGround = false; player.visible = true;
     player.horizMultiplier = 1; player.vertMultiplier = 1;
-    platforms = []; spikes = []; crashPieces = []; particles = []; gems = []; lines = []; trails = [];
+    platforms = []; spikes = []; crashPieces = []; particles = []; gems = []; lines = [];
     platformColor = {...baseColors[0]}; colorIndex = 0; nextColor = baseColors[1];
 
-    platforms.push({x:0, y:player.y+player.height, width:BLOCK_SIZE*10, height:BLOCK_SIZE, color:{...platformColor}, passed:false});
-    lastPlatformX = 0; lastPlatformY = player.y + player.height;
+    platforms.push({x:0,y:player.y+player.height,width:BLOCK_SIZE*10,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
+    lastPlatformX = 0; lastPlatformY = player.y+player.height;
 
     lastTime = performance.now();
     hideStartScreen();
     gameStarted = true;
     animationFrameId = requestAnimationFrame(update);
 }
-
-function generateBlockPlatform(lastX,lastY){
-    let blockCount=Math.floor(Math.random()*8)+1;
-    if(Math.random()<0.7) blockCount=Math.min(blockCount,Math.floor(Math.random()*3+1));
-
-    let gap=Math.floor(Math.random()*5+3)*BLOCK_SIZE;
-    let x=lastX+gap;
-    let y=lastY+(Math.floor(Math.random()*3)-1)*BLOCK_SIZE;
-    y=Math.max(BLOCK_SIZE, Math.min(canvas.height-3*BLOCK_SIZE, y));
-
-    for(let i=0;i<blockCount;i++){
-        platforms.push({x:x+i*BLOCK_SIZE, y, width:BLOCK_SIZE, height:BLOCK_SIZE, color:{...platformColor}, passed:false});
-        if(Math.random()<0.2) spikes.push({x:x+i*BLOCK_SIZE+BLOCK_SIZE*0.2, y:y-BLOCK_SIZE+BLOCK_SIZE*0.2, width:BLOCK_SIZE*0.6, height:BLOCK_SIZE*0.6, baseY:y-BLOCK_SIZE+BLOCK_SIZE*0.2, hit:true, passed:false});
-    }
-
-    return {x:x+blockCount*BLOCK_SIZE,y};
-}
-
-function checkSpikeCollision(spike){
-    if(!spike.hit) return false;
-    const hbW=player.width*player.hitboxScale;
-    const hbH=player.height*player.hitboxScale;
-    const hbX=player.x+(player.width-hbW)/2;
-    const hbY=player.y+(player.height-hbH)/2;
-    return hbX+hbW>spike.x && hbX<spike.x+spike.width && hbY+hbH>spike.y && hbY<spike.y+spike.height;
-}
-
-function createCrash(){
-    for(let i=0;i<20;i++){
-        crashPieces.push({
-            x:player.x+Math.random()*player.width,
-            y:player.y+Math.random()*player.height,
-            vx:(Math.random()-0.5)*15,
-            vy:(Math.random()-1)*15,
-            size:Math.random()*player.width/4+5,
-            color:player.color
-        });
-    }
-}
-
-function spawnParticles(x,y,type){
-    if(videoSettings.particles <= 0) return;
-    const color = type==="jump"?"#0ff":type==="double"?"#ff0":"#fff";
-    for(let i=0;i<15*videoSettings.particles;i++){
-        particles.push({x,y,vx:(Math.random()-0.5)*5,vy:(Math.random()-1.5)*5,life:Math.random()*30+20,color});
-    }
-}
-
-function tryDie(spike){
-    if(!player.visible) return;
-    if(cheats.invincible) return;
-    player.visible=false;
-    if(spike) spike.hit=false;
-    createCrash();
-    gameStarted=false;
-
-    if(score>bestScore){
-        bestScore = Math.floor(score);
-        localStorage.setItem("bestScore", bestScore);
-    }
-    localStorage.setItem("lastScore", Math.floor(score));
-    setTimeout(()=>showStartScreen(), 1000);
-}
-
-function showStartScreen(){ 
-    document.getElementById("bestScore").innerText="Best Score: "+bestScore;
-    document.getElementById("lastScore").innerText="Last Score: "+lastScore;
-    document.getElementById("startScreen").style.display="flex"; 
-}
-function hideStartScreen(){document.getElementById("startScreen").style.display="none";}
-
-function lerpColor(c1,c2,t){return {r:c1.r+(c2.r-c1.r)*t, g:c1.g+(c2.g-c1.g)*t, b:c1.b+(c2.b-c1.b)*t};}
-
-let cameraX=0, cameraY=0;
-
-function update(time){
-    let delta=(time-lastTime)/1000; lastTime=time;
-    globalTime+=delta;
-
-    if(gameStarted && player.visible){
-        if(addScoreEnabled) score += delta*10;
-
-        player.speed+=0.002;
-        colorLerp+=delta/25;
-        if(colorLerp>=1){
-            colorIndex=(colorIndex+1)%baseColors.length;
-            nextColor=baseColors[(colorIndex+1)%baseColors.length];
-            colorLerp=0;
-        }
-        platformColor=lerpColor(baseColors[colorIndex],nextColor,colorLerp);
-
-        player.y+=player.vy*player.vertMultiplier; 
-        if(cheats.float && player.vy>0) player.vy *= 0.5;
-        player.vy+=GRAVITY*player.vertMultiplier;
-        player.x+=player.speed*player.horizMultiplier;
-
-        if(videoSettings.trail){
-            trails.push({x:player.x, y:player.y, width:player.width, height:player.height, color:player.color, life:40});
-            trails = trails.filter(t => t.life-->0);
-        }
-
-        player.onGround=false;
-        for(let plat of platforms){
-            if(player.x+player.width>plat.x && player.x<plat.x+plat.width &&
-               player.y+player.height>plat.y && player.y+player.height<plat.y+plat.height+player.vy){
-                if(player.vy>=0){
-                    player.y=plat.y-player.height; player.vy=0; player.onGround=true; player.jumpsLeft=2;
-                }
-            }
-            if(!plat.passed && player.x>plat.x+plat.width){ score+=1; plat.passed=true; }
-        }
-        if(player.y>canvas.height) {player.jumpsLeft=1; tryDie();}
-
-        for(let spike of spikes){
-            if(checkSpikeCollision(spike)) tryDie(spike);
-            if(!spike.passed && player.x>spike.x+spike.width){ score+=1; spike.passed=true; }
-        }
-    }
-
-    const targetCamX = player.x-150;
-    let targetCamY = vanish ? vanishY : player.y - canvas.height/2 + player.height*1.5;
-    cameraX = cameraX*0.9 + targetCamX*0.1;
-    cameraY = cameraY*0.9 + targetCamY*0.1;
-
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle="#fff"; ctx.font="40px sans-serif";
-    ctx.fillText(Math.floor(score),20,50);
-
-    for(let t of trails){
-        ctx.fillStyle=t.color;
-        ctx.globalAlpha = t.life/40;
-        ctx.fillRect(t.x-cameraX, t.y-cameraY, t.width, t.height);
-    }
-    ctx.globalAlpha = 1;
-
-    for(let plat of platforms){
-        ctx.fillStyle = `rgb(${plat.color.r},${plat.color.g},${plat.color.b})`;
-        ctx.fillRect(plat.x-cameraX, plat.y-cameraY, plat.width, plat.height);
-    }
-
-    for(let spike of spikes){
-        ctx.fillStyle="red";
-        ctx.beginPath();
-        ctx.moveTo(spike.x-cameraX,spike.baseY+spike.height-cameraY);
-        ctx.lineTo(spike.x+spike.width/2-cameraX,spike.baseY-cameraY);
-        ctx.lineTo(spike.x+spike.width-cameraX,spike.baseY+spike.height-cameraY);
-        ctx.closePath(); ctx.fill();
-    }
-
-    if(player.visible){
-        ctx.fillStyle=player.color; ctx.fillRect(player.x-cameraX, player.y-cameraY, player.width, player.height);
-    }
-
-    animationFrameId=requestAnimationFrame(update);
-}
-
-document.getElementById("startBtn").addEventListener("click", resetGame);
-showStartScreen();
 
 // --- COMMANDS ---
 window.addEventListener("keydown", e => {
@@ -339,33 +126,36 @@ window.addEventListener("keydown", e => {
         const root1 = args[1];
         const root2 = args[2];
 
-        if(command === "/clear" && root1 === "bestScore"){ bestScore = 0; localStorage.setItem("bestScore", 0); alert("Best score cleared!"); }
-        if(command === "/die") tryDie();
-
-        if(command === "/score" && root1){
-            if(root1==="add") score += parseFloat(root2)||0;
-            if(root1==="set") score = parseFloat(root2)||0;
-            if(root1==="pause") addScoreEnabled=false;
-            if(root1==="continue") addScoreEnabled=true;
+        if(command === "/score"){
+            if(root1 === "set" && !isNaN(parseInt(root2))) { score = parseInt(root2); }
+            if(root1 === "add" && !isNaN(parseInt(root2))) { score += parseInt(root2); }
         }
 
-        if(command === "/pause") addScoreEnabled=false;
-        if(command === "/continue") addScoreEnabled=true;
-
-        if(command === "/vanish" && root1){
-            if(root1==="true"){ vanish=true; vanishY = player.y - canvas.height/2 + player.height*1.5; }
-            if(root1==="false"){ vanish=false; player.y = vanishY + canvas.height/2 - player.height*1.5; }
+        if(command === "/clear" && root1 === "bestScore"){
+            bestScore = 0;
+            localStorage.setItem("bestScore", 0);
         }
 
-        if(command === "/show" && root1==="qualityCustom"){
-            renderQualityCustomPanel();
-            document.getElementById("qualityCustomPanel").style.display="flex";
-        }
-        if(command === "/hide" && root1==="qualityCustom"){
-            document.getElementById("qualityCustomPanel").style.display="none";
+        if(command === "/die"){
+            score = 0;
         }
     }
 });
+
+// --- UI SCREENS ---
+function showStartScreen(){ 
+    document.getElementById("bestScore").innerText="Best Score: "+bestScore;
+    document.getElementById("startScreen").style.display="flex"; 
+}
+function hideStartScreen(){ document.getElementById("startScreen").style.display="none"; }
+
+// --- SETTINGS BUTTON ---
+document.getElementById("settingsBtn").addEventListener("click", () => {
+    window.location.href = "settings.html";
+});
+
+document.getElementById("startBtn").addEventListener("click", resetGame);
+showStartScreen();
 </script>
 </body>
 </html>
