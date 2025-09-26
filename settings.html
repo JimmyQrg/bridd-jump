@@ -42,6 +42,7 @@ button:hover { background:#0ff; color:black; }
   <option>Ultra</option>
   <option>Ultra+</option>
   <option>Highest</option>
+  <option>Custom</option>
 </select>
 
 <div class="advanced">
@@ -76,35 +77,43 @@ button:hover { background:#0ff; color:black; }
 </div>
 
 <script>
+// ===== QUALITY PRESETS =====
+const qualityPresets = {
+  "Potato":   {jump:0,   walk:0,   die:0,   line:0,   glow:0,   trail:0,   blockTexture:false},
+  "Low":      {jump:5,   walk:0,   die:0,   line:0,   glow:0,   trail:0,   blockTexture:false},
+  "Medium":   {jump:10,  walk:0,   die:10,  line:0,   glow:0,   trail:0,   blockTexture:true},
+  "Medium+":  {jump:15,  walk:15,  die:15,  line:0,   glow:0,   trail:0,   blockTexture:true},
+  "High":     {jump:15,  walk:15,  die:15,  line:15,  glow:0,   trail:0,   blockTexture:true},
+  "High+":    {jump:33,  walk:33,  die:33,  line:33,  glow:0,   trail:0,   blockTexture:true},
+  "Extreme":  {jump:60,  walk:60,  die:60,  line:60,  glow:0,   trail:0,   blockTexture:true},
+  "Extreme+": {jump:64,  walk:64,  die:64,  line:64,  glow:64,  trail:0,   blockTexture:true},
+  "Ultra":    {jump:100, walk:100, die:100, line:100, glow:100, trail:0,   blockTexture:true},
+  "Ultra+":   {jump:120, walk:120, die:120, line:120, glow:120, trail:120, blockTexture:true},
+  "Highest":  {jump:200, walk:200, die:200, line:200, glow:150, trail:200, blockTexture:true}
+};
+
+// ===== LOAD SETTINGS =====
 document.getElementById("fps").value = localStorage.getItem("fps") || "60";
-document.getElementById("quality").value = localStorage.getItem("quality") || "Extreme+";
+let savedQuality = localStorage.getItem("quality") || "Extreme+";
+document.getElementById("quality").value = savedQuality;
 
-const defaultAdv = { jump:100, walk:100, die:100, line:100, glow:100, trail:100, blockTexture:true };
-const advSettings = JSON.parse(localStorage.getItem("advancedSettings") || JSON.stringify(defaultAdv));
+const defaultAdv = qualityPresets[savedQuality] || qualityPresets["Extreme+"];
+let advSettings = JSON.parse(localStorage.getItem("advancedSettings") || JSON.stringify(defaultAdv));
 
-// Populate sliders
-for (const key in advSettings) {
-  if (document.getElementById(key)) {
-    document.getElementById(key).value = advSettings[key];
+// ===== HELPER: UPDATE SLIDERS =====
+function setSliders(values){
+  for(const k in values){
+    if(document.getElementById(k)){
+      if(k==="blockTexture") document.getElementById(k).checked = values[k];
+      else document.getElementById(k).value = values[k];
+    }
   }
+  updateLabels();
 }
-document.getElementById("blockTexture").checked = advSettings.blockTexture;
 
-// Update labels
-function updateLabel(id) {
-  document.getElementById(id+"Val").textContent = document.getElementById(id).value + "%";
-}
-["jump","walk","die","line","glow","trail"].forEach(id=>{
-  updateLabel(id);
-  document.getElementById(id).addEventListener("input", ()=>updateLabel(id));
-});
-
-// Save
-document.getElementById("saveBtn").addEventListener("click", ()=>{
-  localStorage.setItem("fps", document.getElementById("fps").value);
-  localStorage.setItem("quality", document.getElementById("quality").value);
-
-  const adv = {
+// ===== HELPER: READ SLIDERS =====
+function getSliders(){
+  return {
     jump: parseInt(document.getElementById("jump").value),
     walk: parseInt(document.getElementById("walk").value),
     die: parseInt(document.getElementById("die").value),
@@ -113,13 +122,54 @@ document.getElementById("saveBtn").addEventListener("click", ()=>{
     trail: parseInt(document.getElementById("trail").value),
     blockTexture: document.getElementById("blockTexture").checked
   };
-  localStorage.setItem("advancedSettings", JSON.stringify(adv));
+}
 
+// ===== UPDATE LABELS =====
+function updateLabels(){
+  ["jump","walk","die","line","glow","trail"].forEach(id=>{
+    document.getElementById(id+"Val").textContent = document.getElementById(id).value+"%";
+  });
+}
+updateLabels();
+
+// ===== APPLY QUALITY CHANGE =====
+document.getElementById("quality").addEventListener("change", ()=>{
+  let q = document.getElementById("quality").value;
+  if(qualityPresets[q]){
+    setSliders(qualityPresets[q]);
+  }
+});
+
+// ===== DETECT CUSTOM SETTINGS =====
+["jump","walk","die","line","glow","trail","blockTexture"].forEach(id=>{
+  document.getElementById(id).addEventListener("input", ()=>{
+    const sliders = getSliders();
+    let q = document.getElementById("quality").value;
+    if(qualityPresets[q]){
+      // compare to preset
+      const preset = qualityPresets[q];
+      let matches = Object.keys(preset).every(k => sliders[k]===preset[k]);
+      if(!matches){
+        document.getElementById("quality").value = "Custom";
+      }
+    }
+    updateLabels();
+  });
+});
+
+// ===== INIT =====
+setSliders(advSettings);
+
+// ===== SAVE =====
+document.getElementById("saveBtn").addEventListener("click", ()=>{
+  localStorage.setItem("fps", document.getElementById("fps").value);
+  localStorage.setItem("quality", document.getElementById("quality").value);
+  localStorage.setItem("advancedSettings", JSON.stringify(getSliders()));
   alert("Settings saved!");
   window.location.href="index.html";
 });
 
-// Cancel
+// ===== CANCEL =====
 document.getElementById("cancelBtn").addEventListener("click", ()=>{
   window.location.href="index.html";
 });
