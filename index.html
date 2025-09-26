@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Schedule | Infinite Campus</title>
-<link rel="icon" type="image/png" href="infinite-campus-icon.png">
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
 canvas { display:block; }
@@ -20,7 +19,6 @@ button { font-size:32px; padding:15px 40px; cursor:pointer; margin-top:30px; col
 button:hover { color:black; background:#0ff; }
 h1 { font-size:60px; margin-bottom:20px; text-shadow: 0 0 20px #0ff, 0 0 40px #0ff, 0 0 60px #0ff; animation: glow 1.5s infinite alternate; }
 @keyframes glow { 0% { text-shadow:0 0 10px #0ff,0 0 20px #0ff;} 100% {text-shadow:0 0 40px #0ff,0 0 80px #0ff;} }
-
 #settingsBtn {
     position:absolute; top:15px; right:15px;
     font-size:28px; cursor:pointer;
@@ -43,81 +41,50 @@ h1 { font-size:60px; margin-bottom:20px; text-shadow: 0 0 20px #0ff, 0 0 40px #0
 <button id="settingsBtn">⚙️</button>
 
 <script>
-// --- GLOBAL VARIABLES ---
+// ========== CANVAS ==========
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+// ========== CONSTANTS ==========
 const BLOCK_SIZE = 50;
 const JUMP_SPEED = -15;
 const GRAVITY = 0.7;
 
-let testMode = false;
-let gemEveryBlock = false;
-let oldAccount = null;
-let account = "player";
-
-let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
-let lastTime = 0, gameStarted = false, animationFrameId;
-let crashPieces = [], particles = [], gems = [], trail = [];
-let cheatsUnlocked = false;
-let cheats = {float:false, invincible:false, infiniteJump:false};
-let startPressCount = 0;
-
-let baseColors = [{r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},{r:0,g:255,b:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}];
-let colorIndex = 0, platformColor = {r:255,g:0,b:0}, nextColor = baseColors[1], colorLerp = 0;
-let globalTime = 0;
-
+// ========== PLAYER ==========
 let player = {
     x:100, y:0, width:50, height:50,
     color:"#0ff", vy:0, speed:8,
-    hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true,
-    horizMultiplier:1, vertMultiplier:1,
-    accountEmail:"player@example.com"
+    jumpsLeft:2, onGround:false, visible:true
 };
 
-let platforms = [], spikes = [], lines = [], lastPlatformX = 0, lastPlatformY = 0;
+// ========== GAME STATE ==========
+let platforms = [];
+let score = 0;
+let bestScore = parseInt(localStorage.getItem("bestScore") || "0");
+let animationFrameId;
+let gameStarted = false;
 
-// --- INPUT ---
-window.addEventListener("keydown", e=>{ 
-    if(["KeyW","ArrowUp","Space"].includes(e.code)) jump(); 
+// ========== INPUT ==========
+let keys = {};
+window.addEventListener("keydown", e=>{
     keys[e.code] = true;
+    if(["KeyW","ArrowUp","Space"].includes(e.code)) jump();
 });
-window.addEventListener("keyup", e => keys[e.code] = false);
-window.addEventListener("mousedown", () => jump());
-window.addEventListener("touchstart", () => jump());
+window.addEventListener("keyup", e=>keys[e.code] = false);
+window.addEventListener("mousedown", ()=>jump());
+window.addEventListener("touchstart", ()=>jump());
 
 function jump(){
-    if(!player.visible) return;
-    if(cheats.infiniteJump || player.jumpsLeft>0){
+    if(player.jumpsLeft>0){
         player.vy = JUMP_SPEED;
-        spawnParticles(player.x+player.width/2, player.y+player.height, player.jumpsLeft===2?"jump":"double");
-        if(!cheats.infiniteJump) player.jumpsLeft--;
+        player.jumpsLeft--;
     }
 }
 
-function resetGame(){
-    if(animationFrameId) cancelAnimationFrame(animationFrameId);
-    startPressCount++;
-    score = 0; colorLerp = 0; globalTime = 0; trail = [];
-    player.x = 100; player.y = canvas.height/2-player.height; player.vy = 0; player.speed = 8;
-    player.jumpsLeft = 2; player.onGround = false; player.visible = true;
-    player.horizMultiplier = 1; player.vertMultiplier = 1;
-    platforms = []; spikes = []; crashPieces = []; particles = []; gems = []; lines = [];
-    platformColor = {...baseColors[0]}; colorIndex = 0; nextColor = baseColors[1];
-
-    platforms.push({x:0,y:player.y+player.height,width:BLOCK_SIZE*10,height:BLOCK_SIZE,color:{...platformColor}, passed:false});
-    lastPlatformX = 0; lastPlatformY = player.y+player.height;
-
-    lastTime = performance.now();
-    hideStartScreen();
-    gameStarted = true;
-    animationFrameId = requestAnimationFrame(update);
-}
-
-// --- COMMANDS ---
-window.addEventListener("keydown", e => {
+// ========== COMMANDS ==========
+window.addEventListener("keydown", e=>{
     if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
         const input = prompt("Enter command:");
         if(!input) return;
@@ -126,35 +93,85 @@ window.addEventListener("keydown", e => {
         const root1 = args[1];
         const root2 = args[2];
 
-        if(command === "/score"){
-            if(root1 === "set" && !isNaN(parseInt(root2))) { score = parseInt(root2); }
-            if(root1 === "add" && !isNaN(parseInt(root2))) { score += parseInt(root2); }
+        if(command==="/score"){
+            if(root1==="set" && !isNaN(parseInt(root2))) score = parseInt(root2);
+            if(root1==="add" && !isNaN(parseInt(root2))) score += parseInt(root2);
         }
-
-        if(command === "/clear" && root1 === "bestScore"){
+        if(command==="/clear" && root1==="bestScore"){
             bestScore = 0;
             localStorage.setItem("bestScore", 0);
         }
-
-        if(command === "/die"){
+        if(command==="/die"){
             score = 0;
+            player.y = canvas.height + 100; // kill player
         }
     }
 });
 
-// --- UI SCREENS ---
-function showStartScreen(){ 
+// ========== GAME LOOP ==========
+function update(){
+    // Apply gravity
+    player.vy += GRAVITY;
+    player.y += player.vy;
+
+    // Simple floor/platform
+    if(player.y + player.height >= canvas.height-50){
+        player.y = canvas.height-50 - player.height;
+        player.vy = 0;
+        player.jumpsLeft = 2;
+        player.onGround = true;
+    } else {
+        player.onGround = false;
+    }
+
+    // Increase score
+    score++;
+
+    // Update best score
+    if(score > bestScore){
+        bestScore = score;
+        localStorage.setItem("bestScore", bestScore);
+    }
+
+    // RENDER
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Player
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+
+    // Score text
+    ctx.fillStyle="white";
+    ctx.font="24px Arial";
+    ctx.fillText("Score: "+score, 20,40);
+    ctx.fillText("Best: "+bestScore, 20,70);
+
+    animationFrameId = requestAnimationFrame(update);
+}
+
+// ========== START / RESET ==========
+function resetGame(){
+    if(animationFrameId) cancelAnimationFrame(animationFrameId);
+    score = 0;
+    player.x = 100;
+    player.y = canvas.height/2;
+    player.vy = 0;
+    player.jumpsLeft = 2;
+    hideStartScreen();
+    gameStarted = true;
+    animationFrameId = requestAnimationFrame(update);
+}
+
+// ========== UI ==========
+function showStartScreen(){
     document.getElementById("bestScore").innerText="Best Score: "+bestScore;
-    document.getElementById("startScreen").style.display="flex"; 
+    document.getElementById("startScreen").style.display="flex";
 }
 function hideStartScreen(){ document.getElementById("startScreen").style.display="none"; }
 
-// --- SETTINGS BUTTON ---
-document.getElementById("settingsBtn").addEventListener("click", () => {
-    window.location.href = "settings.html";
-});
-
 document.getElementById("startBtn").addEventListener("click", resetGame);
+document.getElementById("settingsBtn").addEventListener("click", ()=>{ window.location.href="settings.html"; });
+
 showStartScreen();
 </script>
 </body>
