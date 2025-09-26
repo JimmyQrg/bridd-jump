@@ -99,37 +99,102 @@ function loop(timestamp){
   ctx.fillStyle = "#111";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
+  // Horizontal Line Effect
+  if(adv.line>0){
+    scanOffset += adv.line/50;
+    ctx.fillStyle = "rgba(0,255,255,0.1)";
+    for(let i=0;i<canvas.height;i+=20){
+      ctx.fillRect(0, (i+scanOffset)%canvas.height, canvas.width, 2);
+    }
+  }
+
   // Move & draw platforms
-  ctx.fillStyle = "#0ff";
   platforms.forEach(p=>{
+    ctx.fillStyle = "#0ff";
     ctx.fillRect(p.x, p.y, p.w, p.h);
+
+    if(adv.blockTexture){
+      ctx.strokeStyle = "rgba(0,0,0,0.5)";
+      for(let i=0;i<p.w;i+=10){
+        ctx.beginPath();
+        ctx.moveTo(p.x+i, p.y);
+        ctx.lineTo(p.x+i, p.y+p.h);
+        ctx.stroke();
+      }
+    }
     p.x -= 3;
   });
-  // Remove old platforms
   platforms = platforms.filter(p=>p.x+p.w>0);
-  // Ensure new platforms spawn
   if(platforms.length<6 || platforms[platforms.length-1].x<canvas.width-200){
     spawnPlatform();
   }
 
-  // Apply gravity
+  // Gravity
   player.vy += 0.5;
   player.y += player.vy;
   player.onGround = false;
 
-  // Check collisions
+  // Collision
   for(let p of platforms){
     if(player.x>p.x && player.x<p.x+p.w &&
-       player.y+20>=p.y && player.y+20<=p.y+p.h+10 && player.vy>=0){
+       player.y>=p.y-20 && player.y<=p.y && player.vy>=0){
       player.y = p.y-20;
       player.vy = 0;
       player.onGround = true;
     }
   }
 
-  // Draw player
+  // Trail Effect
+  if(adv.trail>0){
+    player.trail.push({x:player.x,y:player.y,life:30});
+    if(player.trail.length>50) player.trail.shift();
+    ctx.fillStyle="rgba(0,255,255,0.3)";
+    player.trail.forEach(t=>{
+      ctx.globalAlpha=t.life/30 * (adv.trail/100);
+      ctx.beginPath();
+      ctx.arc(t.x,t.y,5,0,Math.PI*2);
+      ctx.fill();
+      t.life--;
+    });
+    ctx.globalAlpha=1;
+  }
+
+  // Glow Effect
+  if(adv.glow>0){
+    let grd = ctx.createRadialGradient(player.x,player.y,10,player.x,player.y,50);
+    grd.addColorStop(0,"rgba(0,255,255,"+(adv.glow/200)+")");
+    grd.addColorStop(1,"transparent");
+    ctx.fillStyle=grd;
+    ctx.fillRect(player.x-50,player.y-50,100,100);
+  }
+
+  // Player
   ctx.fillStyle="#0ff";
   ctx.fillRect(player.x-10, player.y-20, 20, 20);
+
+  // Walk Effect
+  if(adv.walk>0 && player.onGround && timestamp%10<5){
+    ctx.fillStyle="rgba(0,255,255,0.5)";
+    ctx.fillRect(player.x-15, player.y+10,5,5);
+  }
+
+  // Jump Effect
+  if(adv.jump>0 && player.vy<-0.5){
+    ctx.fillStyle="rgba(0,255,255,0.5)";
+    ctx.beginPath();
+    ctx.arc(player.x,player.y+15,5+adv.jump/20,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // Die Particles
+  dieParticles.forEach(p=>{
+    ctx.fillStyle=p.color;
+    ctx.globalAlpha=p.life/50;
+    ctx.fillRect(p.x,p.y,p.size,p.size);
+    p.x+=p.vx; p.y+=p.vy; p.life--;
+  });
+  dieParticles=dieParticles.filter(p=>p.life>0);
+  ctx.globalAlpha=1;
 
   // Score
   score++;
@@ -158,7 +223,9 @@ document.getElementById("console").addEventListener("keydown", e=>{
     }
     if(cmd==="/die"){
       running = false;
-      makeParticles(player.x,player.y,adv.die,"#0ff",5);
+      if(adv.die>0){
+        makeParticles(player.x,player.y,adv.die,"#0ff",5);
+      }
       lastScore = score;
       localStorage.setItem("lastScore", lastScore);
       alert("You died! Final score: "+score);
@@ -171,7 +238,7 @@ document.getElementById("console").addEventListener("keydown", e=>{
 // ===== CONTROLS =====
 document.addEventListener("keydown", e=>{
   if(e.code==="Space" && player.onGround){
-    player.vy = -10; // jump
+    player.vy = -10;
   }
 });
 
@@ -183,6 +250,7 @@ document.getElementById("startBtn").addEventListener("click", ()=>{
   player.x = 150;
   player.y = 500;
   player.vy = 0;
+  player.trail = [];
   document.getElementById("startBtn").style.display="none";
   requestAnimationFrame(loop);
 });
