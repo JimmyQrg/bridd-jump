@@ -59,18 +59,12 @@
 <div id="debugToast"></div>
 
 <script>
-/* ----------------------------------------------------------------------
-   Bridd Jump: index.html (full expanded)
-   - Gameplay: platforms, spikes, gems, particles, crash, trail, camera
-   - Commands: /die, /score, /clear bestScore, /gamerule, /variable, /code
-   - Settings: reads from localStorage key "briddSettings"
-   - Start screen contains START and SETTINGS (navigates to settings.html)
-   - Pixel font used site-wide
-   ---------------------------------------------------------------------- */
-
-/* -------------------------
-   Canvas setup & resize
-   ------------------------- */
+// === SETTINGS REDIRECT ===
+if(!localStorage.getItem("briddSettings")){
+  window.location.href = "settings.html";
+}
+  
+// === Canva ===
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 function resize(){
