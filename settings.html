@@ -1,175 +1,192 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Schedule | Infinite Campus</title>
-<link rel="icon" type="image/png" href="infinite-campus-icon.png">
-<style>
-body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
-canvas { display:block; }
-#ui { position:absolute; top:0; left:0; width:100%; height:100%; text-align:center; pointer-events:none; }
-#startScreen {
-    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-    width:400px; padding:40px; background:rgba(0,0,0,0.9);
-    display:flex; flex-direction:column; justify-content:center; align-items:center;
-    pointer-events:all; font-size:30px; color:#0ff; text-shadow:0 0 20px #0ff;
-    border:3px solid #0ff; border-radius:20px;
-}
-button { font-size:32px; padding:15px 40px; cursor:pointer; margin-top:30px; color:#0ff; background:black; border:3px solid #0ff; border-radius:12px; transition:0.3s; }
-button:hover { color:black; background:#0ff; }
-#settingsBtn { font-size:20px; padding:10px 20px; margin-top:15px; border-radius:50%; width:60px; height:60px; background:black; color:#0ff; display:flex; justify-content:center; align-items:center; }
-#settingsPage {
-    position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); color:#0ff;
-    display:none; flex-direction:column; align-items:center; justify-content:flex-start; padding:40px; pointer-events:all;
-}
-#settingsPage h2 { font-size:40px; margin-bottom:20px; }
-.settings-group { margin:20px 0; text-align:left; width:80%; }
-.settings-group label { display:block; margin-bottom:10px; font-size:24px; }
-.settings-group select, .settings-group input[type=range] { width:100%; padding:5px; font-size:20px; }
-#settingsActions { margin-top:30px; display:flex; gap:30px; }
-#settingsActions button { font-size:24px; padding:10px 30px; }
-h1 { font-size:60px; margin-bottom:20px; text-shadow: 0 0 20px #0ff, 0 0 40px #0ff, 0 0 60px #0ff; animation: glow 1.5s infinite alternate; }
-@keyframes glow { 0% { text-shadow:0 0 10px #0ff,0 0 20px #0ff;} 100% {text-shadow:0 0 40px #0ff,0 0 80px #0ff;} }
-</style>
+  <meta charset="UTF-8">
+  <title>Settings | Bridd Jump</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: black;
+      color: #0ff;
+      font-family: 'Press Start 2P', cursive;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: rgba(0,0,0,0.9);
+      border: 3px solid #0ff;
+      border-radius: 20px;
+      padding: 30px;
+      width: 600px;
+      max-width: 95%;
+      text-align: center;
+    }
+    h1 {
+      font-size: 28px;
+      margin-bottom: 20px;
+      text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+    }
+    label {
+      display: block;
+      margin: 15px 0 5px;
+      font-size: 14px;
+    }
+    select, input[type=range] {
+      width: 100%;
+      margin-bottom: 10px;
+      background: black;
+      color: #0ff;
+      border: 2px solid #0ff;
+      font-family: 'Press Start 2P', cursive;
+      font-size: 12px;
+      padding: 5px;
+    }
+    .range-value {
+      font-size: 12px;
+      margin-top: -8px;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+    button {
+      margin: 15px;
+      padding: 12px 30px;
+      font-size: 14px;
+      cursor: pointer;
+      color: #0ff;
+      background: black;
+      border: 3px solid #0ff;
+      border-radius: 10px;
+      font-family: 'Press Start 2P', cursive;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #0ff;
+      color: black;
+    }
+  </style>
 </head>
 <body>
-<canvas id="gameCanvas"></canvas>
-<div id="ui">
-  <div id="startScreen">
-    <h1>BRIDD JUMP</h1>
-    <div id="bestScore">Best Score: 0</div>
-    <button id="startBtn">START</button>
-    <button id="settingsBtn">⚙</button>
+  <div class="container">
+    <h1>SETTINGS</h1>
+
+    <label for="fps">Max FPS:</label>
+    <select id="fps">
+      <option value="5">5</option>
+      <option value="10">10</option>
+      <option value="15">15</option>
+      <option value="20">20</option>
+      <option value="25">25</option>
+      <option value="30">30</option>
+      <option value="35">35</option>
+      <option value="40">40</option>
+      <option value="45">45</option>
+      <option value="50">50</option>
+      <option value="60">60</option>
+      <option value="70">70</option>
+      <option value="80">80</option>
+      <option value="90">90</option>
+      <option value="100">100</option>
+      <option value="120">120</option>
+      <option value="140">140</option>
+      <option value="160">160</option>
+      <option value="180">180</option>
+      <option value="190">190</option>
+      <option value="200">200</option>
+      <option value="unlimited">Unlimited</option>
+    </select>
+
+    <label for="quality">Quality:</label>
+    <select id="quality">
+      <option>Potato</option>
+      <option>Low</option>
+      <option>Medium</option>
+      <option>Medium+</option>
+      <option>High</option>
+      <option>High+</option>
+      <option>Extreme</option>
+      <option selected>Extreme+</option>
+      <option>Ultra</option>
+      <option>Ultra+</option>
+      <option>Glow Highest</option>
+    </select>
+
+    <h2 style="font-size:16px; margin-top:20px;">Advanced Settings</h2>
+
+    <label>Jump Effects</label>
+    <input type="range" id="jump" min="0" max="200" value="100">
+    <div class="range-value" id="jumpVal">100%</div>
+
+    <label>Walk Effects</label>
+    <input type="range" id="walk" min="0" max="200" value="100">
+    <div class="range-value" id="walkVal">100%</div>
+
+    <label>Die Effects</label>
+    <input type="range" id="die" min="0" max="200" value="100">
+    <div class="range-value" id="dieVal">100%</div>
+
+    <label>Horizontal Lines</label>
+    <input type="range" id="lines" min="0" max="200" value="100">
+    <div class="range-value" id="linesVal">100%</div>
+
+    <label>Trail Effects</label>
+    <input type="range" id="trail" min="0" max="200" value="100">
+    <div class="range-value" id="trailVal">100%</div>
+
+    <label>Block Texture</label>
+    <input type="range" id="block" min="0" max="200" value="100">
+    <div class="range-value" id="blockVal">100%</div>
+
+    <div style="margin-top:20px;">
+      <button id="saveBtn">SAVE</button>
+      <button id="cancelBtn">CANCEL</button>
+    </div>
   </div>
-  <div id="settingsPage">
-    <h2>Settings</h2>
-    <div class="settings-group">
-      <label for="maxFps">Max FPS:</label>
-      <select id="maxFps"></select>
-    </div>
-    <div class="settings-group">
-      <label for="quality">Quality:</label>
-      <select id="quality"></select>
-    </div>
-    <div class="settings-group">
-      <label>Advanced Settings:</label>
-      <div>
-        <label>Jump Particles <input type="range" id="jumpParticles" min="0" max="200" value="64"></label>
-        <label>Walk Particles <input type="range" id="walkParticles" min="0" max="200" value="64"></label>
-        <label>Die Particles <input type="range" id="dieParticles" min="0" max="200" value="64"></label>
-        <label>Horizontal Line Effects <input type="range" id="lineParticles" min="0" max="200" value="64"></label>
-        <label>Glow <input type="range" id="glowParticles" min="0" max="200" value="100"></label>
-        <label>Trail <input type="range" id="trailParticles" min="0" max="200" value="120"></label>
-      </div>
-    </div>
-    <div id="settingsActions">
-      <button id="cancelSettings">Cancel</button>
-      <button id="saveSettings">Save</button>
-    </div>
-  </div>
-</div>
 
-<script>
-// --- EXISTING GAME CODE (unchanged) ---
-// (keeping all of your original code intact)
-
-// Place your original game code here (from your post)...
-// I will show only the modifications below
-
-// --- NEW SETTINGS SYSTEM ---
-const settingsBtn = document.getElementById("settingsBtn");
-const settingsPage = document.getElementById("settingsPage");
-const cancelSettings = document.getElementById("cancelSettings");
-const saveSettings = document.getElementById("saveSettings");
-
-const maxFpsSelect = document.getElementById("maxFps");
-const qualitySelect = document.getElementById("quality");
-
-const fpsOptions = [5,10,15,20,25,30,35,40,45,50,60,70,80,90,100,120,140,160,180,190,200,"Unlimited"];
-const qualityOptions = [
-  "Potato","Low","Medium","Medium+","High","High+","Extreme","Extreme+","Ultra","Ultra+","Highest"
-];
-
-fpsOptions.forEach(opt=>{
-  const option = document.createElement("option");
-  option.value=opt;
-  option.textContent=opt;
-  maxFpsSelect.appendChild(option);
-});
-
-qualityOptions.forEach(opt=>{
-  const option=document.createElement("option");
-  option.value=opt;
-  option.textContent=opt;
-  qualitySelect.appendChild(option);
-});
-
-function loadSettings(){
-  const settings = JSON.parse(localStorage.getItem("settings")||"{}");
-  maxFpsSelect.value=settings.maxFps||"Unlimited";
-  qualitySelect.value=settings.quality||"Extreme+";
-  document.getElementById("jumpParticles").value=settings.jumpParticles||64;
-  document.getElementById("walkParticles").value=settings.walkParticles||64;
-  document.getElementById("dieParticles").value=settings.dieParticles||64;
-  document.getElementById("lineParticles").value=settings.lineParticles||64;
-  document.getElementById("glowParticles").value=settings.glowParticles||100;
-  document.getElementById("trailParticles").value=settings.trailParticles||120;
-}
-
-function saveSettingsToLocal(){
-  const settings={
-    maxFps:maxFpsSelect.value,
-    quality:qualitySelect.value,
-    jumpParticles:document.getElementById("jumpParticles").value,
-    walkParticles:document.getElementById("walkParticles").value,
-    dieParticles:document.getElementById("dieParticles").value,
-    lineParticles:document.getElementById("lineParticles").value,
-    glowParticles:document.getElementById("glowParticles").value,
-    trailParticles:document.getElementById("trailParticles").value
-  };
-  localStorage.setItem("settings", JSON.stringify(settings));
-}
-
-settingsBtn.addEventListener("click", ()=>{
-  loadSettings();
-  settingsPage.style.display="flex";
-  document.getElementById("startScreen").style.display="none";
-});
-cancelSettings.addEventListener("click", ()=>{
-  settingsPage.style.display="none";
-  document.getElementById("startScreen").style.display="flex";
-});
-saveSettings.addEventListener("click", ()=>{
-  saveSettingsToLocal();
-  settingsPage.style.display="none";
-  document.getElementById("startScreen").style.display="flex";
-});
-
-// --- NEW COMMANDS ---
-window.addEventListener("keydown", e=>{
-  if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
-    const input=prompt("Enter command:");
-    if(!input) return;
-    const args=input.trim().split(/\s+/);
-    const command=args[0];
-    const root1=args[1];
-    const root2=args[2];
-
-    if(command==="/die"){
-      tryDie();
+  <script>
+    // Attach live range values
+    function bindRange(id) {
+      const range = document.getElementById(id);
+      const out = document.getElementById(id+"Val");
+      range.oninput = () => out.textContent = range.value + "%";
     }
-    if(command==="/score"){
-      if(root1==="set" && !isNaN(parseInt(root2))) score=parseInt(root2);
-      if(root1==="add" && !isNaN(parseInt(root2))) score+=parseInt(root2);
-    }
-    if(command==="/clear" && root1==="bestScore"){
-      bestScore=0;
-      localStorage.setItem("bestScore",0);
-      alert("Best score cleared.");
-    }
-  }
-});
-</script>
+    ["jump","walk","die","lines","trail","block"].forEach(bindRange);
+
+    // Load existing settings
+    const saved = JSON.parse(localStorage.getItem("briddSettings") || "{}");
+    if(saved.fps) document.getElementById("fps").value = saved.fps;
+    if(saved.quality) document.getElementById("quality").value = saved.quality;
+    ["jump","walk","die","lines","trail","block"].forEach(k=>{
+      if(saved[k] !== undefined) {
+        document.getElementById(k).value = saved[k];
+        document.getElementById(k+"Val").textContent = saved[k]+"%";
+      }
+    });
+
+    // Save
+    document.getElementById("saveBtn").onclick = ()=>{
+      const data = {
+        fps: document.getElementById("fps").value,
+        quality: document.getElementById("quality").value,
+        jump: parseInt(document.getElementById("jump").value),
+        walk: parseInt(document.getElementById("walk").value),
+        die: parseInt(document.getElementById("die").value),
+        lines: parseInt(document.getElementById("lines").value),
+        trail: parseInt(document.getElementById("trail").value),
+        block: parseInt(document.getElementById("block").value),
+      };
+      localStorage.setItem("briddSettings", JSON.stringify(data));
+      window.location.href = "index.html";
+    };
+
+    // Cancel
+    document.getElementById("cancelBtn").onclick = ()=>{
+      window.location.href = "index.html";
+    };
+  </script>
 </body>
 </html>
