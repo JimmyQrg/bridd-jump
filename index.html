@@ -50,7 +50,7 @@
     <h1>BRIDD JUMP</h1>
     <div id="bestScore">Best Score: 0</div>
     <button id="startBtn" class="btn">START</button>
-    <button id="settingsBtn" class="btn">SETTINGS</button>
+    
   </div>
 </div>
 
@@ -59,48 +59,18 @@
 <div id="debugToast"></div>
 
 <script>
-// === SETTINGS REDIRECT ===
-if(!localStorage.getItem("briddSettings")){
-  window.location.href = "settings.html";
-}
+/* ----------------------------------------------------------------------
+   Bridd Jump: index.html (full expanded)
+   - Gameplay: platforms, spikes, gems, particles, crash, trail, camera
+   - Commands: /die, /score, /clear bestScore, /gamerule, /variable, /code
+   - Settings: reads from localStorage key "briddSettings"
+   - Start screen contains START and SETTINGS (navigates to settings.html)
+   - Pixel font used site-wide
+   ---------------------------------------------------------------------- */
 
-  // === LOAD SETTINGS ===
-let settings = JSON.parse(localStorage.getItem("briddSettings") || "{}");
-
-// Defaults if missing
-settings = Object.assign({
-  fps: 60,
-  quality: "Extreme+",
-  jump: 64,
-  walk: 64,
-  die: 64,
-  lines: 64,
-  gem: 0,
-  trail: 0,
-  glow: 100,
-  block: true
-}, settings);
-
-// Apply FPS limit
-let fpsLimit = settings.fps;
-
-// Apply particle effect strengths
-const EFFECTS = {
-  jump: settings.jump,
-  walk: settings.walk,
-  die: settings.die,
-  lines: settings.lines,
-  gem: settings.gem,
-  trail: settings.trail
-};
-
-// Glow multiplier
-const GLOW_INTENSITY = settings.glow;
-
-// Block texture flag
-const USE_TEXTURE = settings.block;
-
-// === Canva ===
+/* -------------------------
+   Canvas setup & resize
+   ------------------------- */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 function resize(){
