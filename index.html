@@ -198,6 +198,19 @@ let runtime = {
   trailEnabled: true
 };
 
+function applySettingsToRuntime() {
+    runtime.maxFPS = settings.maxFPS;
+    runtime.qualityPreset = settings.qualityPreset;
+    runtime.effects.jumpEffectMul = settings.quality.jumpEffect / 100;
+    runtime.effects.walkEffectMul = settings.quality.walkEffect / 100;
+    runtime.effects.dieEffectMul = settings.quality.dieEffect / 100;
+    runtime.effects.horizontalLinesMul = settings.quality.horizontalLines / 100;
+    runtime.effects.trailMul = settings.quality.trail / 100;
+    runtime.glowEnabled = settings.quality.glow > 0;
+    // …any other runtime updates needed
+}
+applySettingsToRuntime();
+
 function applySettings(s){
   settings = s || settings;
   // FPS
