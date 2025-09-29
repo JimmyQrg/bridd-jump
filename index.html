@@ -52,9 +52,10 @@
   </style>
 </head>
 <body>
+  <canvas id="gameCanvas"></canvas>
   <div id="menu">
-    <button id="startButton">START</button>
-    <button id="settingsButton">SETTINGS</button>
+    <button id="startBtn">START</button>
+    <button id="settingsBtn">SETTINGS</button>
   </div>
   <div id="fpsOverlay"></div>
   <canvas id="gameCanvas"></canvas>
@@ -281,18 +282,27 @@
 
   // generate initial ground platform
   function resetWorld(){
-    platforms = [];
-    spikes = [];
-    gems = [];
-    particles = [];
-    crashPieces = [];
-    trail = [];
-    score = 0;
-    player = new Player();
-    platforms.push({ x: 0, y: H - 40, width: BLOCK_SIZE * 10, height: BLOCK_SIZE, color: {...platformColor}, passed:false });
-    lastPlatformX = 0;
-    lastPlatformY = H - 40;
-  }
+  platforms = [];
+  spikes = [];
+  gems = [];
+  particles = [];
+  crashPieces = [];
+  trail = [];
+  score = 0;
+  player = new Player();
+  player.visible = true;
+  platforms.push({
+    x: 0,
+    y: H - BLOCK_SIZE * 2,
+    width: W,              // span full width
+    height: BLOCK_SIZE * 2,
+    color: {...platformColor},
+    passed:false
+  });
+  lastPlatformX = W;
+  lastPlatformY = H - BLOCK_SIZE * 2;
+}
+
 
   // more detailed platform generation to match earlier spec
   function generatePlatformsIfNeeded(){
