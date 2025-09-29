@@ -1,747 +1,748 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Schedule | Infinite Campus</title>
-<link rel="icon" type="image/png" href="infinite-campus-icon.png">
-
-<!-- Pixel font for the retro look -->
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-
-<style>
-  /* Visual design variables */
-  :root {
-    --bg: #000;
-    --accent: #0ff;
-    --panel: rgba(0,0,0,0.9);
-    --muted: #88f7ff;
-  }
-
-  /* Basic page & font */
-  html,body { height:100%; margin:0; background:var(--bg); color:var(--accent);
-              font-family:"Press Start 2P", monospace, system-ui; -webkit-font-smoothing:none; }
-  canvas { display:block; width:100%; height:100%; }
-
-  /* UI container */
-  #ui { position:fixed; inset:0; pointer-events:none; z-index:200; }
-
-  /* Start screen panel */
-  #startScreen {
-    position:fixed;
-    left:50%;
-    top:50%;
-    transform:translate(-50%,-50%);
-    background:var(--panel);
-    border:4px solid var(--accent);
-    border-radius:14px;
-    width:520px;
-    max-width:94vw;
-    padding:28px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:12px;
-    pointer-events:all;
-  }
-  h1 { margin:0; font-size:34px; color:var(--accent); text-shadow:0 0 16px var(--accent); }
-  #bestScore { font-size:12px; color:var(--muted); }
-
-  /* Buttons */
-  .btn {
-    appearance:none; border:3px solid var(--accent); background:transparent;
-    color:var(--accent); padding:12px 18px; border-radius:10px; font-size:12px;
-    cursor:pointer; transition:all .12s; font-family:"Press Start 2P", monospace;
-  }
-  .btn:hover { background:var(--accent); color:#000; }
-
-  /* Overlays and labels */
-  #scoreOverlay { position:fixed; left:16px; top:16px; font-size:11px; pointer-events:none; z-index:210; color:var(--accent); }
-  #settingsLabel { position:fixed; left:16px; top:46px; font-size:11px; pointer-events:none; z-index:210; color:var(--accent); text-shadow:0 0 8px var(--accent); }
-  #debugToast { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); background:rgba(0,0,0,0.6); border:2px solid var(--accent); color:var(--accent); padding:6px 12px; border-radius:10px; font-size:11px; pointer-events:none; z-index:300; display:none; }
-
-  @media (max-width:540px){
-    #startScreen{ width:92vw; padding:18px }
-    h1 { font-size:26px }
-    .btn { font-size:10px; padding:10px }
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>Bridd Jump with Trail</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: black;
+      height: 100%;
+      width: 100%;
+    }
+    canvas {
+      display: block;
+      background: #111;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+    #menu {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.8);
+    }
+    #menu button {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 14px;
+      padding: 10px 20px;
+      margin: 8px;
+      cursor: pointer;
+    }
+    #fpsOverlay {
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 12px;
+      color: white;
+      z-index: 1500;
+    }
+  </style>
 </head>
 <body>
-<canvas id="gameCanvas"></canvas>
-
-<!-- UI overlay -->
-<div id="ui">
-  <div id="startScreen">
-    <h1>BRIDD JUMP</h1>
-    <div id="bestScore">Best Score: 0</div>
-    <button id="startBtn" class="btn">START</button>
-    <button id="settingsBtn" class="btn">SETTINGS</button>
+  <div id="menu">
+    <button id="startButton">START</button>
+    <button id="settingsButton">SETTINGS</button>
   </div>
-</div>
+  <div id="fpsOverlay"></div>
+  <canvas id="gameCanvas"></canvas>
 
-<!-- HUD elements -->
-<div id="scoreOverlay">0</div>
-<div id="settingsLabel">FPS: -/-</div>
-<div id="debugToast"></div>
-
-<script>
-/* ============================================================
-   Bridd Jump - index.html
-   - Single-file main game
-   - Reads 'briddSettings' from localStorage and applies advanced
-     settings (jump, walk, die, lines, gem, trail, glow, block)
-   - Redirects to settings.html if briddSettings is missing
-   ============================================================ */
-
-/* ---------------------------
-   Redirect to settings if none
-   --------------------------- */
-if(!localStorage.getItem("briddSettings")){
-  // First-run or settings missing -> open settings page
-  // settings.html should write 'briddSettings' before returning
-  window.location.href = "settings.html";
-}
-
-/* ---------------------------
-   Settings: read / apply
-   - settings are stored at localStorage key 'briddSettings'
-   - structure expects numbers (0..200) for effects, fps as string or number
-   --------------------------- */
-const LS_KEY = "briddSettings";
-
-// default used if anything missing
-const defaultSettings = {
-  fps: "60",        // string or number; "unlimited" or "0" => unlimited
-  qualityPreset: "Extreme+",
-  jump: 64,
-  walk: 64,
-  die: 64,
-  lines: 64,
-  gem: 0,
-  trail: 0,
-  glow: 100,
-  block: true
-};
-
-function readSettings(){
-  try{
-    const raw = localStorage.getItem(LS_KEY);
-    if(!raw) return {...defaultSettings};
-    const parsed = JSON.parse(raw);
-    return {...defaultSettings, ...parsed};
-  }catch(e){
-    console.warn("Failed to parse settings; using defaults", e);
-    return {...defaultSettings};
-  }
-}
-
-function writeSettings(obj){
-  try{ localStorage.setItem(LS_KEY, JSON.stringify(obj)); } catch(e){ console.warn("Failed to write settings", e); }
-}
-
-// load settings and prepare runtime mapping
-let settings = readSettings();
-
-// runtime / derived values used by the game loop
-const runtime = {
-  minFrameTime: 0, // milliseconds between frames when limiting FPS (0 = unlimited)
-  effects: {
-    jumpMul: 1.0,   // multiplier = slider / 100
-    walkMul: 1.0,
-    dieMul: 1.0,
-    linesMul: 1.0,
-    gemMul: 1.0,
-    trailMul: 1.0
-  },
-  glowMul: 1.0,
-  useBlockTexture: true
-};
-
-function applySettings(){
-  // FPS handling
-  const fpsVal = String(settings.fps || "60").toLowerCase();
-  if(fpsVal === "unlimited" || fpsVal === "0" || fpsVal === "0" ) runtime.minFrameTime = 0;
-  else {
-    const nFps = Number(settings.fps || 60);
-    runtime.minFrameTime = nFps > 0 ? (1000 / nFps) : 0;
+  <script>
+  // === SETTINGS LOADER ===
+  function safeLoadSettings() {
+    try {
+      const raw = localStorage.getItem("briddSettings");
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
   }
 
-  // effects (convert slider 0..200 -> multiplier 0..2)
-  runtime.effects.jumpMul = (Number(settings.jump) || 0) / 100;
-  runtime.effects.walkMul = (Number(settings.walk) || 0) / 100;
-  runtime.effects.dieMul = (Number(settings.die) || 0) / 100;
-  runtime.effects.linesMul = (Number(settings.lines) || 0) / 100;
-  runtime.effects.gemMul = (Number(settings.gem) || 0) / 100;
-  runtime.effects.trailMul = (Number(settings.trail) || 0) / 100;
-
-  runtime.glowMul = (Number(settings.glow) || 0) / 100;
-  runtime.useBlockTexture = settings.block === undefined ? true : Boolean(settings.block);
-
-  // update HUD info
-  updateFpsLabelText(0); // initial
-  writeSettings(settings); // canonicalize/ensure stored
-}
-
-applySettings(); // apply initial settings read from storage
-
-/* ---------------------------
-   Canvas setup
-   --------------------------- */
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-window.addEventListener('resize', resize);
-resize();
-
-/* ---------------------------
-   Constants & state
-   --------------------------- */
-const BLOCK_SIZE = 50;
-const JUMP_SPEED = -15;
-const GRAVITY = 0.7;
-
-let keys = {};
-let score = 0;
-let bestScore = localStorage.getItem('bestScore') ? parseInt(localStorage.getItem('bestScore')) : 0;
-
-let lastTime = performance.now();
-let gameStarted = false;
-let animationFrameId = null;
-
-/* entities / arrays */
-let platforms = [], spikes = [], gems = [], linesArr = [];
-let particles = [], crashPieces = [], trail = [];
-
-let player = {
-  x:100, y:0, width:50, height:50, vy:0, speed:8, color:"#0ff",
-  hitboxScale:0.6, jumpsLeft:2, onGround:false, visible:true,
-  horizMultiplier:1, vertMultiplier:1
-};
-
-/* aesthetic & cycling */
-const baseColors = [
-  {r:255,g:0,b:0},{r:255,g:153,b:0},{r:255,g:255,b:0},
-  {r:0,g:255,b:0},{r:0,g:255,b:255},{r:0,g:0,b:255},{r:153,g:0,b:255}
-];
-let colorIndex = 0, nextColor = baseColors[1], platformColor = {...baseColors[0]}, colorLerp = 0;
-let globalTime = 0;
-
-let cameraX = 0, cameraY = 0;
-
-/* developer/test toggles */
-let testMode = false, gemEveryBlock = false;
-let account = "player", oldAccount = null;
-let cheats = { float:false, invincible:false, infiniteJump:false };
-
-/* ---------------------------
-   Small helpers: color lerp, toast
-   --------------------------- */
-function lerpColor(c1,c2,t){ return { r: Math.floor(c1.r + (c2.r - c1.r)*t), g: Math.floor(c1.g + (c2.g - c1.g)*t), b: Math.floor(c1.b + (c2.b - c1.b)*t) }; }
-
-function showToast(msg, t=1200){
-  const el = document.getElementById('debugToast');
-  if(!el) return;
-  el.innerText = msg; el.style.display = 'block';
-  clearTimeout(el._timer);
-  el._timer = setTimeout(()=> el.style.display = 'none', t);
-}
-
-/* ---------------------------
-   FPS tracking for HUD
-   --------------------------- */
-let fpsHistory = [], lastFrameTime = performance.now();
-function updateFps(now){
-  const dt = (now - lastFrameTime) || 16;
-  const fps = dt > 0 ? (1000/dt) : 60;
-  fpsHistory.push(fps);
-  if(fpsHistory.length > 30) fpsHistory.shift();
-  lastFrameTime = now;
-  // return smoothed fps
-  const avg = fpsHistory.reduce((a,b)=>a+b,0)/fpsHistory.length;
-  return Math.round(avg);
-}
-function updateFpsLabelText(currentFps){
-  const storedMax = (settings.fps === "unlimited" || settings.fps === 0 || settings.fps === "0") ? "Unlimited" : settings.fps;
-  document.getElementById('scoreOverlay').innerText = Math.floor(score);
-  document.getElementById('settingsLabel').innerText = `FPS: ${currentFps}/${storedMax}`;
-}
-
-/* ---------------------------
-   Input handlers
-   --------------------------- */
-window.addEventListener('keydown', e=>{
-  keys[e.code] = true;
-  if(["KeyW","ArrowUp","Space"].includes(e.code)) jump();
-});
-window.addEventListener('keyup', e => keys[e.code] = false);
-window.addEventListener('mousedown', () => jump());
-window.addEventListener('touchstart', () => jump());
-
-function jump(){
-  if(!player.visible) return;
-  if(cheats.infiniteJump || player.jumpsLeft > 0){
-    player.vy = JUMP_SPEED;
-    // spawn jump particles scaled by jumpMul
-    const count = Math.max(0, Math.floor(15 * runtime.effects.jumpMul));
-    spawnParticles(player.x + player.width/2, player.y + player.height, "jump", Math.max(1,count), "#0ff", runtime.glowMul);
-    if(!cheats.infiniteJump) player.jumpsLeft--;
+  let settings = safeLoadSettings();
+  if (!settings) {
+    try {
+      fetch("settings.html", { method: "HEAD" })
+        .then(r => {
+          if (r.ok) {
+            window.location.href = "settings.html";
+          } else {
+            alert("cannot open settings, settings.html required");
+          }
+        })
+        .catch(() => {
+          alert("cannot open settings, settings.html required");
+        });
+    } catch (err) {
+      alert("cannot open settings, settings.html required");
+    }
   }
-}
 
-/* ---------------------------
-   World generation helpers
-   --------------------------- */
-function generateBlockPlatform(lastX,lastY){
-  let blockCount = Math.floor(Math.random()*8)+1;
-  if(Math.random() < 0.7) blockCount = Math.min(blockCount, Math.floor(Math.random()*3+1));
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+  let W = window.innerWidth;
+  let H = window.innerHeight;
+  canvas.width = W;
+  canvas.height = H;
 
-  let gap = Math.floor(Math.random()*5+3) * BLOCK_SIZE;
-  let x = lastX + gap;
-  let y = lastY + (Math.floor(Math.random()*3)-1) * BLOCK_SIZE;
-  y = Math.max(BLOCK_SIZE, Math.min(canvas.height - 3*BLOCK_SIZE, y));
+  window.addEventListener("resize", () => {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W;
+    canvas.height = H;
+  });
 
-  for(let i=0;i<blockCount;i++){
-    platforms.push({
-      x: x + i*BLOCK_SIZE,
-      y,
-      width: BLOCK_SIZE,
-      height: BLOCK_SIZE,
-      color: {...platformColor},
-      passed: false
+  // === STATE ===
+  let gameRunning = false;
+  let fpsOverlay = document.getElementById("fpsOverlay");
+
+  // defaults
+  let runtime = {
+    fps: 60,
+    quality: "Extreme+",
+    effects: {
+      jump: 64,
+      walk: 64,
+      die: 64,
+      lines: 64,
+      gem: 0,
+      trail: 0
+    },
+    glow: 100,
+    blockTexture: true
+  };
+
+  function applySettings() {
+    if (!settings) return;
+    runtime.fps = settings.fps ?? 60;
+    runtime.quality = settings.quality ?? "Extreme+";
+    runtime.effects.jump = settings.jump ?? 64;
+    runtime.effects.walk = settings.walk ?? 64;
+    runtime.effects.die = settings.die ?? 64;
+    runtime.effects.lines = settings.lines ?? 64;
+    runtime.effects.gem = settings.gem ?? 64;
+    runtime.effects.trail = settings.trail ?? 0;
+    runtime.glow = settings.glow ?? 100;
+    runtime.blockTexture = settings.block ?? true;
+  }
+
+  applySettings();
+
+  // === MENU BUTTONS ===
+  document.addEventListener("DOMContentLoaded", () => {
+    const startBtn = document.getElementById("startButton");
+    const settingsBtn = document.getElementById("settingsButton");
+
+    startBtn.addEventListener("click", () => {
+      document.getElementById("menu").style.display = "none";
+      startGame();
     });
 
-    if(Math.random() < 0.2){
-      spikes.push({
-        x: x + i*BLOCK_SIZE + BLOCK_SIZE*0.2,
-        y: y - BLOCK_SIZE + BLOCK_SIZE*0.2,
-        width: BLOCK_SIZE*0.6,
-        height: BLOCK_SIZE*0.6,
-        baseY: y - BLOCK_SIZE + BLOCK_SIZE*0.2,
-        hit: true,
+    settingsBtn.addEventListener("click", () => {
+      try {
+        fetch("settings.html", { method: "HEAD" })
+          .then(r => {
+            if (r.ok) {
+              window.location.href = "settings.html";
+            } else {
+              alert("cannot open settings, settings.html required");
+            }
+          })
+          .catch(() => {
+            alert("cannot open settings, settings.html required");
+          });
+      } catch (e) {
+        alert("cannot open settings, settings.html required");
+      }
+    });
+  });
+
+  // === GAME OBJECTS ===
+  class Player {
+    constructor() {
+      this.x = 100;
+      this.y = H - 200;
+      this.vx = 0;
+      this.vy = 0;
+      this.onGround = false;
+      this.dead = false;
+      this.trail = [];
+    }
+    update() {
+      this.vy += 0.5;
+      this.x += this.vx;
+      this.y += this.vy;
+      if (this.y > H - 50) {
+        this.y = H - 50;
+        this.vy = 0;
+        this.onGround = true;
+      } else {
+        this.onGround = false;
+      }
+      if (runtime.effects.trail > 0) {
+        this.trail.push({x: this.x, y: this.y, life: 1});
+        if (this.trail.length > 50) this.trail.shift();
+      }
+    }
+    draw() {
+      ctx.save();
+      if (runtime.glow > 0) {
+        ctx.shadowBlur = runtime.glow;
+        ctx.shadowColor = "cyan";
+      }
+      ctx.fillStyle = "cyan";
+      ctx.fillRect(this.x-15, this.y-15, 30, 30);
+      ctx.restore();
+      if (runtime.effects.trail > 0) {
+        ctx.fillStyle = "rgba(0,255,255,0.5)";
+        for (let t of this.trail) {
+          ctx.globalAlpha = t.life;
+          ctx.fillRect(t.x-10, t.y-10, 20, 20);
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  class Particle {
+    constructor(x,y,color,life=1) {
+      this.x = x;
+      this.y = y;
+      this.vx = (Math.random()-0.5)*4;
+      this.vy = (Math.random()-0.5)*4;
+      this.life = life;
+      this.color = color;
+    }
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.life -= 0.02;
+    }
+    draw() {
+      if (this.life > 0) {
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha = this.life;
+        ctx.fillRect(this.x, this.y, 4, 4);
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  class Gem {
+    constructor(x,y) {
+      this.x = x;
+      this.y = y;
+      this.collected = false;
+    }
+    update(player) {
+      if (!this.collected &&
+          Math.abs(player.x-this.x)<20 &&
+          Math.abs(player.y-this.y)<20) {
+        this.collected = true;
+        if (runtime.effects.gem>0) {
+          for (let i=0;i<runtime.effects.gem/4;i++) {
+            particles.push(new Particle(this.x,this.y,"yellow",1));
+          }
+        }
+      }
+    }
+    draw() {
+      if (!this.collected) {
+        ctx.fillStyle = "yellow";
+        ctx.beginPath();
+        ctx.arc(this.x,this.y,10,0,Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+
+  let player = new Player();
+  let particles = [];
+  let gems = [new Gem(400,H-80), new Gem(800,H-120)];
+  // world/platform/spike arrays (already declared above as needed)
+  let platforms = [];
+  let spikes = [];
+  let score = 0;
+  let bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
+  let lastPlatformX = 0;
+  let lastPlatformY = player.y + player.height;
+
+  // generate initial ground platform
+  function resetWorld(){
+    platforms = [];
+    spikes = [];
+    gems = [];
+    particles = [];
+    crashPieces = [];
+    trail = [];
+    score = 0;
+    player = new Player();
+    platforms.push({ x: 0, y: H - 40, width: BLOCK_SIZE * 10, height: BLOCK_SIZE, color: {...platformColor}, passed:false });
+    lastPlatformX = 0;
+    lastPlatformY = H - 40;
+  }
+
+  // more detailed platform generation to match earlier spec
+  function generatePlatformsIfNeeded(){
+    const lastPlat = platforms[platforms.length - 1];
+    if (!lastPlat) return;
+    if (lastPlat.x < player.x + W) {
+      const out = generateBlockPlatform(lastPlat.x, lastPlat.y);
+      lastPlatformX = out.x;
+      lastPlatformY = out.y;
+    }
+  }
+
+  // improved generateBlockPlatform to push blocks & occasional spikes
+  function generateBlockPlatform(lastX, lastY){
+    let blockCount = Math.floor(Math.random()*8)+1;
+    if (Math.random() < 0.7) blockCount = Math.min(blockCount, Math.floor(Math.random()*3+1));
+    let gap = Math.floor(Math.random()*5+3) * BLOCK_SIZE;
+    let x = lastX + gap;
+    let y = lastY + (Math.floor(Math.random()*3)-1) * BLOCK_SIZE;
+    y = Math.max(BLOCK_SIZE, Math.min(H - 3*BLOCK_SIZE, y));
+
+    for (let i=0;i<blockCount;i++){
+      platforms.push({
+        x: x + i*BLOCK_SIZE,
+        y: y,
+        width: BLOCK_SIZE,
+        height: BLOCK_SIZE,
+        color: {...platformColor},
         passed: false
+      });
+      if (Math.random() < 0.2) {
+        spikes.push({
+          x: x + i*BLOCK_SIZE + BLOCK_SIZE*0.2,
+          y: y - BLOCK_SIZE + BLOCK_SIZE*0.2,
+          width: BLOCK_SIZE*0.6,
+          height: BLOCK_SIZE*0.6,
+          baseY: y - BLOCK_SIZE + BLOCK_SIZE*0.2,
+          hit: true,
+          passed: false
+        });
+      }
+    }
+
+    // gems
+    for (let i=0;i<blockCount;i++){
+      if (Math.random() < 0.1 || runtime.gemEveryBlock){
+        const gemX = x + i*BLOCK_SIZE + BLOCK_SIZE/4;
+        const gemY = y - BLOCK_SIZE*1.5;
+        let safe = true;
+        for (let s of spikes) if (Math.abs(gemX - s.x) < BLOCK_SIZE*2) safe = false;
+        if (safe) gems.push({ x: gemX, y: gemY, size: 20, collected: false, floatOffset: Math.random()*Math.PI*2 });
+      }
+    }
+
+    return { x: x + blockCount * BLOCK_SIZE, y };
+  }
+
+  // collisions
+  function checkSpikeCollision(sp){
+    if (!sp.hit) return false;
+    const hbW = player.width * player.hitboxScale;
+    const hbH = player.height * player.hitboxScale;
+    const hbX = player.x + (player.width - hbW)/2;
+    const hbY = player.y + (player.height - hbH)/2;
+    return hbX + hbW > sp.x && hbX < sp.x + sp.width && hbY + hbH > sp.y && hbY < sp.y + sp.height;
+  }
+
+  // spawn particles helper
+  function spawnParticlesAt(x,y,type,amountMul=1){
+    // base counts by type
+    let base = 12;
+    if (type === "double") base = 20;
+    if (type === "land") base = 8;
+    const count = Math.max(0, Math.floor(base * amountMul));
+    const color = type === "double" ? "#ff0" : (type === "jump" ? "#0ff" : "#fff");
+    for (let i=0;i<count;i++){
+      particles.push(new Particle(x + (Math.random()-0.5)*10, y + (Math.random()-0.5)*10, color, 1));
+    }
+  }
+
+  // crash pieces array and handling
+  let crashPieces = [];
+  function createCrashPieces(mult=1){
+    const count = Math.max(4, Math.floor(20 * (runtime.effects.dieMul || 0.01) * mult));
+    for (let i=0;i<count;i++){
+      crashPieces.push({
+        x: player.x + Math.random() * player.width,
+        y: player.y + Math.random() * player.height,
+        vx: (Math.random()-0.5) * 15,
+        vy: (Math.random()-1) * 15,
+        size: Math.random()*player.width/4 + 4,
+        color: player.color,
+        life: 40 + Math.random()*60
       });
     }
   }
 
-  // Gems
-  for(let i=0;i<blockCount;i++){
-    if(Math.random() < 0.1 || gemEveryBlock){
-      let gemX = x + i*BLOCK_SIZE + BLOCK_SIZE/4;
-      let gemY = y - BLOCK_SIZE*1.5;
-      let safe = true;
-      for(let s of spikes) if(Math.abs(gemX - s.x) < BLOCK_SIZE*2) safe = false;
-      if(safe) gems.push({ x:gemX, y:gemY, size:20, collected:false, floatOffset:Math.random()*Math.PI*2 });
+  // death handling
+  function killPlayer(spike){
+    if (!player.visible) return;
+    if (cheats.invincible) return;
+    player.visible = false;
+    if (spike) spike.hit = false;
+    createCrashPieces();
+    gameRunning = false;
+    if (score > bestScore) {
+      bestScore = Math.floor(score);
+      localStorage.setItem("bestScore", bestScore);
+    }
+    setTimeout(() => {
+      document.getElementById("menu").style.display = "flex";
+    }, 900);
+  }
+
+  // input: jump
+  function doJump(){
+    if (!player.visible) return;
+    if (cheats.infiniteJump || player.jumpsLeft > 0){
+      player.vy = JUMP_SPEED;
+      spawnParticlesAt(player.x + player.width/2, player.y + player.height, player.jumpsLeft === 2 ? "jump" : "double", runtime.effects.jumpMul || 1);
+      if (!cheats.infiniteJump) player.jumpsLeft--;
     }
   }
 
-  return { x: x + blockCount*BLOCK_SIZE, y };
-}
-
-/* ---------------------------
-   Collision / death helpers
-   --------------------------- */
-function checkSpikeCollision(spike){
-  if(!spike.hit) return false;
-  const hbW = player.width * player.hitboxScale;
-  const hbH = player.height * player.hitboxScale;
-  const hbX = player.x + (player.width - hbW)/2;
-  const hbY = player.y + (player.height - hbH)/2;
-  return hbX + hbW > spike.x && hbX < spike.x + spike.width && hbY + hbH > spike.y && hbY < spike.y + spike.height;
-}
-
-function createCrash(multiplier = 1){
-  // number of pieces scaled by die slider
-  const base = 20;
-  const count = Math.max(4, Math.floor(base * (runtime.effects.dieMul || 0.01) * multiplier));
-  for(let i=0;i<count;i++){
-    crashPieces.push({
-      x: player.x + Math.random()*player.width,
-      y: player.y + Math.random()*player.height,
-      vx: (Math.random()-0.5)*15,
-      vy: (Math.random()-1)*15,
-      size: Math.random()*player.width/4 + 4,
-      color: player.color,
-      life: 40 + Math.random()*40
-    });
-  }
-}
-
-/* particle emitter */
-function spawnParticles(x,y,type,count,color,glowScale=1){
-  color = color || "#fff";
-  for(let i=0;i<count;i++){
-    // speed small variety
-    const speed = (type === "jump" ? 3 : type === "double" ? 4 : 2);
-    particles.push({
-      x: x + (Math.random()-0.5)*10,
-      y: y + (Math.random()-0.5)*10,
-      vx: (Math.random()-0.5) * speed * (1 + Math.random()*1.0),
-      vy: (Math.random()-1.5) * speed * (1 + Math.random()*1.0),
-      life: 18 + Math.random()*30,
-      color,
-      glow: runtime.glowMul * glowScale
-    });
-  }
-}
-
-/* decorative horizontal lines spawn */
-function addLine(){
-  const chance = Math.min(1, 0.15 * (runtime.effects.linesMul || 0.01));
-  if(Math.random() > chance) return;
-  linesArr.push({ x: canvas.width, y: Math.random()*canvas.height, width: Math.random()*50+20, life: 200 });
-}
-
-/* ---------------------------
-   Main update() function
-   (Complete: replace any truncated version previously present)
-   --------------------------- */
-let lastLoopTime = performance.now();
-function update(time){
-  // Schedule next frame early to keep loop stable
-  animationFrameId = requestAnimationFrame(update);
-
-  if(!time) time = performance.now();
-
-  // FPS limiter (skip if too soon)
-  if(runtime.minFrameTime > 0){
-    const sinceLoop = time - lastLoopTime;
-    if(sinceLoop < runtime.minFrameTime) return;
-  }
-
-  // delta time
-  const delta = Math.min(0.05, (time - lastTime) / 1000); // clamp big dt
-  lastTime = time;
-  globalTime += delta;
-
-  // FPS tracking
-  const fps = updateFps(time);
-  updateFpsLabelText(fps);
-
-  // MAIN GAME LOGIC
-  if(gameStarted && player.visible){
-    // tiny acceleration over time
-    player.speed += 0.002;
-
-    // color cycling of platforms
-    colorLerp += delta / 25;
-    if(colorLerp >= 1){
-      colorIndex = (colorIndex + 1) % baseColors.length;
-      nextColor = baseColors[(colorIndex + 1) % baseColors.length];
-      colorLerp = 0;
+  // keyboard/touch bindings
+  window.addEventListener("keydown", (e) => {
+    if (e.code) keys[e.code] = true;
+    if (["KeyW","Space","ArrowUp"].includes(e.code)) doJump();
+    // console commands
+    if (e.ctrlKey && e.shiftKey && e.code === "KeyA"){
+      const input = prompt("Enter command:");
+      if (!input) return;
+      handleCommand(input);
     }
-    platformColor = lerpColor(baseColors[colorIndex], nextColor, colorLerp);
+  });
+  window.addEventListener("keyup", e => { if (e.code) keys[e.code] = false; });
+  window.addEventListener("mousedown", () => doJump());
+  window.addEventListener("touchstart", () => doJump());
 
-    // physics integration
-    player.y += player.vy * player.vertMultiplier;
-    if(cheats.float && player.vy > 0) player.vy *= 0.5;
-    player.vy += GRAVITY * player.vertMultiplier;
-    player.x += player.speed * player.horizMultiplier;
+  // command handler (extended)
+  function handleCommand(input){
+    const args = input.trim().split(/\s+/);
+    const cmd = args[0];
+    const a1 = args[1];
+    const a2 = args[2];
 
-    // collisions with platforms
+    if (cmd === "/die"){
+      killPlayer();
+      return;
+    }
+
+    if (cmd === "/score"){
+      if (a1 === "set" && a2 !== undefined){
+        const v = Number(a2);
+        if (!isNaN(v)) score = v; else alert("Invalid value for score set.");
+      } else if (a1 === "add" && a2 !== undefined){
+        const v = Number(a2);
+        if (!isNaN(v)) score += v; else alert("Invalid value for score add.");
+      } else alert("Usage: /score set <value> OR /score add <value>");
+      return;
+    }
+
+    if (cmd === "/clear" && a1 === "bestScore"){
+      bestScore = 0;
+      localStorage.setItem("bestScore", 0);
+      document.getElementById("bestScore") && (document.getElementById("bestScore").innerText = "Best Score: " + bestScore);
+      alert("Best score cleared.");
+      return;
+    }
+
+    // original gamerule/code/variable handlers
+    if (cmd === "/gamerule"){
+      switch (a1){
+        case "infiniteJump": cheats.infiniteJump = (a2 === "true"); break;
+        case "death": cheats.invincible = (a2 === "false"); break;
+        case "speed":
+          if (!player.speedMultiplier) player.speedMultiplier = 1;
+          if (a2 === "reset") player.speedMultiplier = 1;
+          if (a2 === "add" && !isNaN(parseFloat(a3))) player.speedMultiplier += parseFloat(a3);
+          if (a2 === "set" && !isNaN(parseFloat(a3))) player.speedMultiplier = parseFloat(a3);
+          break;
+        default: alert("Unknown gamerule");
+      }
+      return;
+    }
+
+    if (cmd === "/variable"){
+      if (!a1){
+        const acct = localStorage.getItem("account") || "player";
+        const isCreator = ["bw55133@pausd.us","ikunbeautiful@gmail.com","benranwu@gmail.com"].includes(acct);
+        alert("test mode: " + testMode + "\n" +
+              "infinite jump: " + cheats.infiniteJump + "\n" +
+              "float: " + cheats.float + "\n" +
+              "death enabled: " + (!cheats.invincible) + "\n" +
+              "score: " + score + "\n" +
+              "best score: " + bestScore + "\n" +
+              "account: " + (isCreator ? "creator" : "player") + "\n" +
+              "player speed: " + player.speed + "\n" +
+              "jump height: " + (-JUMP_SPEED));
+      }
+      return;
+    }
+
+    if (cmd === "/code"){
+      if (a1 === "770709"){ testMode = !testMode; alert("TEST MODE: " + testMode); }
+      else if (a1 === "lanseyaoji"){ player.speed = Math.max(5, player.speed * 1.5); alert("Player speed: " + player.speed); }
+      else if (a1 === "jinyumantang"){ runtime.gemEveryBlock = !runtime.gemEveryBlock; alert("Gem every block: " + runtime.gemEveryBlock); }
+      else if (a1 === "JiMmYiStHeCoOlEsTgUy|2025.letmecheat|L^UP++0U+L0UD"){
+        if (account !== "𐀒𐀒𐀒"){ oldAccount = account; account = "𐀒𐀒𐀒"; } else account = oldAccount || "player";
+        alert("Account toggled: " + account);
+      }
+      return;
+    }
+
+    alert("Unknown command or incorrect usage.");
+  }
+
+  // update loop continuation: physics, collisions, generation
+  function worldStep(delta){
+    if (!gameRunning || !player.visible) return;
+    // player physics already in Player.update but we can do collision with platforms here
+    player.update();
+
+    // platform collisions
     player.onGround = false;
-    for(let plat of platforms){
-      if(player.x + player.width > plat.x && player.x < plat.x + plat.width &&
-         player.y + player.height > plat.y && player.y + player.height < plat.y + plat.height + player.vy + 1){
-        if(player.vy >= 0){
+    for (let plat of platforms){
+      if (player.x + player.width > plat.x && player.x < plat.x + plat.width &&
+          player.y + player.height > plat.y && player.y + player.height < plat.y + plat.height + player.vy + 2){
+        if (player.vy >= 0) {
           player.y = plat.y - player.height;
           player.vy = 0;
           player.onGround = true;
           player.jumpsLeft = 2;
-          // walk effect (dust)
-          const walkCount = Math.max(0, Math.floor(3 * runtime.effects.walkMul));
-          if(walkCount > 0) spawnParticles(player.x + player.width/2, player.y + player.height, "walk", walkCount, "#888", runtime.glowMul);
-          plat.y += 2; // sink
+          spawnParticlesAt(player.x + player.width/2, player.y + player.height, "land", runtime.effects.walkMul || 1);
+          plat.y += 2;
         }
       }
-      if(!plat.passed && player.x > plat.x + plat.width){
-        score += 1; plat.passed = true;
+      if (!plat.passed && player.x > plat.x + plat.width){
+        score += 1;
+        plat.passed = true;
       }
     }
 
-    // fell out of bounds
-    if(player.y > canvas.height + 200){ player.jumpsLeft = 1; tryDie(); }
+    // when falling off bottom
+    if (player.y > H + 300){
+      player.jumpsLeft = 1;
+      killPlayer();
+    }
 
     // spikes
-    for(let spike of spikes){
-      if(checkSpikeCollision(spike)) tryDie(spike);
-      if(!spike.passed && player.x > spike.x + spike.width){ score += 1; spike.passed = true; }
+    for (let s of spikes){
+      if (checkSpikeCollision(s)) killPlayer(s);
+      if (!s.passed && player.x > s.x + s.width){
+        score += 1;
+        s.passed = true;
+      }
     }
 
-    // gem collection
-    for(let g of gems){
-      if(!g.collected && player.x + player.width > g.x && player.x < g.x + g.size && player.y + player.height > g.y && player.y < g.y + g.size){
-        score += 50;
+    // gems
+    for (let g of gems){
+      if (!g.collected && player.x + player.width > g.x && player.x < g.x + g.size &&
+          player.y + player.height > g.y && player.y < g.y + g.size){
         g.collected = true;
-        const gemCount = Math.max(2, Math.floor(12 * runtime.effects.gemMul));
-        spawnParticles(g.x + g.size/2, g.y + g.size/2, "gem", gemCount, "#ff0", runtime.glowMul);
+        score += 50;
+        spawnParticlesAt(g.x + g.size/2, g.y + g.size/2, "double", runtime.effects.gemMul || 1);
       }
     }
 
-    // extend world
-    const lastPlatform = platforms[platforms.length - 1];
-    if(lastPlatform && lastPlatform.x < player.x + canvas.width) generateBlockPlatform(lastPlatform.x, lastPlatform.y);
+    // spawn more
+    generatePlatformsIfNeeded();
 
-    // spawn decorative lines
-    addLine();
-  }
+    // spawn random lines based on lines multiplier
+    if (Math.random() < 0.02 * (runtime.effects.linesMul || 1)) addLine();
 
-  // camera smoothing
-  const targetCamX = player.x - 150;
-  const targetCamY = player.y - canvas.height/2 + player.height*1.5;
-  cameraX = cameraX*0.9 + targetCamX*0.1;
-  cameraY = cameraY*0.9 + targetCamY*0.1;
+    // move crash pieces & particles
+    for (let i=crashPieces.length-1;i>=0;i--){
+      const p = crashPieces[i];
+      p.vy += GRAVITY;
+      p.x += p.vx; p.y += p.vy;
+      p.life--;
+      if (p.life <= 0) crashPieces.splice(i,1);
+    }
 
-  // ---------- RENDER ----------
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+    for (let i=particles.length-1;i>=0;i--){
+      const p = particles[i];
+      p.update();
+      if (p.life <= 0) particles.splice(i,1);
+    }
 
-  // HUD update
-  document.getElementById('scoreOverlay').innerText = Math.floor(score);
-
-  // background horizontal lines (decorative)
-  if(runtime.effects.linesMul > 0.01){
-    ctx.save();
-    ctx.globalAlpha = Math.min(0.9, 0.15 * runtime.effects.linesMul);
-    for(let i = linesArr.length - 1; i >= 0; i--){
+    // update lines
+    for (let i=linesArr.length-1;i>=0;i--){
       const l = linesArr[i];
-      ctx.strokeStyle = `rgba(255,255,255,${0.12 * runtime.effects.linesMul})`;
-      ctx.lineWidth = 2 + 2 * runtime.effects.linesMul;
-      ctx.beginPath();
-      ctx.moveTo(l.x - cameraX, l.y - cameraY);
-      ctx.lineTo(l.x + 50 - cameraX, l.y - cameraY);
-      ctx.stroke();
       l.x -= player.speed * 0.5 * player.horizMultiplier;
-      l.life -= 1;
-      if(l.x + 50 < 0 || l.life <= 0) linesArr.splice(i,1);
+      l.life--;
+      if (l.x + 50 < 0 || l.life <= 0) linesArr.splice(i,1);
     }
-    ctx.restore();
+  }
+    // --- Part 3 (final) ---
+
+  // line effect storage
+  let linesArr = [];
+  function addLine(){
+    linesArr.push({
+      x: W,
+      y: Math.random() * H,
+      life: 100
+    });
   }
 
-  // draw platforms
-  for(let plat of platforms){
-    const glow = Math.sin(globalTime*3) * 10 + 12;
-    const useTexture = runtime.useBlockTexture;
-    if(useTexture){
-      for(let y=plat.y; y<canvas.height; y+=BLOCK_SIZE){
-        let darkFactor = (y === plat.y) ? 1 : 0.3;
-        const grd = ctx.createLinearGradient(plat.x - cameraX, y - cameraY, plat.x + plat.width - cameraX, y + BLOCK_SIZE - cameraY);
-        grd.addColorStop(0, `rgba(${Math.floor(plat.color.r * darkFactor)},${Math.floor(plat.color.g * darkFactor)},${Math.floor(plat.color.b * darkFactor)},1)`);
-        grd.addColorStop(1, "rgba(0,0,0,1)");
-        ctx.fillStyle = grd;
-        if(runtime.glowMul > 0.02){
-          ctx.shadowColor = `rgba(${plat.color.r},${plat.color.g},${plat.color.b},${0.9 * runtime.glowMul})`;
-          ctx.shadowBlur = plat === platforms[0] ? glow * runtime.glowMul : 0;
-        }
-        ctx.fillRect(plat.x - cameraX, y - cameraY, plat.width, BLOCK_SIZE);
-        ctx.shadowBlur = 0;
+  // drawing
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    // background
+    ctx.fillStyle = "#111";
+    ctx.fillRect(0,0,W,H);
+
+    // trails
+    if (runtime.effects.trailMul > 0){
+      ctx.strokeStyle = "rgba(255,255,255,0.3)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i=0;i<trail.length;i++){
+        const p = trail[i];
+        ctx.lineTo(p.x, p.y);
       }
-    } else {
-      ctx.fillStyle = `rgb(${plat.color.r},${plat.color.g},${plat.color.b})`;
-      ctx.fillRect(plat.x - cameraX, plat.y - cameraY, plat.width, plat.height);
+      ctx.stroke();
+    }
+
+    // lines
+    for (let l of linesArr){
+      ctx.strokeStyle = "rgba(0,255,255,0.2)";
+      ctx.beginPath();
+      ctx.moveTo(l.x, 0);
+      ctx.lineTo(l.x, H);
+      ctx.stroke();
+    }
+
+    // platforms
+    for (let plat of platforms){
+      if (runtime.blockTexture){
+        ctx.fillStyle = "#444";
+        ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+        ctx.strokeStyle = "#888";
+        ctx.strokeRect(plat.x, plat.y, plat.width, plat.height);
+      } else {
+        ctx.fillStyle = "#666";
+        ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+      }
+    }
+
+    // spikes
+    ctx.fillStyle = "#f44";
+    for (let s of spikes){
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y + s.height);
+      ctx.lineTo(s.x + s.width/2, s.y);
+      ctx.lineTo(s.x + s.width, s.y + s.height);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // gems
+    ctx.fillStyle = "#0ff";
+    for (let g of gems){
+      if (g.collected) continue;
+      const offsetY = Math.sin(performance.now()/300 + g.floatOffset) * 5;
+      ctx.beginPath();
+      ctx.arc(g.x+g.size/2, g.y+g.size/2 + offsetY, g.size/2, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // crash pieces
+    for (let p of crashPieces){
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+
+    // particles
+    for (let p of particles){
+      p.draw(ctx);
+    }
+
+    // player
+    if (player.visible){
+      ctx.fillStyle = player.color;
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+    }
+
+    // HUD
+    ctx.fillStyle = "#fff";
+    ctx.font = "20px 'Press Start 2P', monospace";
+    ctx.fillText("Score: " + Math.floor(score), 20, 40);
+    ctx.fillText("Best: " + bestScore, 20, 70);
+
+    // fps/quality label
+    ctx.font = "12px 'Press Start 2P', monospace";
+    ctx.fillText(runtime.preset + " | FPS: " + fps.toFixed(0), 20, H - 20);
+  }
+
+  // loop
+  let lastTime = performance.now();
+  let fps = 0;
+  function loop(){
+    const now = performance.now();
+    const delta = now - lastTime;
+    fps = 1000 / delta;
+    lastTime = now;
+
+    if (gameRunning) worldStep(delta);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  // start game
+  function startGame(){
+    document.getElementById("menu").style.display = "none";
+    resetWorld();
+    gameRunning = true;
+    player.visible = true;
+  }
+
+  // settings navigation
+  function openSettings(){
+    try {
+      fetch("settings.html").then(r=>{
+        if (!r.ok) throw new Error();
+        window.location.href = "settings.html";
+      }).catch(()=>{
+        alert("cannot open settings, settings.html required");
+      });
+    } catch(e){
+      alert("cannot open settings, settings.html required");
     }
   }
 
-  // draw spikes
-  for(let spike of spikes){
-    let pulse = Math.sin(globalTime*5 + spike.x) * 5;
-    ctx.fillStyle = "red";
-    ctx.beginPath();
-    ctx.moveTo(spike.x - cameraX, spike.baseY + spike.height - cameraY + pulse);
-    ctx.lineTo(spike.x - cameraX + spike.width/2, spike.baseY - cameraY + pulse);
-    ctx.lineTo(spike.x - cameraX + spike.width, spike.baseY + spike.height - cameraY + pulse);
-    ctx.closePath(); ctx.fill();
-  }
+  // wire buttons
+  document.getElementById("startBtn").addEventListener("click", startGame);
+  document.getElementById("settingsBtn").addEventListener("click", openSettings);
 
-  // draw gems
-  for(let g of gems){
-    if(g.collected) continue;
-    g.floatOffset = g.floatOffset || Math.random()*Math.PI*2;
-    const floatY = Math.sin(globalTime*3 + g.floatOffset) * 5;
-    ctx.save();
-    ctx.translate(g.x + g.size/2 - cameraX, g.y + g.size/2 - cameraY + floatY);
-    ctx.rotate(Math.PI/4);
-    ctx.fillStyle = "white";
-    if(runtime.glowMul > 0.02){ ctx.shadowColor = "white"; ctx.shadowBlur = 20 * runtime.glowMul; }
-    ctx.fillRect(-g.size/2, -g.size/2, g.size, g.size);
-    ctx.restore();
-    ctx.shadowBlur = 0;
-  }
+  // responsive resize
+  window.addEventListener("resize", () => {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  });
 
-  // trail (afterimages)
-  if(player.visible && runtime.effects.trailMul > 0.01){
-    if(trail.length === 0 || Math.hypot(player.x - trail[trail.length-1].x, player.y - trail[trail.length-1].y) > 15){
-      trail.push({ x: player.x, y: player.y, w: player.width, h: player.height, color: player.color });
-    }
-    const maxTrailLen = Math.max(6, Math.floor(40 * runtime.effects.trailMul));
-    while(trail.length > maxTrailLen) trail.shift();
-    for(let i=0;i<trail.length;i++){
-      const t = trail[i];
-      ctx.save();
-      const alpha = (i+1)/trail.length * 0.6 * runtime.effects.trailMul;
-      ctx.globalAlpha = alpha;
-      if(runtime.glowMul > 0.02){ ctx.shadowColor = t.color; ctx.shadowBlur = 12 * runtime.glowMul * alpha; }
-      ctx.fillStyle = t.color;
-      ctx.fillRect(t.x - cameraX, t.y - cameraY, t.w, t.h);
-      ctx.restore();
-    }
-    ctx.globalAlpha = 1;
-  } else {
-    trail = [];
-  }
+  // ensure pixel font applied globally
+  document.body.style.fontFamily = "'Press Start 2P', monospace";
 
-  // draw player
-  if(player.visible){
-    if(runtime.glowMul > 0.02){ ctx.shadowColor = "#0ff"; ctx.shadowBlur = 24 * runtime.glowMul; }
-    ctx.fillStyle = player.color;
-    ctx.fillRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#0ff"; ctx.lineWidth = 6; ctx.strokeRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
-  }
-
-  // crash pieces
-  for(let i = crashPieces.length - 1; i >= 0; i--){
-    const p = crashPieces[i];
-    p.vy += GRAVITY;
-    p.x += p.vx; p.y += p.vy;
-    ctx.fillStyle = p.color;
-    ctx.fillRect(p.x - cameraX, p.y - cameraY, p.size, p.size);
-    p.life--;
-    if(p.life <= 0) crashPieces.splice(i,1);
-  }
-
-  // particles
-  for(let i = particles.length - 1; i >= 0; i--){
-    const p = particles[i];
-    p.x += p.vx; p.y += p.vy; p.life--;
-    ctx.save();
-    if(p.glow && runtime.glowMul > 0.02){ ctx.shadowColor = p.color; ctx.shadowBlur = 12 * p.glow; }
-    ctx.fillStyle = p.color;
-    ctx.fillRect(p.x - cameraX, p.y - cameraY, 4, 4);
-    ctx.restore();
-    if(p.life <= 0) particles.splice(i,1);
-  }
-
-  // end of update
-  lastLoopTime = time;
-}
-
-/* ---------------------------
-   Start / Settings UI
-   --------------------------- */
-document.getElementById('startBtn').addEventListener('click', () => {
-  resetGame();
-});
-
-document.getElementById('settingsBtn').addEventListener('click', () => {
-  // Navigate to separate settings file (standalone)
-  // settings.html must write to localStorage key briddSettings
-  window.location.href = 'settings.html';
-});
-
-/* ---------------------------
-   Reset game (initialize arrays, player)
-   --------------------------- */
-function resetGame(){
-  if(animationFrameId) cancelAnimationFrame(animationFrameId);
-  score = 0; colorLerp = 0; globalTime = 0; trail = [];
-  player.x = 100; player.y = canvas.height/2 - player.height; player.vy = 0; player.speed = 8;
-  player.jumpsLeft = 2; player.onGround = false; player.visible = true;
-  player.horizMultiplier = 1; player.vertMultiplier = 1;
-  platforms = []; spikes = []; crashPieces = []; particles = []; gems = []; linesArr = [];
-  platformColor = {...baseColors[0]}; colorIndex = 0; nextColor = baseColors[1];
-
-  // initial ground platform
-  platforms.push({ x:0, y: player.y + player.height, width: BLOCK_SIZE*10, height: BLOCK_SIZE, color:{...platformColor}, passed:false });
-
-  lastTime = performance.now();
-  hideStart();
-  gameStarted = true;
-  animationFrameId = requestAnimationFrame(update);
-}
-
-/* show/hide start screen helpers */
-function showStart(){
-  document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
-  document.getElementById('startScreen').style.display = 'flex';
-}
-function hideStart(){ document.getElementById('startScreen').style.display = 'none'; }
-
-/* Try to kill player (spike or fall) */
-function tryDie(spike){
-  if(!player.visible) return;
-  if(cheats.invincible) return;
-  player.visible = false;
-  if(spike) spike.hit = false;
-  createCrash();
-  gameStarted = false;
-  if(score > bestScore){
-    bestScore = Math.floor(score);
-    localStorage.setItem('bestScore', bestScore);
-  }
-  setTimeout(()=> showStart(), 1000);
-}
-
-/* ---------------------------
-   Developer console commands (Ctrl+Shift+A)
-   --------------------------- */
-window.addEventListener('keydown', (e)=>{
-  if(e.ctrlKey && e.shiftKey && e.code === 'KeyA'){
-    const input = prompt('Enter command:');
-    if(!input) return;
-    const args = input.trim().split(/\s+/);
-    const cmd = args[0], r1 = args[1], r2 = args[2];
-    if(cmd === '/die'){ if(player.visible){ player.visible=false; createCrash(); gameStarted=false; if(score>bestScore){bestScore=Math.floor(score);localStorage.setItem('bestScore',bestScore);} setTimeout(()=>showStart(),500); } }
-    if(cmd === '/score'){
-      if(r1 === 'set' && r2 !== undefined){ const v=Number(r2); if(!isNaN(v)) score=v; else alert('invalid'); }
-      else if(r1 === 'add' && r2 !== undefined){ const v=Number(r2); if(!isNaN(v)) score+=v; else alert('invalid'); }
-      else alert('Usage: /score set <value> OR /score add <value>');
-    }
-    if(cmd === '/clear' && r1 === 'bestScore'){ bestScore=0; localStorage.setItem('bestScore',0); alert('best score cleared'); document.getElementById('bestScore').innerText='Best Score: 0'; }
-    if(cmd === '/code'){
-      if(r1 === '770709'){ testMode = !testMode; alert(testMode ? 'TEST MODE ON' : 'TEST MODE OFF'); }
-      if(r1 === 'jinyumantang'){ gemEveryBlock = !gemEveryBlock; console.log('GemEveryBlock', gemEveryBlock); }
-    }
-  }
-});
-
-/* ---------------------------
-   Test hotkeys (when testMode=true)
-   --------------------------- */
-document.addEventListener('keydown', function(event){
-  if(!testMode) return;
-  if(event.code === 'KeyG'){ cheats.float = !cheats.float; showToast('Float: '+cheats.float); }
-  if(event.code === 'KeyJ'){ cheats.infiniteJump = !cheats.infiniteJump; showToast('Infinite Jump: '+cheats.infiniteJump); }
-  if(event.code === 'KeyI'){ cheats.invincible = !cheats.invincible; showToast('Invincible: '+cheats.invincible); }
-  if(event.code === 'KeyQ'){ player.speed = Math.max(0.5, player.speed - 0.5); showToast('Speed: '+player.speed); }
-  if(event.code === 'KeyE'){ player.speed += 0.5; showToast('Speed: '+player.speed); }
-});
-
-/* ---------------------------
-   Expose settings API for settings.html (optional)
-   - settings.html can call opener.getCurrentSettings() or opener.applySettings()
-   --------------------------- */
-window.getCurrentSettings = () => settings;
-window.applySettings = () => { settings = readSettings(); applySettings(); applySettingsFromStored && applySettingsFromStored(); };
-window.setQualityPreset = (name) => {
-  // convenience used by settings window (if opened same-origin)
-  settings.qualityPreset = name;
-  // settings may have preset->advanced mapping in settings.html; keep minimal here
-  writeSettings(settings);
-  settings = readSettings();
-  applySettings();
-};
-
-/* ---------------------------
-   Initial UI state & log
-   --------------------------- */
-document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
-document.getElementById('scoreOverlay').innerText = Math.floor(score);
-updateFpsLabelText(0);
-console.log('Bridd Jump: index.html loaded. Settings:', settings);
-
-/* Show start screen initially */
-showStart();
-
-</script>
+  </script>
 </body>
 </html>
