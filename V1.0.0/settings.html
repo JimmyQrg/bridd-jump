@@ -70,6 +70,24 @@
       background: #0ff;
       color: black;
     }
+    #advancedSettings {
+      display: none;
+      margin-top: 10px;
+      border-top: 1px solid #0ff;
+      padding-top: 10px;
+    }
+    #toggleAdvanced {
+      font-size: 12px;
+      background: transparent;
+      border: 2px solid #0ff;
+      padding: 8px 12px;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    #toggleAdvanced:hover {
+      background: #0ff;
+      color: black;
+    }
   </style>
 </head>
 <body>
@@ -121,39 +139,41 @@
       <option>Highest</option>
     </select>
 
-    <h2 style="font-size:14px; margin-top:20px;">Advanced Settings</h2>
+    <button id="toggleAdvanced">Advanced Settings ▼</button>
 
-    <label>Jump Effects</label>
-    <input type="range" id="jump" min="0" max="200" value="100">
-    <div class="range-value" id="jumpVal">100%</div>
+    <div id="advancedSettings">
+      <label>Jump Effects</label>
+      <input type="range" id="jump" min="0" max="200" value="100">
+      <div class="range-value" id="jumpVal">100%</div>
 
-    <label>Walk Effects</label>
-    <input type="range" id="walk" min="0" max="200" value="100">
-    <div class="range-value" id="walkVal">100%</div>
+      <label>Walk Effects</label>
+      <input type="range" id="walk" min="0" max="200" value="100">
+      <div class="range-value" id="walkVal">100%</div>
 
-    <label>Die Effects</label>
-    <input type="range" id="die" min="0" max="200" value="100">
-    <div class="range-value" id="dieVal">100%</div>
+      <label>Die Effects</label>
+      <input type="range" id="die" min="0" max="200" value="100">
+      <div class="range-value" id="dieVal">100%</div>
 
-    <label>Horizontal Line Effects</label>
-    <input type="range" id="lines" min="0" max="200" value="100">
-    <div class="range-value" id="linesVal">100%</div>
+      <label>Horizontal Line Effects</label>
+      <input type="range" id="lines" min="0" max="200" value="100">
+      <div class="range-value" id="linesVal">100%</div>
 
-    <label>Gem Effects</label>
-    <input type="range" id="gem" min="0" max="200" value="100">
-    <div class="range-value" id="gemVal">100%</div>
+      <label>Gem Effects</label>
+      <input type="range" id="gem" min="0" max="200" value="100">
+      <div class="range-value" id="gemVal">100%</div>
 
-    <label>Trail Effects</label>
-    <input type="range" id="trail" min="0" max="200" value="100">
-    <div class="range-value" id="trailVal">100%</div>
+      <label>Trail Effects</label>
+      <input type="range" id="trail" min="0" max="200" value="100">
+      <div class="range-value" id="trailVal">100%</div>
 
-    <label>Glow Intensity</label>
-    <input type="range" id="glow" min="0" max="200" value="100">
-    <div class="range-value" id="glowVal">100%</div>
+      <label>Glow Intensity</label>
+      <input type="range" id="glow" min="0" max="200" value="100">
+      <div class="range-value" id="glowVal">100%</div>
 
-    <label>
-      <input type="checkbox" id="block"> Use Block Texture
-    </label>
+      <label>
+        <input type="checkbox" id="block"> Use Block Texture
+      </label>
+    </div>
 
     <div style="margin-top:20px;">
       <button id="cancelBtn">CANCEL</button>
@@ -177,63 +197,77 @@
       "Highest":   {jump:200, walk:200, die:200, lines:200, gem:200, trail:200, glow:150, block:true}
     };
 
-    // Bind range displays
-    function bindRange(id) {
-      const range = document.getElementById(id);
-      const out = document.getElementById(id+"Val");
-      range.oninput = () => out.textContent = range.value + "%";
+    function bindRange(id){
+      const r = document.getElementById(id);
+      const v = document.getElementById(id+"Val");
+      r.oninput = ()=> v.textContent = r.value + "%";
     }
     ["jump","walk","die","lines","gem","trail","glow"].forEach(bindRange);
 
-    // Apply preset on change
-    document.getElementById("quality").addEventListener("change", e => {
-      const p = presets[e.target.value];
-      if(p){
-        for(const k in p){
-          if(k==="block"){
-            document.getElementById("block").checked = p[k];
-          } else {
-            document.getElementById(k).value = p[k];
-            document.getElementById(k+"Val").textContent = p[k]+"%";
-          }
-        }
+    const toggle = document.getElementById("toggleAdvanced");
+    const adv = document.getElementById("advancedSettings");
+    toggle.onclick = ()=> {
+      if(adv.style.display === "none"){ 
+        adv.style.display = "block"; 
+        toggle.textContent = "Advanced Settings ▲";
+      } else { 
+        adv.style.display = "none"; 
+        toggle.textContent = "Advanced Settings ▼";
       }
-    });
+    };
 
     // Load saved settings
-    const saved = JSON.parse(localStorage.getItem("briddSettings") || "{}");
-    if(saved.fps) document.getElementById("fps").value = saved.fps;
-    if(saved.quality) document.getElementById("quality").value = saved.quality;
-    ["jump","walk","die","lines","gem","trail","glow"].forEach(k=>{
-      if(saved[k] !== undefined) {
-        document.getElementById(k).value = saved[k];
-        document.getElementById(k+"Val").textContent = saved[k]+"%";
+    function loadSettings(){
+      const fps = localStorage.getItem("fps") || "60";
+      document.getElementById("fps").value = fps;
+
+      const quality = localStorage.getItem("quality") || "Extreme+";
+      document.getElementById("quality").value = quality;
+
+      const advSettings = presets[quality] || {};
+      for(const key in advSettings){
+        const elem = document.getElementById(key);
+        if(elem){
+          if(elem.type === "checkbox") elem.checked = advSettings[key];
+          else elem.value = advSettings[key];
+          const valElem = document.getElementById(key+"Val");
+          if(valElem) valElem.textContent = advSettings[key] + "%";
+        }
       }
-    });
-    if(saved.block !== undefined) document.getElementById("block").checked = saved.block;
+    }
 
-    // Save
+    loadSettings();
+
+    // Update advanced sliders when quality changes
+    document.getElementById("quality").onchange = (e)=>{
+      const q = e.target.value;
+      const s = presets[q];
+      if(!s) return;
+      for(const key in s){
+        const elem = document.getElementById(key);
+        if(elem){
+          if(elem.type === "checkbox") elem.checked = s[key];
+          else elem.value = s[key];
+          const valElem = document.getElementById(key+"Val");
+          if(valElem) valElem.textContent = s[key]+"%";
+        }
+      }
+    };
+
+    // Save settings
     document.getElementById("saveBtn").onclick = ()=>{
-      const data = {
-        fps: document.getElementById("fps").value,
-        quality: document.getElementById("quality").value,
-        jump: parseInt(document.getElementById("jump").value),
-        walk: parseInt(document.getElementById("walk").value),
-        die: parseInt(document.getElementById("die").value),
-        lines: parseInt(document.getElementById("lines").value),
-        gem: parseInt(document.getElementById("gem").value),
-        trail: parseInt(document.getElementById("trail").value),
-        glow: parseInt(document.getElementById("glow").value),
-        block: document.getElementById("block").checked
-      };
-      localStorage.setItem("briddSettings", JSON.stringify(data));
-      window.location.href = "index.html";
+      localStorage.setItem("fps", document.getElementById("fps").value);
+      localStorage.setItem("quality", document.getElementById("quality").value);
+      ["jump","walk","die","lines","gem","trail","glow","block"].forEach(k=>{
+        const elem = document.getElementById(k);
+        if(elem.type==="checkbox") localStorage.setItem(k, elem.checked);
+        else localStorage.setItem(k, elem.value);
+      });
+      window.close();
     };
 
-    // Cancel
-    document.getElementById("cancelBtn").onclick = ()=>{
-      window.location.href = "index.html";
-    };
+    // Cancel button
+    document.getElementById("cancelBtn").onclick = ()=> window.close();
   </script>
 </body>
 </html>
