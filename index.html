@@ -105,7 +105,7 @@ const GRAVITY = 0.7;
 
 /* Player object blueprint */
 let player = {
-  x: 100, y: 0, width: 50, height: 50, vy: 0, speed: 12,
+  x: 100, y: 0, width: 50, height: 50, vy: 0, speed: 11,
   color: "#0ff", hitboxScale: 0.6, jumpsLeft: 2, onGround:false, visible:true,
   horizMultiplier:1, vertMultiplier:1, accountEmail: "player@example.com"
 };
@@ -253,7 +253,7 @@ function resetWorld(){
   player.x = 100;
   player.y = canvas.height/2 - player.height;
   player.vy = 0;
-  player.speed = 8;
+  player.speed = 11;
   player.jumpsLeft = 2;
   player.onGround = false;
   player.visible = true;
