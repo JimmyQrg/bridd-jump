@@ -91,11 +91,10 @@
 
 <script>
 /* ===========================
-   FULL, STANDALONE index.html
-   - Fixed tick system (always 60 TPS internally)
-   - Fixed trail effect fade
-   - Fixed player shaking
-   - Fixed FPS display
+   OPTIMIZED index.html
+   - Memory management: removes off-screen blocks
+   - Improved trail effect with 4 tick delay before fade
+   - Optimized performance
    =========================== */
 
 /* ---------- Utilities ---------- */
@@ -130,8 +129,9 @@ resize();
 const BLOCK_SIZE = 50;
 const JUMP_SPEED = -15;
 const GRAVITY = 0.7;
-const TICKS_PER_SECOND = 60; // Game always runs at 60 TPS internally
-const TICK_INTERVAL = 1000 / TICKS_PER_SECOND; // ~16.67ms per tick
+const TICKS_PER_SECOND = 60;
+const TICK_INTERVAL = 1000 / TICKS_PER_SECOND;
+const DELETE_OFFSET = BLOCK_SIZE * 6; // Delete blocks 6 blocks off-screen
 
 /* Player object blueprint */
 let player = {
@@ -146,7 +146,6 @@ let platforms = [], spikes = [], gems = [], particles = [], crashPieces = [], tr
 /* gameplay */
 let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
 let gameRunning = false;
-let lastTime = performance.now();
 let cameraX = 0, cameraY = 0;
 
 /* Tick system */
@@ -417,6 +416,46 @@ function jump(){
   }
 }
 
+/* ---------- OPTIMIZED MEMORY MANAGEMENT ---------- */
+function cleanupOffScreenObjects() {
+  // Clean up platforms that are 6 blocks off-screen to the left
+  const deleteThreshold = cameraX - DELETE_OFFSET;
+  
+  for(let i = platforms.length - 1; i >= 0; i--) {
+    if(platforms[i].x + platforms[i].width < deleteThreshold) {
+      platforms.splice(i, 1);
+    }
+  }
+  
+  // Clean up spikes
+  for(let i = spikes.length - 1; i >= 0; i--) {
+    if(spikes[i].x + spikes[i].width < deleteThreshold) {
+      spikes.splice(i, 1);
+    }
+  }
+  
+  // Clean up gems
+  for(let i = gems.length - 1; i >= 0; i--) {
+    if(gems[i].x + 20 < deleteThreshold) {
+      gems.splice(i, 1);
+    }
+  }
+  
+  // Clean up particles
+  for(let i = particles.length - 1; i >= 0; i--) {
+    if(particles[i].life <= 0 || particles[i].x < deleteThreshold) {
+      particles.splice(i, 1);
+    }
+  }
+  
+  // Clean up lines
+  for(let i = lines.length - 1; i >= 0; i--) {
+    if(lines[i].x + lines[i].width < 0) {
+      lines.splice(i, 1);
+    }
+  }
+}
+
 /* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
 function gameTick() {
   if(!gameRunning || !player.visible) return;
@@ -424,7 +463,7 @@ function gameTick() {
   player.speed += 0.002;
 
   // color cycling
-  colorLerp += 1/25/TICKS_PER_SECOND; // Adjust for 60 TPS
+  colorLerp += 1/25/TICKS_PER_SECOND;
   if(colorLerp >= 1){
     colorIndex = (colorIndex + 1) % baseColors.length;
     nextColor = baseColors[(colorIndex+1) % baseColors.length];
@@ -501,15 +540,16 @@ function gameTick() {
     const p = particles[i];
     p.x += p.vx; p.y += p.vy; 
     p.life--;
-    if(p.life <= 0) particles.splice(i,1);
   }
-
+  
   // update lines array movement
   for(let i=lines.length-1;i>=0;i--){
     const l = lines[i];
     l.x -= l.speed;
-    if(l.x + l.width < 0) lines.splice(i,1);
   }
+  
+  // MEMORY MANAGEMENT: Clean up off-screen objects
+  cleanupOffScreenObjects();
 }
 
 /* ---------- Death / tryDie ---------- */
@@ -611,22 +651,56 @@ function draw(){
     ctx.shadowBlur = 0;
   }
 
-  // FIXED TRAIL EFFECT: Fades faster
+  /* ---------- IMPROVED TRAIL EFFECT ---------- */
   if(player.visible && runtime.trailEnabled){
-    if(trail.length === 0 || Math.hypot(player.x - trail[trail.length-1].x, player.y - trail[trail.length-1].y) > 15){
-      trail.push({ x: player.x, y: player.y, width: player.width, height: player.height, color: player.color });
+    // Add new trail position
+    trail.push({ 
+      x: player.x, 
+      y: player.y, 
+      width: player.width, 
+      height: player.height, 
+      color: player.color,
+      age: 0 // Start at age 0
+    });
+    
+    // Update ages of existing trails
+    for(let i = 0; i < trail.length; i++) {
+      trail[i].age++;
     }
-    const maxTrailLen = Math.max(8, Math.floor(30 * runtime.effects.trailMul)); // Reduced from 50 to 30
-    if(trail.length > maxTrailLen) trail.shift();
-    for(let i=0;i<trail.length;i++){
+    
+    // Remove old trails (keep only last 15 * trailMul)
+    const maxTrailLen = Math.max(8, Math.floor(15 * runtime.effects.trailMul));
+    if(trail.length > maxTrailLen) {
+      trail.splice(0, trail.length - maxTrailLen);
+    }
+    
+    // Draw trails with improved fade
+    for(let i = 0; i < trail.length; i++) {
       const t = trail[i];
       ctx.save();
-      let alpha = (i+1)/trail.length;
-      ctx.globalAlpha = alpha * 0.3; // Reduced from 0.6 to 0.3 for faster fade
-      if(runtime.glowEnabled){ ctx.shadowColor = t.color; ctx.shadowBlur = 10 * alpha; } // Reduced from 15 to 10
+      
+      // IMPROVED: Full opacity for first 4 ticks, then fade
+      let alpha;
+      if(t.age <= 4) {
+        alpha = 1.0; // Full opacity for first 4 ticks
+      } else {
+        const fadeStart = 4;
+        const fadeEnd = 20; // Fade over 20 ticks total
+        alpha = Math.max(0, 1 - (t.age - fadeStart) / (fadeEnd - fadeStart));
+      }
+      
+      ctx.globalAlpha = alpha * 0.6;
+      
+      if(runtime.glowEnabled){ 
+        ctx.shadowColor = t.color; 
+        ctx.shadowBlur = 15 * alpha; 
+      }
+      
       ctx.fillStyle = t.color;
       ctx.fillRect(t.x - cameraX, t.y - cameraY, t.width, t.height);
-      ctx.strokeStyle = t.color; ctx.lineWidth = 3; ctx.strokeRect(t.x - cameraX, t.y - cameraY, t.width, t.height); // Reduced from 4 to 3
+      ctx.strokeStyle = t.color; 
+      ctx.lineWidth = 4; 
+      ctx.strokeRect(t.x - cameraX, t.y - cameraY, t.width, t.height);
       ctx.restore();
     }
     ctx.globalAlpha = 1;
@@ -705,13 +779,13 @@ function mainLoop(now){
     tickAccumulator -= TICK_INTERVAL;
   }
 
-  // FIXED CAMERA SMOOTHING: Reduced smoothing to prevent shaking
+  // Camera smoothing
   const targetCamX = player.x - 150;
   const targetCamY = player.y - canvas.height/2 + player.height*1.5;
-  cameraX = cameraX * 0.95 + targetCamX * 0.05; // Increased from 0.9/0.1 to 0.95/0.05 for less smoothing
-  cameraY = cameraY * 0.95 + targetCamY * 0.05; // Increased from 0.9/0.1 to 0.95/0.05 for less smoothing
+  cameraX = cameraX * 0.95 + targetCamX * 0.05;
+  cameraY = cameraY * 0.95 + targetCamY * 0.05;
 
-  // draw (rendering at monitor refresh rate)
+  // Draw (rendering at monitor refresh rate)
   draw();
 }
 
@@ -847,7 +921,7 @@ document.getElementById('menu').style.display = 'flex';
 // start the RAF loop
 requestAnimationFrame(mainLoop);
 
-console.log('Index.html loaded with fixed tick system and trail effect.');
+console.log('Index.html loaded with memory optimization and improved trail effects.');
 </script>
 </body>
 </html>
