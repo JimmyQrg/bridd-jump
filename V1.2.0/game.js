@@ -420,19 +420,19 @@ function createCrashEarly(amountMul = 1) {
 /* ---------- Lines background ---------- */
 function addLine(){
   if(!runtime.linesEnabled) return;
-  const chance = Math.min(1, 0.15 * runtime.effects.horizontalLinesMul);
+  const chance = Math.min(1, 0.3 * runtime.effects.horizontalLinesMul); // Increased from 0.15 to 0.3
   if(Math.random() > chance) return;
   
-  // FIXED: Generate lines at fixed distance from player's current position
-  // 3 blocks to the right of the player
+  // Generate lines at fixed distance from player's current position
+  // 10 blocks to the right of the player
   const playerRightEdge = player.x + player.width;
-  const lineStartX = playerRightEdge + (BLOCK_SIZE * 3) + Math.random() * BLOCK_SIZE * 2;
+  const lineStartX = playerRightEdge + (BLOCK_SIZE * 10) + Math.random() * BLOCK_SIZE * 2;
   
   lines.push({ 
     x: lineStartX, 
     y: Math.random() * canvas.height, 
-    width: Math.random() * 100 + 20,
-    speed: player.speed * 0.5,
+    width: Math.random() * 150 + 50, // Wider lines
+    speed: player.speed * 2.5, // Faster movement
     passed: false 
   });
 }
@@ -638,12 +638,10 @@ function gameTick() {
   }
   
   // update lines array movement
-  // Lines move with the camera/world, not independently
   for(let i=lines.length-1;i>=0;i--){
     const l = lines[i];
-    // Lines should stay in their world position
-    // The camera movement will make them appear to move left
-    // No need to update x position here
+    // Lines move left very fast (relative to player speed)
+    l.x -= l.speed; // Use the speed stored in the line object
   }
   
   // update shockwaves
@@ -823,7 +821,7 @@ function draw(){
     ctx.shadowBlur = 0;
   }
 
-  /* ---------- IMPROVED TRAIL EFFECT ---------- */
+  /* ---------- TRAIL EFFECT ---------- */
   if(player.visible && runtime.trailEnabled){
     // Add new trail position
     trail.push({ 
@@ -832,48 +830,55 @@ function draw(){
       width: player.width, 
       height: player.height, 
       color: player.color,
-      age: 0 // Start at age 0
+      age: 0, // Start at age 0
+      alpha: 0.6 // Start with some transparency
     });
     
-    // Update ages of existing trails
+    // Update ages and alpha of existing trails
     for(let i = 0; i < trail.length; i++) {
-      trail[i].age++;
+      const t = trail[i];
+      t.age++;
+      
+      // Smooth fade over time - decrease alpha gradually
+      // Start fading after 3 ticks, fade over 30 ticks total
+      if(t.age > 3) {
+        const fadeProgress = (t.age - 3) / 30;
+        t.alpha = 0.6 * (1 - fadeProgress); // Linear fade from 0.6 to 0
+      }
     }
     
-    // Remove old trails (keep only last 15 * trailMul)
-    const maxTrailLen = Math.max(8, Math.floor(15 * runtime.effects.trailMul));
+    // Remove trails that are completely faded
+    for(let i = trail.length - 1; i >= 0; i--) {
+      if(trail[i].alpha <= 0.01) {
+        trail.splice(i, 1);
+      }
+    }
+    
+    // Keep reasonable trail length for performance
+    const maxTrailLen = Math.max(8, Math.floor(25 * runtime.effects.trailMul));
     if(trail.length > maxTrailLen) {
-      trail.splice(0, trail.length - maxTrailLen);
+      // Remove oldest trails
+      const toRemove = trail.length - maxTrailLen;
+      trail.splice(0, toRemove);
     }
     
-    // Draw trails with improved fade
+    // Draw trails with smooth fade
     for(let i = 0; i < trail.length; i++) {
       const t = trail[i];
       ctx.save();
       
-      // IMPROVED: Full opacity for first 3 ticks, then smooth fade over 15 ticks
-      let alpha;
-      if(t.age <= 3) {
-        alpha = 1.0; // Full opacity for first 3 ticks
-      } else {
-        const fadeStart = 3;
-        const fadeDuration = 15; // Fade over 15 ticks
-        const fadeProgress = Math.min(1, (t.age - fadeStart) / fadeDuration);
-        // Smooth fade using ease-out cubic
-        alpha = 1 - fadeProgress * fadeProgress;
-      }
-      
-      ctx.globalAlpha = alpha * 0.6;
+      // Use pre-calculated alpha
+      ctx.globalAlpha = t.alpha;
       
       if(runtime.glowEnabled){ 
         ctx.shadowColor = t.color; 
-        ctx.shadowBlur = 15 * alpha; 
+        ctx.shadowBlur = 15 * (t.alpha / 0.6); // Scale blur with alpha
       }
       
       ctx.fillStyle = t.color;
       ctx.fillRect(t.x - cameraX, t.y - cameraY, t.width, t.height);
       ctx.strokeStyle = t.color; 
-      ctx.lineWidth = 4; 
+      ctx.lineWidth = 4 * (t.alpha / 0.6); // Thinner stroke as it fades
       ctx.strokeRect(t.x - cameraX, t.y - cameraY, t.width, t.height);
       ctx.restore();
     }
@@ -1174,5 +1179,3 @@ document.getElementById('menu').style.display = 'flex';
 
 // start the RAF loop
 requestAnimationFrame(mainLoop);
-
-console.log('Game.js loaded with memory optimization and improved trail effects.');
