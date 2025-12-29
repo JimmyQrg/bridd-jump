@@ -109,7 +109,9 @@ const qualityPresets = {
   "Extreme+":    { blockTexture:1, jumpEffect:64, walkEffect:64, dieEffect:64, horizontalLines:64, trail:1, glow:1, lines:true, shockwaves:75, screenShake:75, bloomParticles:50, particleTrails:50, screenDistortion:25 },
   "Ultra":       { blockTexture:1, jumpEffect:100, walkEffect:100, dieEffect:100, horizontalLines:100, trail:0, glow:1, lines:true, shockwaves:100, screenShake:100, bloomParticles:75, particleTrails:75, screenDistortion:50 },
   "Ultra+":      { blockTexture:1, jumpEffect:120, walkEffect:120, dieEffect:120, horizontalLines:120, trail:1, glow:1, lines:true, shockwaves:120, screenShake:120, bloomParticles:100, particleTrails:100, screenDistortion:75 },
-  "Glow Highest":{ blockTexture:1, jumpEffect:200, walkEffect:200, dieEffect:200, horizontalLines:200, trail:1, glow:1.5, lines:true, shockwaves:150, screenShake:150, bloomParticles:150, particleTrails:150, screenDistortion:100 }
+  "Ultra++":     { blockTexture:1, jumpEffect:200, walkEffect:200, dieEffect:200, horizontalLines:200, trail:1, glow:1.5, lines:true, shockwaves:150, screenShake:150, bloomParticles:150, particleTrails:150, screenDistortion:100 },
+  "Highest":     { blockTexture:1, jumpEffect:200, walkEffect:200, dieEffect:200, horizontalLines:200, trail:1, glow:2, lines:true, shockwaves:200, screenShake:200, bloomParticles:200, particleTrails:200, screenDistortion:200 }
+
 };
 
 function readSettings(){
