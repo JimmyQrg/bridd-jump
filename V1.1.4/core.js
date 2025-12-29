@@ -155,6 +155,7 @@ function checkSpikeCollision(spike){
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
   if(["KeyW","ArrowUp","Space","Tab"].includes(e.code)) jump();
+  else if(["ArrowDown","KeyS"].includes(e.code)) drop();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 window.addEventListener('mousedown', () => jump());
