@@ -361,6 +361,46 @@
             <input type="range" id="ambientOcclusion" min="0" max="200" value="100">
             <div class="range-value" id="ambientOcclusionVal">100%</div>
 
+            <label>Electric Arcs</label>
+            <input type="range" id="electricArcs" min="0" max="200" value="100">
+            <div class="range-value" id="electricArcsVal">100%</div>
+
+            <label>Glitch Effects</label>
+            <input type="range" id="glitchEffects" min="0" max="200" value="100">
+            <div class="range-value" id="glitchEffectsVal">100%</div>
+
+            <label>Rainbow Trails</label>
+            <input type="range" id="rainbowTrails" min="0" max="200" value="100">
+            <div class="range-value" id="rainbowTrailsVal">100%</div>
+
+            <label>Bubble Effects</label>
+            <input type="range" id="bubbleEffects" min="0" max="200" value="100">
+            <div class="range-value" id="bubbleEffectsVal">100%</div>
+
+            <label>Crystal Shards</label>
+            <input type="range" id="crystalShards" min="0" max="200" value="100">
+            <div class="range-value" id="crystalShardsVal">100%</div>
+
+            <label>Fire Particles</label>
+            <input type="range" id="fireParticles" min="0" max="200" value="100">
+            <div class="range-value" id="fireParticlesVal">100%</div>
+
+            <label>Magnetic Fields</label>
+            <input type="range" id="magneticFields" min="0" max="200" value="100">
+            <div class="range-value" id="magneticFieldsVal">100%</div>
+
+            <label>Hologram Projections</label>
+            <input type="range" id="hologramProjections" min="0" max="200" value="100">
+            <div class="range-value" id="hologramProjectionsVal">100%</div>
+
+            <label>Quantum Particles</label>
+            <input type="range" id="quantumParticles" min="0" max="200" value="100">
+            <div class="range-value" id="quantumParticlesVal">100%</div>
+
+            <label>Sonic Waves</label>
+            <input type="range" id="sonicWaves" min="0" max="200" value="100">
+            <div class="range-value" id="sonicWavesVal">100%</div>
+
             <div class="checkbox-container">
               <label>
                 <input type="checkbox" id="blockTexture" checked>
@@ -447,6 +487,18 @@
           document.getElementById("energyRipples").value = settings.advanced.energyRipples || 100;
           document.getElementById("pixelDisplacement").value = settings.advanced.pixelDisplacement || 100;
           document.getElementById("ambientOcclusion").value = settings.advanced.ambientOcclusion || 100;
+
+          // New additional effects
+          document.getElementById("electricArcs").value = settings.advanced.electricArcs || 100;
+          document.getElementById("glitchEffects").value = settings.advanced.glitchEffects || 100;
+          document.getElementById("rainbowTrails").value = settings.advanced.rainbowTrails || 100;
+          document.getElementById("bubbleEffects").value = settings.advanced.bubbleEffects || 100;
+          document.getElementById("crystalShards").value = settings.advanced.crystalShards || 100;
+          document.getElementById("fireParticles").value = settings.advanced.fireParticles || 100;
+          document.getElementById("magneticFields").value = settings.advanced.magneticFields || 100;
+          document.getElementById("hologramProjections").value = settings.advanced.hologramProjections || 100;
+          document.getElementById("quantumParticles").value = settings.advanced.quantumParticles || 100;
+          document.getElementById("sonicWaves").value = settings.advanced.sonicWaves || 100;
         }
         
         // Update all range value displays
@@ -477,7 +529,10 @@
         "platformPulse", "impactWaves", "colorBleed", "depthOfField",
         "timeDilation", "lensFlare", "screenTear", "dynamicFog",
         "heatDistortion", "starbursts", "afterImages", "gravityWaves",
-        "energyRipples", "pixelDisplacement", "ambientOcclusion"
+        "energyRipples", "pixelDisplacement", "ambientOcclusion",
+        "electricArcs", "glitchEffects", "rainbowTrails", "bubbleEffects",
+        "crystalShards", "fireParticles", "magneticFields", "hologramProjections",
+        "quantumParticles", "sonicWaves"
       ];
       
       rangeIds.forEach(id => {
@@ -917,7 +972,19 @@
           gravityWaves: parseInt(document.getElementById("gravityWaves").value) || 0,
           energyRipples: parseInt(document.getElementById("energyRipples").value) || 0,
           pixelDisplacement: parseInt(document.getElementById("pixelDisplacement").value) || 0,
-          ambientOcclusion: parseInt(document.getElementById("ambientOcclusion").value) || 0
+          ambientOcclusion: parseInt(document.getElementById("ambientOcclusion").value) || 0,
+
+          // New additional effects
+          electricArcs: parseInt(document.getElementById("electricArcs").value) || 0,
+          glitchEffects: parseInt(document.getElementById("glitchEffects").value) || 0,
+          rainbowTrails: parseInt(document.getElementById("rainbowTrails").value) || 0,
+          bubbleEffects: parseInt(document.getElementById("bubbleEffects").value) || 0,
+          crystalShards: parseInt(document.getElementById("crystalShards").value) || 0,
+          fireParticles: parseInt(document.getElementById("fireParticles").value) || 0,
+          magneticFields: parseInt(document.getElementById("magneticFields").value) || 0,
+          hologramProjections: parseInt(document.getElementById("hologramProjections").value) || 0,
+          quantumParticles: parseInt(document.getElementById("quantumParticles").value) || 0,
+          sonicWaves: parseInt(document.getElementById("sonicWaves").value) || 0
         }
       };
       

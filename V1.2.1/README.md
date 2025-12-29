@@ -3,5 +3,5 @@
 
 <p>Updates:</p>
 <ol>
-    <li>More effects</li>
+    <li>Added 5 times more effects</li>
 </ol>

@@ -55,6 +55,9 @@ let parallaxLayers = [], velocityStreaks = [], impactWaves = [], platformPulses 
 let windParticles = [], speedLines = [], lensFlares = [], screenTears = [];
 let dynamicFog = [], heatDistortions = [], starbursts = [], afterImages = [];
 let gravityWaves = [], energyRipples = [], pixelDisplacements = [];
+let electricArcs = [], glitchEffects = [], rainbowTrails = [], bubbleEffects = [];
+let crystalShards = [], fireParticles = [], magneticFields = [], hologramProjections = [];
+let quantumParticles = [], sonicWaves = [];
 
 /* gameplay */
 let keys = {}, score = 0, bestScore = 0;
@@ -70,7 +73,7 @@ try {
   console.warn("Failed to load best score from localStorage:", e);
 }
 let gameRunning = false, gameOver = false;
-let cameraX = 0, cameraY = 0, lastPlayerX = 0;
+let cameraX = 0, cameraY = 0, lastPlayerX = 0, deathCameraStartTime = 0;
 
 /* Tick system */
 let tickAccumulator = 0;
@@ -132,7 +135,17 @@ const defaultSettings = {
     energyRipples: 100,
     pixelDisplacement: 100,
     ambientOcclusion: 100,
-    radialBlur: 100
+    radialBlur: 100,
+    electricArcs: 100,
+    glitchEffects: 100,
+    rainbowTrails: 100,
+    bubbleEffects: 100,
+    crystalShards: 100,
+    fireParticles: 100,
+    magneticFields: 100,
+    hologramProjections: 100,
+    quantumParticles: 100,
+    sonicWaves: 100
   }
 };
 
@@ -144,7 +157,9 @@ const qualityPresets = {
     parallaxLayers:0, velocityStreaks:0, impactWaves:0, platformPulse:0, colorBleed:0,
     depthOfField:0, windParticles:0, speedLines:0, timeDilation:0, lensFlare:0,
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
-    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0
+    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0,
+    electricArcs:0, glitchEffects:0, rainbowTrails:0, bubbleEffects:0, crystalShards:0,
+    fireParticles:0, magneticFields:0, hologramProjections:0, quantumParticles:0, sonicWaves:0
   },
   "Low": {
     blockTexture:1, jumpEffect:5, walkEffect:0, dieEffect:0, horizontalLines:0, trail:0, glow:0, lines:false,
@@ -153,7 +168,9 @@ const qualityPresets = {
     parallaxLayers:10, velocityStreaks:0, impactWaves:0, platformPulse:0, colorBleed:0,
     depthOfField:0, windParticles:10, speedLines:10, timeDilation:0, lensFlare:0,
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
-    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0
+    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0,
+    electricArcs:0, glitchEffects:0, rainbowTrails:0, bubbleEffects:0, crystalShards:0,
+    fireParticles:0, magneticFields:0, hologramProjections:0, quantumParticles:0, sonicWaves:0
   },
   "Medium": {
     blockTexture:1, jumpEffect:10, walkEffect:0, dieEffect:10, horizontalLines:0, trail:0, glow:0, lines:false,
@@ -162,7 +179,9 @@ const qualityPresets = {
     parallaxLayers:25, velocityStreaks:10, impactWaves:10, platformPulse:10, colorBleed:0,
     depthOfField:10, windParticles:25, speedLines:25, timeDilation:0, lensFlare:0,
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
-    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0
+    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0,
+    electricArcs:0, glitchEffects:0, rainbowTrails:0, bubbleEffects:0, crystalShards:0,
+    fireParticles:0, magneticFields:0, hologramProjections:0, quantumParticles:0, sonicWaves:0
   },
   "Medium+": {
     blockTexture:1, jumpEffect:15, walkEffect:15, dieEffect:15, horizontalLines:0, trail:0, glow:0, lines:false,
@@ -171,7 +190,9 @@ const qualityPresets = {
     parallaxLayers:50, velocityStreaks:25, impactWaves:25, platformPulse:25, colorBleed:10,
     depthOfField:25, windParticles:50, speedLines:50, timeDilation:10, lensFlare:10,
     screenTear:0, dynamicFog:10, heatDistortion:10, starbursts:10, afterImages:10,
-    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:10, radialBlur:10
+    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:10, radialBlur:10,
+    electricArcs:10, glitchEffects:10, rainbowTrails:10, bubbleEffects:10, crystalShards:10,
+    fireParticles:10, magneticFields:10, hologramProjections:10, quantumParticles:10, sonicWaves:10
   },
   "High": {
     blockTexture:1, jumpEffect:15, walkEffect:15, dieEffect:15, horizontalLines:15, trail:0, glow:0, lines:true,
@@ -207,7 +228,7 @@ const qualityPresets = {
     parallaxLayers:150, velocityStreaks:125, impactWaves:125, platformPulse:125, colorBleed:100,
     depthOfField:125, windParticles:150, speedLines:150, timeDilation:100, lensFlare:100,
     screenTear:75, dynamicFog:100, heatDistortion:100, starbursts:100, afterImages:100,
-    gravityWaves:75, energyRipples:75, pixelDisplacement:75, ambientOcclusion:100, radialBlur:100
+    gravityWaves:75, energyRipples:75, pixelDisplacement:75, ambientOcclusion:100, radialBlur:100, electricArcs:100, glitchEffects:100, rainbowTrails:100, bubbleEffects:100, crystalShards:100, fireParticles:100, magneticFields:100, hologramProjections:100, quantumParticles:100, sonicWaves:100
   },
   "Ultra": {
     blockTexture:1, jumpEffect:100, walkEffect:100, dieEffect:100, horizontalLines:100, trail:0, glow:1, lines:true,
@@ -310,7 +331,17 @@ let runtime = {
     energyRipplesMul: 1,
     pixelDisplacementMul: 1,
     ambientOcclusionMul: 1,
-    radialBlurMul: 1
+    radialBlurMul: 1,
+    electricArcsMul: 1,
+    glitchEffectsMul: 1,
+    rainbowTrailsMul: 1,
+    bubbleEffectsMul: 1,
+    crystalShardsMul: 1,
+    fireParticlesMul: 1,
+    magneticFieldsMul: 1,
+    hologramProjectionsMul: 1,
+    quantumParticlesMul: 1,
+    sonicWavesMul: 1
   },
   glowEnabled: true,
   linesEnabled: true,
@@ -397,6 +428,16 @@ function applySettings(s){
   runtime.advanced.pixelDisplacementMul = pct(settings.advanced.pixelDisplacement) || (preset.pixelDisplacement ? preset.pixelDisplacement/100 : 0);
   runtime.advanced.ambientOcclusionMul = pct(settings.advanced.ambientOcclusion) || (preset.ambientOcclusion ? preset.ambientOcclusion/100 : 0);
   runtime.advanced.radialBlurMul = pct(settings.advanced.radialBlur) || (preset.radialBlur ? preset.radialBlur/100 : 0);
+  runtime.advanced.electricArcsMul = pct(settings.advanced.electricArcs) || (preset.electricArcs ? preset.electricArcs/100 : 0);
+  runtime.advanced.glitchEffectsMul = pct(settings.advanced.glitchEffects) || (preset.glitchEffects ? preset.glitchEffects/100 : 0);
+  runtime.advanced.rainbowTrailsMul = pct(settings.advanced.rainbowTrails) || (preset.rainbowTrails ? preset.rainbowTrails/100 : 0);
+  runtime.advanced.bubbleEffectsMul = pct(settings.advanced.bubbleEffects) || (preset.bubbleEffects ? preset.bubbleEffects/100 : 0);
+  runtime.advanced.crystalShardsMul = pct(settings.advanced.crystalShards) || (preset.crystalShards ? preset.crystalShards/100 : 0);
+  runtime.advanced.fireParticlesMul = pct(settings.advanced.fireParticles) || (preset.fireParticles ? preset.fireParticles/100 : 0);
+  runtime.advanced.magneticFieldsMul = pct(settings.advanced.magneticFields) || (preset.magneticFields ? preset.magneticFields/100 : 0);
+  runtime.advanced.hologramProjectionsMul = pct(settings.advanced.hologramProjections) || (preset.hologramProjections ? preset.hologramProjections/100 : 0);
+  runtime.advanced.quantumParticlesMul = pct(settings.advanced.quantumParticles) || (preset.quantumParticles ? preset.quantumParticles/100 : 0);
+  runtime.advanced.sonicWavesMul = pct(settings.advanced.sonicWaves) || (preset.sonicWaves ? preset.sonicWaves/100 : 0);
 
   // Enable/disable based on settings
   runtime.glowEnabled = (settings.quality && settings.quality.glow !== undefined) ? (settings.quality.glow > 0) : (preset.glow !== undefined ? preset.glow > 0 : true);
@@ -432,6 +473,16 @@ function applySettings(s){
   runtime.pixelDisplacementEnabled = runtime.advanced.pixelDisplacementMul > 0;
   runtime.ambientOcclusionEnabled = runtime.advanced.ambientOcclusionMul > 0;
   runtime.radialBlurEnabled = runtime.advanced.radialBlurMul > 0;
+  runtime.electricArcsEnabled = runtime.advanced.electricArcsMul > 0;
+  runtime.glitchEffectsEnabled = runtime.advanced.glitchEffectsMul > 0;
+  runtime.rainbowTrailsEnabled = runtime.advanced.rainbowTrailsMul > 0;
+  runtime.bubbleEffectsEnabled = runtime.advanced.bubbleEffectsMul > 0;
+  runtime.crystalShardsEnabled = runtime.advanced.crystalShardsMul > 0;
+  runtime.fireParticlesEnabled = runtime.advanced.fireParticlesMul > 0;
+  runtime.magneticFieldsEnabled = runtime.advanced.magneticFieldsMul > 0;
+  runtime.hologramProjectionsEnabled = runtime.advanced.hologramProjectionsMul > 0;
+  runtime.quantumParticlesEnabled = runtime.advanced.quantumParticlesMul > 0;
+  runtime.sonicWavesEnabled = runtime.advanced.sonicWavesMul > 0;
 
   // save canonical
   writeSettings(settings);
@@ -451,6 +502,9 @@ function resetWorld(){
   windParticles = []; speedLines = []; lensFlares = []; screenTears = []; dynamicFog = [];
   heatDistortions = []; starbursts = []; afterImages = []; gravityWaves = []; energyRipples = [];
   pixelDisplacements = [];
+  electricArcs = []; glitchEffects = []; rainbowTrails = []; bubbleEffects = [];
+  crystalShards = []; fireParticles = []; magneticFields = []; hologramProjections = [];
+  quantumParticles = []; sonicWaves = [];
   
   screenShake = 0;
   screenFlash = 0;
@@ -1362,6 +1416,287 @@ function applyAmbientOcclusion(){
   ctx.restore();
 }
 
+/* ---------- NEW VISUAL EFFECTS (10 additional) ---------- */
+
+/* 21. ELECTRIC ARCS - Electric sparks/arrows */
+function createElectricArcs(x, y, intensity = 1){
+  if(!runtime.electricArcsEnabled) return;
+
+  for(let i = 0; i < Math.floor(8 * intensity * runtime.advanced.electricArcsMul); i++){
+    electricArcs.push({
+      x: x + (Math.random() - 0.5) * 100,
+      y: y + (Math.random() - 0.5) * 100,
+      targetX: x + (Math.random() - 0.5) * 200,
+      targetY: y + (Math.random() - 0.5) * 200,
+      progress: 0,
+      speed: 0.05 + Math.random() * 0.1,
+      life: 20 + Math.random() * 10,
+      color: '#00ffff',
+      thickness: 2 + Math.random() * 3
+    });
+  }
+}
+
+function updateElectricArcs(){
+  if(!runtime.electricArcsEnabled) return;
+
+  for(let i = electricArcs.length - 1; i >= 0; i--){
+    const arc = electricArcs[i];
+    arc.progress += arc.speed;
+    arc.life--;
+
+    if(arc.life <= 0 || arc.progress >= 1){
+      electricArcs.splice(i, 1);
+    }
+  }
+}
+
+function drawElectricArcs(){
+  if(!runtime.electricArcsEnabled || electricArcs.length === 0) return;
+
+  ctx.save();
+  for(let arc of electricArcs){
+    const alpha = Math.min(1, arc.life / 30);
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = arc.color;
+    ctx.lineWidth = arc.thickness;
+    ctx.lineCap = 'round';
+
+    // Draw jagged electric arc
+    ctx.beginPath();
+    const startX = arc.x - cameraX;
+    const startY = arc.y - cameraY;
+    const endX = arc.targetX - cameraX;
+    const endY = arc.targetY - cameraY;
+
+    ctx.moveTo(startX, startY);
+
+    // Create jagged line segments
+    const segments = 8;
+    for(let i = 1; i <= segments; i++){
+      const t = i / segments;
+      const baseX = startX + (endX - startX) * t;
+      const baseY = startY + (endY - startY) * t;
+      const jitter = 10 * (1 - Math.abs(t - 0.5) * 2); // More jitter in middle
+      const jitterX = baseX + (Math.random() - 0.5) * jitter;
+      const jitterY = baseY + (Math.random() - 0.5) * jitter;
+      ctx.lineTo(jitterX, jitterY);
+    }
+
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* 22. GLITCH EFFECTS - Digital distortion */
+function applyGlitchEffect(){
+  if(!runtime.glitchEffectsEnabled || runtime.advanced.glitchEffectsMul < 0.1) return;
+
+  if(Math.random() < 0.05 * runtime.advanced.glitchEffectsMul){
+    ctx.save();
+
+    // Create horizontal displacement
+    const glitchIntensity = runtime.advanced.glitchEffectsMul * 0.02;
+    const offsetY = Math.floor(Math.random() * canvas.height);
+    const height = Math.floor(Math.random() * 50) + 10;
+
+    // Copy a strip and displace it
+    ctx.globalAlpha = 0.3;
+    ctx.drawImage(
+      canvas,
+      0, offsetY, canvas.width, height,
+      Math.random() * 20 - 10, offsetY, canvas.width, height
+    );
+
+    ctx.restore();
+  }
+}
+
+/* 23. RAINBOW TRAILS - Colorful particle trails */
+function createRainbowTrails(){
+  if(!runtime.rainbowTrailsEnabled || Math.random() > 0.4 * runtime.advanced.rainbowTrailsMul) return;
+
+  const colors = ['#ff0000', '#ff8000', '#ffff00', '#00ff00', '#0080ff', '#8000ff'];
+  for(let i = 0; i < Math.floor(6 * runtime.advanced.rainbowTrailsMul); i++){
+    rainbowTrails.push({
+      x: player.x + player.width/2,
+      y: player.y + player.height/2,
+      vx: (Math.random() - 0.5) * 8,
+      vy: (Math.random() - 0.5) * 8,
+      life: 40 + Math.random() * 20,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: 3 + Math.random() * 4,
+      trail: []
+    });
+  }
+}
+
+function updateRainbowTrails(){
+  if(!runtime.rainbowTrailsEnabled) return;
+
+  for(let i = rainbowTrails.length - 1; i >= 0; i--){
+    const trail = rainbowTrails[i];
+    trail.x += trail.vx;
+    trail.y += trail.vy;
+    trail.vy += 0.1; // gravity
+    trail.life--;
+
+    // Add to trail
+    trail.trail.push({x: trail.x, y: trail.y});
+    if(trail.trail.length > 8) trail.trail.shift();
+
+    if(trail.life <= 0){
+      rainbowTrails.splice(i, 1);
+    }
+  }
+}
+
+function drawRainbowTrails(){
+  if(!runtime.rainbowTrailsEnabled || rainbowTrails.length === 0) return;
+
+  ctx.save();
+  for(let trail of rainbowTrails){
+    ctx.globalAlpha = trail.life / 60;
+
+    // Draw trail
+    if(trail.trail.length > 1){
+      for(let i = 1; i < trail.trail.length; i++){
+        const alpha = (i / trail.trail.length) * 0.5;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = trail.color;
+        ctx.beginPath();
+        ctx.arc(
+          trail.trail[i].x - cameraX,
+          trail.trail[i].y - cameraY,
+          trail.size * (i / trail.trail.length),
+          0, Math.PI * 2
+        );
+        ctx.fill();
+      }
+    }
+  }
+  ctx.restore();
+}
+
+/* 24. BUBBLE EFFECTS - Floating bubbles */
+function createBubbleEffects(){
+  if(!runtime.bubbleEffectsEnabled || Math.random() > 0.3 * runtime.advanced.bubbleEffectsMul) return;
+
+  for(let i = 0; i < Math.floor(4 * runtime.advanced.bubbleEffectsMul); i++){
+    bubbleEffects.push({
+      x: player.x + (Math.random() - 0.5) * 200,
+      y: player.y + player.height + Math.random() * 100,
+      vx: (Math.random() - 0.5) * 2,
+      vy: -Math.random() * 3 - 1,
+      size: 5 + Math.random() * 15,
+      life: 100 + Math.random() * 50,
+      color: `rgba(100, 200, 255, ${0.3 + Math.random() * 0.4})`,
+      wobble: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+function updateBubbleEffects(){
+  if(!runtime.bubbleEffectsEnabled) return;
+
+  for(let i = bubbleEffects.length - 1; i >= 0; i--){
+    const bubble = bubbleEffects[i];
+    bubble.x += bubble.vx;
+    bubble.y += bubble.vy;
+    bubble.vx += Math.sin(bubble.wobble) * 0.1;
+    bubble.wobble += 0.1;
+    bubble.life--;
+
+    if(bubble.life <= 0 || bubble.y < player.y - 200){
+      bubbleEffects.splice(i, 1);
+    }
+  }
+}
+
+function drawBubbleEffects(){
+  if(!runtime.bubbleEffectsEnabled || bubbleEffects.length === 0) return;
+
+  ctx.save();
+  for(let bubble of bubbleEffects){
+    ctx.globalAlpha = bubble.life / 150;
+    ctx.fillStyle = bubble.color;
+    ctx.strokeStyle = 'rgba(200, 230, 255, 0.5)';
+    ctx.lineWidth = 1;
+
+    ctx.beginPath();
+    ctx.arc(bubble.x - cameraX, bubble.y - cameraY, bubble.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* 25. CRYSTAL SHARDS - Geometric crystal pieces */
+function createCrystalShards(x, y, intensity = 1){
+  if(!runtime.crystalShardsEnabled) return;
+
+  for(let i = 0; i < Math.floor(12 * intensity * runtime.advanced.crystalShardsMul); i++){
+    crystalShards.push({
+      x: x,
+      y: y,
+      vx: (Math.random() - 0.5) * 20,
+      vy: (Math.random() - 0.5) * 20 - 5,
+      rotation: Math.random() * Math.PI * 2,
+      rotationSpeed: (Math.random() - 0.5) * 0.3,
+      size: 3 + Math.random() * 8,
+      life: 80 + Math.random() * 40,
+      color: `hsl(${180 + Math.random() * 60}, 70%, ${50 + Math.random() * 30}%)`,
+      sides: 3 + Math.floor(Math.random() * 4) // 3-6 sides
+    });
+  }
+}
+
+function updateCrystalShards(){
+  if(!runtime.crystalShardsEnabled) return;
+
+  for(let i = crystalShards.length - 1; i >= 0; i--){
+    const shard = crystalShards[i];
+    shard.x += shard.vx;
+    shard.y += shard.vy;
+    shard.vy += 0.2; // gravity
+    shard.rotation += shard.rotationSpeed;
+    shard.life--;
+
+    if(shard.life <= 0){
+      crystalShards.splice(i, 1);
+    }
+  }
+}
+
+function drawCrystalShards(){
+  if(!runtime.crystalShardsEnabled || crystalShards.length === 0) return;
+
+  ctx.save();
+  for(let shard of crystalShards){
+    ctx.globalAlpha = shard.life / 120;
+    ctx.fillStyle = shard.color;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 1;
+
+    ctx.translate(shard.x - cameraX, shard.y - cameraY);
+    ctx.rotate(shard.rotation);
+
+    // Draw polygon
+    ctx.beginPath();
+    for(let i = 0; i < shard.sides; i++){
+      const angle = (i / shard.sides) * Math.PI * 2;
+      const x = Math.cos(angle) * shard.size;
+      const y = Math.sin(angle) * shard.size;
+      if(i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /* ---------- ENHANCED PARTICLE EFFECTS ---------- */
 function spawnParticlesEarly(x, y, type, amountMul = 1) {
   const color = type === "jump" ? "#0ff" : type === "double" ? "#fff" : "#fff";
@@ -1519,6 +1854,16 @@ function createCrashEarly(amountMul = 1) {
   if(runtime.lensFlareEnabled) {
     createLensFlare(player.x + player.width/2, player.y + player.height/2, 2);
   }
+
+  // Add electric arcs
+  if(runtime.electricArcsEnabled) {
+    createElectricArcs(player.x + player.width/2, player.y + player.height/2, 2);
+  }
+
+  // Add crystal shards
+  if(runtime.crystalShardsEnabled) {
+    createCrystalShards(player.x + player.width/2, player.y + player.height/2, 2);
+  }
 }
 
 /* ---------- Lines background ---------- */
@@ -1567,7 +1912,13 @@ function jump(){
     
     // Create wind particles
     createWindParticles();
-    
+
+    // Create rainbow trails on jump
+    createRainbowTrails();
+
+    // Create bubble effects on jump
+    createBubbleEffects();
+
     // Small screen shake on jump for high quality
     if(runtime.screenShakeEnabled && runtime.advanced.screenShakeMul > 0.5) {
       screenShake = 3 * runtime.advanced.screenShakeMul;
@@ -1722,6 +2073,34 @@ function cleanupOffScreenObjects() {
       pixelDisplacements.splice(i, 1);
     }
   }
+
+  // Clean up electric arcs
+  for(let i = electricArcs.length - 1; i >= 0; i--) {
+    if(electricArcs[i].life <= 0) {
+      electricArcs.splice(i, 1);
+    }
+  }
+
+  // Clean up rainbow trails
+  for(let i = rainbowTrails.length - 1; i >= 0; i--) {
+    if(rainbowTrails[i].life <= 0) {
+      rainbowTrails.splice(i, 1);
+    }
+  }
+
+  // Clean up bubble effects
+  for(let i = bubbleEffects.length - 1; i >= 0; i--) {
+    if(bubbleEffects[i].life <= 0 || bubbleEffects[i].y < player.y - 200) {
+      bubbleEffects.splice(i, 1);
+    }
+  }
+
+  // Clean up crystal shards
+  for(let i = crystalShards.length - 1; i >= 0; i--) {
+    if(crystalShards[i].life <= 0) {
+      crystalShards.splice(i, 1);
+    }
+  }
 }
 
 /* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
@@ -1845,6 +2224,10 @@ function gameTick() {
   if(runtime.gravityWavesEnabled) updateGravityWaves();
   if(runtime.energyRipplesEnabled) updateEnergyRipples();
   if(runtime.pixelDisplacementEnabled) updatePixelDisplacements();
+  if(runtime.electricArcsEnabled) updateElectricArcs();
+  if(runtime.rainbowTrailsEnabled) updateRainbowTrails();
+  if(runtime.bubbleEffectsEnabled) updateBubbleEffects();
+  if(runtime.crystalShardsEnabled) updateCrystalShards();
   if(runtime.timeDilationEnabled) applyTimeDilation();
 
   // update crash pieces with enhanced physics
@@ -1945,6 +2328,7 @@ function tryDie(spike){
   if(player.onGround || player.vy > 0){
     player.visible = false;
     gameOver = true; // Game is over but keep running for effects
+    deathCameraStartTime = globalTime; // Record when death camera started
     if(spike) spike.hit = false;
     createCrashEarly(runtime.effects.dieEffectMul);
     if(score > bestScore){
@@ -2123,6 +2507,18 @@ function draw(){
   // Draw pixel displacements
   if(runtime.pixelDisplacementEnabled) drawPixelDisplacements();
 
+  // Draw electric arcs
+  if(runtime.electricArcsEnabled) drawElectricArcs();
+
+  // Draw rainbow trails
+  if(runtime.rainbowTrailsEnabled) drawRainbowTrails();
+
+  // Draw bubble effects
+  if(runtime.bubbleEffectsEnabled) drawBubbleEffects();
+
+  // Draw crystal shards
+  if(runtime.crystalShardsEnabled) drawCrystalShards();
+
   // Draw starbursts
   if(runtime.starburstsEnabled) drawStarbursts();
 
@@ -2282,6 +2678,9 @@ function draw(){
   // Apply radial blur effect
   if(runtime.radialBlurEnabled) applyRadialBlur();
 
+  // Apply glitch effects
+  if(runtime.glitchEffectsEnabled) applyGlitchEffect();
+
   // player
   if(player.visible){
     if(runtime.glowEnabled){ ctx.shadowColor = "#0ff"; ctx.shadowBlur = 20; }
@@ -2363,7 +2762,8 @@ function mainLoop(now){
 
   if(gameOver) {
     // When game is over, continue moving camera forward at a steady pace
-    targetCamX = lastPlayerX - 150 + (globalTime * 50); // Move camera forward over time
+    const deathTimeElapsed = globalTime - deathCameraStartTime;
+    targetCamX = lastPlayerX - 150 + (deathTimeElapsed * 2); // Move camera forward at constant speed
     targetCamY = canvas.height/2; // Center vertically
   } else {
     // Normal camera follow
