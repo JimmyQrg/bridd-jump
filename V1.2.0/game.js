@@ -368,15 +368,15 @@ function createCrashEarly(amountMul = 1) {
     crashPieces.push({
       x: player.x + Math.random() * player.width,
       y: player.y + Math.random() * player.height,
-      vx: (Math.random() - 0.5) * 18,
-      vy: (Math.random() - 1.2) * 12,
-      ax: (Math.random() - 0.5) * 0.05,
-      ay: (Math.random() - 0.5) * 0.05,
-      size: Math.random() * player.width / 3 + 8,
+      vx: (Math.random() - 0.5) * 36,
+      vy: (Math.random() - 1.2) * 24,
+      ax: (Math.random() - 0.5) * 0.1,
+      ay: (Math.random() - 0.5) * 0.1,
+      size: Math.random() * player.width / 2 + 16,
       color: player.color,
       life: 120 + Math.random() * 60,
-      rotation: Math.random() * Math.PI * 2,
-      rotationSpeed: (Math.random() - 0.5) * 0.3,
+      rotation: Math.random() * Math.PI * 4,
+      rotationSpeed: (Math.random() - 0.5) * 0.6,
       scale: 1,
       scaleSpeed: Math.random() * 0.02 + 0.01
     });
@@ -388,7 +388,7 @@ function createCrashEarly(amountMul = 1) {
       x: player.x + player.width/2,
       y: player.y + player.height/2,
       radius: 0,
-      maxRadius: 200 * runtime.advanced.shockwavesMul,
+      maxRadius: 400 * runtime.advanced.shockwavesMul,
       speed: 15 + 5 * runtime.advanced.shockwavesMul,
       life: 1,
       color: "#f00"
@@ -397,11 +397,11 @@ function createCrashEarly(amountMul = 1) {
   
   // Add screen shake
   if(runtime.screenShakeEnabled) {
-    screenShake = 15 * runtime.advanced.screenShakeMul;
+    screenShake = 30 * runtime.advanced.screenShakeMul;
   }
   
   // Add screen flash
-  screenFlash = 10;
+  screenFlash = 20;
   
   // Add screen dust particles
   if(runtime.distortionEnabled) {
@@ -411,7 +411,7 @@ function createCrashEarly(amountMul = 1) {
         y: Math.random() * canvas.height,
         vx: (Math.random() - 0.5) * 4,
         vy: (Math.random() - 0.5) * 4,
-        life: 30 + Math.random() * 40,
+        life: 30 + Math.random() * 50,
         size: Math.random() * 3 + 1,
         color: `rgba(255,255,255,${Math.random() * 0.3 + 0.1})`
       });
