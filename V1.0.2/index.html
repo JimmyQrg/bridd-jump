@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Schedule | Infinite Campus</title>
-<link rel="icon" href="https://raw.githubusercontent.com/JimmyQrg/bridd-jump/main/infinite-campus.png">
+<link rel="icon" href="infinite-campus.png">
 
 <!-- Pixel font -->
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -48,6 +48,25 @@
   #scoreHUD { position: fixed; left: 12px; top: 12px; z-index: 1100; font-size:12px; color:var(--accent); text-shadow:0 0 6px rgba(0,255,255,0.2); pointer-events:none; font-family:"Press Start 2P",monospace; }
   #fpsLabel { position: fixed; left: 12px; top: 44px; z-index: 1100; font-size:11px; color:var(--accent); pointer-events:none; }
   #debugToast { position: fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:1300; background:rgba(0,0,0,0.6); border:2px solid var(--accent); color:var(--accent); padding:8px 12px; border-radius:8px; display:none; font-size:11px; pointer-events:none; }
+  /* Mobile command button */
+  #mobileCommandBtn {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 60px;
+    height: 60px;
+    background: rgba(0, 255, 255, 0.1);
+    border: 2px solid rgba(0, 255, 255, 0.3);
+    border-radius: 50%;
+    z-index: 1000;
+    opacity: 0.3;
+    cursor: pointer;
+    transition: opacity 0.3s, background 0.3s;
+  }
+  #mobileCommandBtn:hover {
+    opacity: 0.6;
+    background: rgba(0, 255, 255, 0.2);
+  }
   @media (max-width:560px){
     #menu { width: 92vw; padding: 18px; }
     .btn { width: 100%; font-size:11px; padding:10px; }
@@ -66,14 +85,17 @@
   </div>
 
   <div id="scoreHUD">Score: 0</div>
-  <div id="fpsLabel">FPS: -- / --</div>
+  <div id="fpsLabel">FPS: -- / -- | TPS: --</div>
   <div id="debugToast"></div>
+  <div id="mobileCommandBtn" title="Open Command (Ctrl+Shift+A)"></div>
 
 <script>
 /* ===========================
    FULL, STANDALONE index.html
-   - Integrated all particle effects from early version
-   - Keeps settings functionality
+   - Only imports particle effects from early version
+   - Keeps all other features from current version
+   - Adds tick system (60 TPS)
+   - Adds mobile command button
    =========================== */
 
 /* ---------- Utilities ---------- */
@@ -83,14 +105,6 @@ function showToast(msg, ms=1200){
   d.style.display = 'block';
   clearTimeout(d._timer);
   d._timer = setTimeout(()=> d.style.display = 'none', ms);
-}
-
-function lerpColor(c1,c2,t){ 
-  return { 
-    r: c1.r + (c2.r - c1.r)*t, 
-    g: c1.g + (c2.g - c1.g)*t, 
-    b: c1.b + (c2.b - c1.b)*t 
-  }; 
 }
 
 /* ---------- Canvas & resizing ---------- */
@@ -108,6 +122,8 @@ resize();
 const BLOCK_SIZE = 50;
 const JUMP_SPEED = -15;
 const GRAVITY = 0.7;
+const TICKS_PER_SECOND = 60; // Game runs at 60 TPS
+const TICK_INTERVAL = 1000 / TICKS_PER_SECOND; // ~16.67ms per tick
 
 /* Player object blueprint */
 let player = {
@@ -124,6 +140,11 @@ let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseI
 let gameRunning = false;
 let lastTime = performance.now();
 let cameraX = 0, cameraY = 0;
+
+/* Tick system */
+let tickAccumulator = 0;
+let ticksThisSecond = 0;
+let lastFpsUpdateTime = performance.now();
 
 /* color cycling */
 let baseColors = [
@@ -230,14 +251,13 @@ function applySettings(s){
 
   // save canonical
   writeSettings(settings);
-
-  // update HUD label
-  const fpsLabel = document.getElementById('fpsLabel');
-  fpsLabel.innerText = settings.maxFPS === 0 ? `FPS: Unlimited — Quality: ${settings.qualityPreset}` : `FPS: ${settings.maxFPS} — Quality: ${settings.qualityPreset}`;
 }
 
 /* initial apply */
 applySettings(settings);
+
+/* ---------- Utility drawing helpers ---------- */
+function lerpColor(c1,c2,t){ return { r: c1.r + (c2.r - c1.r)*t, g: c1.g + (c2.g - c1.g)*t, b: c1.b + (c2.b - c1.b)*t }; }
 
 /* ---------- World initialization & reset ---------- */
 let lastPlatformX = 0, lastPlatformY = 0;
@@ -266,7 +286,7 @@ function resetWorld(){
   score = 0; colorLerp = 0; globalTime = 0;
   colorIndex = 0; platformColor = {...baseColors[0]}; nextColor = baseColors[1];
 
-  // Create a guaranteed ground platform
+  // Create a guaranteed ground platform inside viewport so you do NOT get a black void
   const groundHeight = BLOCK_SIZE;
   platforms.push({
     x: 0,
@@ -292,12 +312,12 @@ function generateBlockPlatform(lastX, lastY){
 
   for(let i=0;i<blockCount;i++){
     platforms.push({ x: x + i*BLOCK_SIZE, y, width: BLOCK_SIZE, height: BLOCK_SIZE, color: {...platformColor}, passed:false });
-    if(Math.random() < 0.08){ // Changed from 0.2 to 0.08 to match early version
+    if(Math.random() < 0.2){
       spikes.push({ x: x + i*BLOCK_SIZE + BLOCK_SIZE*0.2, y: y - BLOCK_SIZE + BLOCK_SIZE*0.2, width: BLOCK_SIZE*0.6, height: BLOCK_SIZE*0.6, baseY: y - BLOCK_SIZE + BLOCK_SIZE*0.2, hit:true, passed:false });
     }
   }
 
-  // gems (from early version)
+  // gems
   for(let i=0;i<blockCount;i++){
     if(Math.random() < 0.1 || gemEveryBlock){
       let gemX = x + i*BLOCK_SIZE + BLOCK_SIZE/4;
@@ -321,85 +341,57 @@ function checkSpikeCollision(spike){
   return hbX + hbW > spike.x && hbX < spike.x + spike.width && hbY + hbH > spike.y && hbY < spike.y + spike.height;
 }
 
-/* ---------- PARTICLE EFFECTS (from early version) ---------- */
-function spawnJumpParticles(cx, cy, type){
+/* ---------- IMPORTED PARTICLE EFFECTS FROM EARLY VERSION ---------- */
+/* ONLY the particle functions, nothing else! */
+
+function spawnParticlesEarly(x, y, type, amountMul = 1) {
   const color = type === "jump" ? "#0ff" : type === "double" ? "#ff0" : "#fff";
-  const baseCount = 15;
-  const count = Math.max(0, Math.floor(baseCount * runtime.effects.jumpEffectMul));
+  const baseCount = type === "land" ? 10 : 15;
+  const count = Math.max(0, Math.floor(baseCount * amountMul));
   
-  for(let i=0;i<count;i++){
+  for(let i = 0; i < count; i++) {
+    const vx = (Math.random() - 0.5) * (type === "land" ? 8 : 5);
+    const vy = (Math.random() - (type === "land" ? 1 : 1.5)) * (type === "land" ? 4 : 5);
     particles.push({
-      x: cx + (Math.random()-0.5)*5,
-      y: cy + (Math.random()-0.5)*5,
-      vx: (Math.random()-0.5)*5,
-      vy: (Math.random()-1.5)*5,
-      life: Math.random()*30+20,
+      x: x + (Math.random() - 0.5) * (type === "land" ? 10 : 5),
+      y: y + (Math.random() - 0.5) * (type === "land" ? 10 : 5),
+      vx: vx,
+      vy: vy,
+      life: Math.random() * (type === "land" ? 25 : 30) + (type === "land" ? 15 : 20),
       color: color
     });
   }
 }
 
-function spawnLandParticles(cx, cy){
-  const baseCount = 15;
-  const count = Math.max(0, Math.floor(baseCount * runtime.effects.walkEffectMul));
-  
-  for(let i=0;i<count;i++){
-    particles.push({
-      x: cx + (Math.random()-0.5)*10,
-      y: cy + (Math.random()-0.5)*10,
-      vx: (Math.random()-0.5)*8,
-      vy: (Math.random()-1)*4,
-      life: Math.random()*25+15,
-      color: "#fff"
-    });
-  }
-}
-
-function spawnGemParticles(cx, cy){
-  const baseCount = 15;
-  const count = Math.max(0, Math.floor(baseCount * runtime.effects.jumpEffectMul));
-  
-  for(let i=0;i<count;i++){
-    particles.push({
-      x: cx + (Math.random()-0.5)*10,
-      y: cy + (Math.random()-0.5)*10,
-      vx: (Math.random()-0.5)*6,
-      vy: (Math.random()-1.5)*6,
-      life: Math.random()*35+25,
-      color: "#ff0"
-    });
-  }
-}
-
-/* ---------- Crash pieces (from early version) ---------- */
-function createCrash(){
+function createCrashEarly(amountMul = 1) {
   const baseCount = 20;
-  const count = Math.max(6, Math.floor(baseCount * runtime.effects.dieEffectMul));
+  const count = Math.max(6, Math.floor(baseCount * amountMul));
   
-  for(let i=0;i<count;i++){
+  for(let i = 0; i < count; i++) {
     crashPieces.push({
-      x: player.x + Math.random()*player.width,
-      y: player.y + Math.random()*player.height,
-      vx: (Math.random()-0.5)*15,
-      vy: (Math.random()-1)*15,
-      size: Math.random()*player.width/4+5,
+      x: player.x + Math.random() * player.width,
+      y: player.y + Math.random() * player.height,
+      vx: (Math.random() - 0.5) * 15,
+      vy: (Math.random() - 1) * 15,
+      size: Math.random() * player.width / 4 + 5,
       color: player.color,
       life: 100
     });
   }
 }
 
-/* ---------- Lines background (from early version) ---------- */
+/* ---------- Lines background ---------- */
 function addLine(){
   if(!runtime.linesEnabled) return;
   const chance = Math.min(1, 0.15 * runtime.effects.horizontalLinesMul);
   if(Math.random() > chance) return;
   
+  // From early version: two parallel lines
   lines.push({ 
-    x: canvas.width, 
-    y: Math.random()*canvas.height, 
-    width: Math.random()*100+20, 
-    speed: (player.speed+5)*0.5,
+    x: canvas.width + Math.random() * 200, 
+    y: Math.random() * canvas.height, 
+    width: Math.random() * 100 + 20,
+    speed: player.speed * 0.5,
     passed: false 
   });
 }
@@ -417,20 +409,24 @@ function jump(){
   if(!player.visible) return;
   if(cheats.infiniteJump || player.jumpsLeft > 0){
     player.vy = JUMP_SPEED;
-    spawnJumpParticles(player.x + player.width/2, player.y + player.height, 
-                      player.jumpsLeft === 2 ? "jump" : "double");
+    spawnParticlesEarly(player.x + player.width/2, player.y + player.height, 
+                       player.jumpsLeft === 2 ? "jump" : "double", 
+                       runtime.effects.jumpEffectMul);
     if(!cheats.infiniteJump) player.jumpsLeft--;
   }
 }
 
-/* ---------- Game step ---------- */
-function worldStep(deltaSec){
-  if(!gameRunning) return;
+/* ---------- TICK SYSTEM (Game logic at fixed 60 TPS) ---------- */
+function gameTick(deltaTime) {
+  if(!gameRunning || !player.visible) return;
+  
+  // Convert deltaTime from milliseconds to seconds
+  const deltaSec = deltaTime / 1000;
   
   player.speed += 0.002;
 
   // color cycling
-  colorLerp += deltaSec/5; // Faster color cycling like early version
+  colorLerp += deltaSec/25;
   if(colorLerp >= 1){
     colorIndex = (colorIndex + 1) % baseColors.length;
     nextColor = baseColors[(colorIndex+1) % baseColors.length];
@@ -454,8 +450,7 @@ function worldStep(deltaSec){
         player.vy = 0;
         player.onGround = true;
         player.jumpsLeft = 2;
-        spawnLandParticles(player.x + player.width/2, player.y + player.height);
-        plat.y += 2; // subtle sink from early version
+        spawnParticlesEarly(player.x + player.width/2, player.y + player.height, "land", runtime.effects.walkEffectMul);
       }
     }
     if(!plat.passed && player.x > plat.x + plat.width){
@@ -477,13 +472,11 @@ function worldStep(deltaSec){
     }
   }
 
-  // gems (from early version)
+  // gems
   for(let g of gems){
-    if(!g.collected && player.x + player.width > g.x && player.x < g.x + g.size && 
-       player.y + player.height > g.y && player.y < g.y + g.size){
-      score += 50; 
-      g.collected = true;
-      spawnGemParticles(g.x + g.size/2, g.y + g.size/2);
+    if(!g.collected && player.x + player.width > g.x && player.x < g.x + g.size && player.y + player.height > g.y && player.y < g.y + g.size){
+      score += 50; g.collected = true;
+      spawnParticlesEarly(g.x + g.size/2, g.y + g.size/2, "double", runtime.effects.jumpEffectMul);
     }
   }
 
@@ -499,7 +492,7 @@ function worldStep(deltaSec){
   // update crash pieces
   for(let i=crashPieces.length-1;i>=0;i--){
     const p = crashPieces[i];
-    p.vy += GRAVITY*0.5; // Slower gravity for crash pieces
+    p.vy += GRAVITY * 0.5;
     p.x += p.vx; p.y += p.vy; 
     if(p.life) p.life--;
     if(p.y > canvas.height + 100) crashPieces.splice(i,1);
@@ -516,19 +509,21 @@ function worldStep(deltaSec){
   // update lines array movement
   for(let i=lines.length-1;i>=0;i--){
     const l = lines[i];
-    l.x -= l.speed * player.horizMultiplier;
+    l.x -= l.speed;
     if(l.x + l.width < 0) lines.splice(i,1);
   }
+  
+  ticksThisSecond++;
 }
 
-/* ---------- Death ---------- */
+/* ---------- Death / tryDie ---------- */
 function tryDie(spike){
   if(!player.visible) return;
   if(cheats.invincible) return;
   if(player.onGround || player.vy > 0){
     player.visible = false;
     if(spike) spike.hit = false;
-    createCrash();
+    createCrashEarly(runtime.effects.dieEffectMul);
     gameRunning = false;
     if(score > bestScore){
       bestScore = Math.floor(score);
@@ -542,14 +537,17 @@ function tryDie(spike){
 }
 
 /* ---------- Rendering ---------- */
+let lastRenderTime = performance.now();
+let fps = 0;
 function draw(){
+  // clear
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // background
+  // background (plain)
   ctx.fillStyle = "#000";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // horizontal lines background (from early version)
+  // horizontal lines background (from early version - two parallel lines)
   if(runtime.linesEnabled){
     for(let l of lines){
       ctx.strokeStyle = "rgba(255,255,255,0.6)";
@@ -559,7 +557,7 @@ function draw(){
       ctx.lineTo(l.x + l.width - cameraX, l.y - cameraY);
       ctx.stroke();
       
-      // Second line for depth (from early version)
+      // Second parallel line from early version
       ctx.beginPath();
       ctx.moveTo(l.x - 5 - cameraX, l.y + 2 - cameraY);
       ctx.lineTo(l.x + l.width - 5 - cameraX, l.y + 2 - cameraY);
@@ -567,42 +565,27 @@ function draw(){
     }
   }
 
-  // platforms with glow effect (from early version)
+  // platforms
   for(let plat of platforms){
     const useTexture = runtime.effects.blockTextureMul > 0.5;
-    
-    // Glow effect (from early version)
-    let glow = Math.sin(globalTime*3)*10 + 15;
-    if(runtime.glowEnabled){
-      ctx.shadowColor = `rgb(${plat.color.r},${plat.color.g},${plat.color.b})`;
-      ctx.shadowBlur = plat === platforms[0] ? glow : 0;
-    }
-    
     if(useTexture){
-      // Block texture with lines (from early version)
       for(let y = plat.y; y < canvas.height; y += BLOCK_SIZE){
         let dark = (y === plat.y) ? 1 : 0.3;
-        ctx.fillStyle = `rgba(${Math.floor(plat.color.r*dark)},${Math.floor(plat.color.g*dark)},${Math.floor(plat.color.b*dark)},1)`;
+        const grd = ctx.createLinearGradient(plat.x - cameraX, y - cameraY, plat.x + plat.width - cameraX, y + BLOCK_SIZE - cameraY);
+        grd.addColorStop(0, `rgba(${Math.floor(plat.color.r*dark)},${Math.floor(plat.color.g*dark)},${Math.floor(plat.color.b*dark)},1)`);
+        grd.addColorStop(1, "rgba(0,0,0,1)");
+        ctx.fillStyle = grd;
+        if(runtime.glowEnabled){ ctx.shadowColor = `rgba(${plat.color.r},${plat.color.g},${plat.color.b},0.9)`; ctx.shadowBlur = plat === platforms[0] ? 12 : 0; }
         ctx.fillRect(plat.x - cameraX, y - cameraY, plat.width, BLOCK_SIZE);
-        
-        // Texture lines (from early version)
-        ctx.strokeStyle = "rgba(255,255,255,0.1)";
-        for(let t=5; t<plat.width; t+=5){
-          ctx.beginPath();
-          ctx.moveTo(plat.x - cameraX + t, y - cameraY);
-          ctx.lineTo(plat.x - cameraX + t, y + BLOCK_SIZE - cameraY);
-          ctx.stroke();
-        }
+        ctx.shadowBlur = 0;
       }
     } else {
       ctx.fillStyle = `rgb(${plat.color.r},${plat.color.g},${plat.color.b})`;
       ctx.fillRect(plat.x - cameraX, plat.y - cameraY, plat.width, plat.height);
     }
-    
-    if(runtime.glowEnabled) ctx.shadowBlur = 0;
   }
 
-  // spikes (with pulse effect from early version)
+  // spikes
   for(let s of spikes){
     let pulse = Math.sin(globalTime*5 + s.x) * 5;
     ctx.fillStyle = "red";
@@ -614,23 +597,19 @@ function draw(){
     ctx.fill();
   }
 
-  // gems (floating and glowing from early version)
+  // gems
   for(let g of gems){
     if(g.collected) continue;
     g.floatOffset = g.floatOffset || Math.random()*Math.PI*2;
     let floatY = Math.sin(globalTime*3 + g.floatOffset) * 5;
-    
     ctx.save();
     ctx.translate(g.x + g.size/2 - cameraX, g.y + g.size/2 - cameraY + floatY);
     ctx.rotate(Math.PI/4);
     ctx.fillStyle = "white";
-    if(runtime.glowEnabled){ 
-      ctx.shadowColor = "white"; 
-      ctx.shadowBlur = 20 + 10 * Math.sin(globalTime*5); 
-    }
+    if(runtime.glowEnabled){ ctx.shadowColor = "white"; ctx.shadowBlur = 20 + 10 * Math.sin(globalTime*5); }
     ctx.fillRect(-g.size/2, -g.size/2, g.size, g.size);
     ctx.restore();
-    if(runtime.glowEnabled) ctx.shadowBlur = 0;
+    ctx.shadowBlur = 0;
   }
 
   // trail clones
@@ -656,7 +635,7 @@ function draw(){
     trail = [];
   }
 
-  // crash pieces
+  // crash pieces (from early version)
   for(let p of crashPieces){
     ctx.fillStyle = p.color;
     ctx.fillRect(p.x - cameraX, p.y - cameraY, p.size, p.size);
@@ -666,24 +645,19 @@ function draw(){
   for(let p of particles){
     if(p.life > 0){
       ctx.fillStyle = p.color;
-      ctx.globalAlpha = p.life / 50; // Fade out
+      ctx.globalAlpha = p.life / 50; // Fade out like early version
       ctx.fillRect(p.x - cameraX, p.y - cameraY, 5, 5);
       ctx.globalAlpha = 1;
     }
   }
 
-  // player
+  // player (KEEP CURRENT VERSION STYLE)
   if(player.visible){
-    if(runtime.glowEnabled){ 
-      ctx.shadowColor = "#0ff"; 
-      ctx.shadowBlur = 20; 
-    }
+    if(runtime.glowEnabled){ ctx.shadowColor = "#0ff"; ctx.shadowBlur = 20; }
     ctx.fillStyle = player.color;
     ctx.fillRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
     if(runtime.glowEnabled) ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#fff"; // White stroke from early version
-    ctx.lineWidth = 6; 
-    ctx.strokeRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
+    ctx.strokeStyle = "#0ff"; ctx.lineWidth = 6; ctx.strokeRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
   }
 
   // HUD
@@ -691,44 +665,147 @@ function draw(){
   hudScore.innerText = 'Score: ' + Math.floor(score);
 }
 
-/* ---------- Main loop ---------- */
+/* ---------- Main loop with TICK SYSTEM ---------- */
 let lastLoopTime = performance.now();
 let accumulated = 0;
+let fpsUpdateInterval = 500; // Update FPS display every 500ms (0.5s)
+let lastFpsDisplayUpdate = performance.now();
+
 function mainLoop(now){
   requestAnimationFrame(mainLoop);
   if(!now) now = performance.now();
+  
   const deltaMs = now - lastLoopTime;
   lastLoopTime = now;
-  const deltaSec = deltaMs / 1000;
-  globalTime += deltaSec;
+  globalTime += deltaMs / 1000;
 
-  // FPS limiting
+  // Calculate FPS for display
+  fps = 1000 / Math.max(1, deltaMs);
+  
+  // Update FPS display only every 0.5 seconds to reduce lag
+  if(now - lastFpsDisplayUpdate > fpsUpdateInterval){
+    const fpsLabel = document.getElementById('fpsLabel');
+    const maxFPSText = settings.maxFPS === 0 ? 'Unlimited' : settings.maxFPS;
+    const tpsText = Math.min(ticksThisSecond * 2, TICKS_PER_SECOND); // Multiply by 2 because we update every 0.5s
+    fpsLabel.innerText = `FPS: ${Math.round(fps)} / ${maxFPSText} | TPS: ${tpsText} | Quality: ${settings.qualityPreset}`;
+    lastFpsDisplayUpdate = now;
+    ticksThisSecond = 0; // Reset tick counter
+  }
+
+  // FPS limiting for rendering
   if(runtime.minFrameTime > 0){
     accumulated += deltaMs;
     if(accumulated < runtime.minFrameTime) return;
     accumulated = 0;
   }
 
-  // world step & draw
-  if(gameRunning && player.visible){
-    worldStep(deltaSec);
+  // TICK SYSTEM: Run game logic at fixed 60 TPS
+  tickAccumulator += deltaMs;
+  while(tickAccumulator >= TICK_INTERVAL) {
+    gameTick(TICK_INTERVAL);
+    tickAccumulator -= TICK_INTERVAL;
   }
-  
+
   // camera smoothing
   const targetCamX = player.x - 150;
   const targetCamY = player.y - canvas.height/2 + player.height*1.5;
   cameraX = cameraX * 0.9 + targetCamX * 0.1;
   cameraY = cameraY * 0.9 + targetCamY * 0.1;
 
-  // draw
+  // draw (rendering at monitor refresh rate)
   draw();
-
-  // update FPS display
-  const fps = 1000 / Math.max(1, deltaMs);
-  const fpsLabel = document.getElementById('fpsLabel');
-  const maxFPSText = settings.maxFPS === 0 ? 'Unlimited' : settings.maxFPS;
-  fpsLabel.innerText = `FPS: ${Math.round(fps)} / ${maxFPSText} — Quality: ${settings.qualityPreset}`;
 }
+
+/* ---------- Command handling (Ctrl+Shift+A) ---------- */
+function openCommandPrompt() {
+  const input = prompt("Enter command:");
+  if(!input) return;
+  const args = input.trim().split(/\s+/);
+  const command = args[0];
+  const root1 = args[1];
+  const root2 = args[2];
+  const root3 = args[3];
+
+  if(command === '/die'){
+    if(player.visible){
+      player.visible = false;
+      createCrashEarly(runtime.effects.dieEffectMul);
+      gameRunning = false;
+      if(score>bestScore){ bestScore = Math.floor(score); localStorage.setItem('bestScore', bestScore); }
+      setTimeout(()=> { document.getElementById('menu').style.display = 'flex'; }, 500);
+    }
+    return;
+  }
+
+  if(command === '/score'){
+    if(root1 === 'set' && root2 !== undefined){
+      const v = Number(root2);
+      if(!isNaN(v)) score = v; else alert('Invalid value');
+    } else if(root1 === 'add' && root2 !== undefined){
+      const v = Number(root2);
+      if(!isNaN(v)) score += v; else alert('Invalid value');
+    } else alert('Usage: /score set <value>  OR  /score add <value>');
+    return;
+  }
+
+  if(command === '/clear' && root1 === 'bestScore'){
+    bestScore = 0;
+    localStorage.setItem('bestScore', 0);
+    document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
+    alert('Best score cleared.');
+    return;
+  }
+
+  if(command === '/gamerule'){
+    switch(root1){
+      case 'infiniteJump': cheats.infiniteJump = (root2 === 'true'); break;
+      case 'death': cheats.invincible = (root2 === 'false'); break;
+      case 'speed':
+        if(!player.speedMultiplier) player.speedMultiplier = 1;
+        if(root2 === 'reset') player.speedMultiplier = 1;
+        if(root2 === 'add' && !isNaN(parseFloat(root3))) player.speedMultiplier += parseFloat(root3);
+        if(root2 === 'set' && !isNaN(parseFloat(root3))) player.speedMultiplier = parseFloat(root3);
+        break;
+      default: alert('Unknown gamerule');
+    }
+    return;
+  }
+
+  if(command === '/variable'){
+    if(!root1){
+      let accountLocal = localStorage.getItem('account') || 'player';
+      let isCreator = ['bw55133@pausd.us','ikunbeautiful@gmail.com','benranwu@gmail.com'].includes(accountLocal);
+      alert('test mode: '+testMode+'\n'+'infinite jump: '+cheats.infiniteJump+'\n'+'float: '+cheats.float+'\n'+'death: '+(!cheats.invincible)+'\n'+'score: '+score+'\n'+'best score: '+bestScore+'\n'+'account: '+(isCreator?'creator':'player')+'\n'+'player speed: '+player.speed+'\n'+'jump height: '+(-JUMP_SPEED));
+    }
+    return;
+  }
+
+  if(command === '/code'){
+    if(root1 === '770709'){ testMode = !testMode; alert(testMode ? 'TEST MODE ON' : 'TEST MODE OFF'); }
+    else if(root1 === 'lanseyaoji'){ if(player.speed < 5) player.speed = 5; else player.speed *= 1.5; alert('Player speed: '+player.speed); }
+    else if(root1 === 'jinyumantang'){ gemEveryBlock = !gemEveryBlock; alert('Gem generation: '+gemEveryBlock); }
+    else if(root1 === 'JiMmYiStHeCoOlEsTgUy|2025.letmecheat|L^UP++0U+L0UD'){
+      if(account !== '𐀒𐀒𐀒'){ oldAccount = account; account = '𐀒𐀒𐀒'; } else account = oldAccount || 'player';
+      alert('Account toggled: '+account);
+    }
+    return;
+  }
+
+  alert('Unknown command');
+}
+
+// Override browser Ctrl+Shift+A and add mobile button
+window.addEventListener('keydown', function(e){
+  // Prevent browser's Ctrl+Shift+A (Select All) from interfering
+  if(e.ctrlKey && e.shiftKey && e.code === 'KeyA'){
+    e.preventDefault();
+    openCommandPrompt();
+    return false;
+  }
+});
+
+// Mobile command button
+document.getElementById('mobileCommandBtn').addEventListener('click', openCommandPrompt);
 
 /* ---------- Start / Reset Game ---------- */
 function startGame(){
@@ -736,6 +813,8 @@ function startGame(){
   resetWorld();
   gameRunning = true;
   player.visible = true;
+  tickAccumulator = 0;
+  ticksThisSecond = 0;
 }
 document.getElementById('startBtn').addEventListener('click', startGame);
 
@@ -762,15 +841,15 @@ if(!localStorage.getItem(LS_KEY)){
   applySettings(settings);
 }
 
-// Initialize game
+// init ground/platforms and show menu
 resetWorld();
 document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
 document.getElementById('menu').style.display = 'flex';
 
-// Start the game loop
+// start the RAF loop
 requestAnimationFrame(mainLoop);
 
-console.log('Game loaded with enhanced particle effects!');
+console.log('Index.html loaded with early version particle effects only.');
 </script>
 </body>
 </html>
