@@ -178,9 +178,12 @@
       <div class="settings-section">
         <div class="section-title">Basic Effects</div>
         
-        <label>Block Texture:</label>
-        <input type="range" id="blockTexture" min="0" max="200" value="100">
-        <div class="range-value" id="blockTextureVal">100%</div>
+        <div class="checkbox-container">
+          <label>
+            <input type="checkbox" id="blockTexture" checked>
+            Enable Block Texture
+          </label>
+        </div>
 
         <label>Jump Effects</label>
         <input type="range" id="jumpEffect" min="0" max="200" value="100">
@@ -259,7 +262,14 @@
         
         // Set basic effects if they exist
         if (settings.quality) {
-          document.getElementById("blockTexture").value = settings.quality.blockTexture || 100;
+          // Set basic effects if they exist
+          if (settings.quality) {
+            // Block texture is now a checkbox - convert numeric to boolean
+            // In game.js: 0 = off, 1 or more = on
+            const blockTextureValue = settings.quality.blockTexture || 100;
+            document.getElementById("blockTexture").checked = blockTextureValue >= 1;
+            // ... other settings
+          }
           document.getElementById("jumpEffect").value = settings.quality.jumpEffect || 100;
           document.getElementById("walkEffect").value = settings.quality.walkEffect || 100;
           document.getElementById("dieEffect").value = settings.quality.dieEffect || 100;
@@ -288,8 +298,8 @@
     // Update all range value displays
     function updateAllRangeValues() {
       const rangeIds = [
-        "blockTexture", "jumpEffect", "walkEffect", "dieEffect", 
-        "horizontalLines", "trail", "glow", "shockwaves", 
+        "jumpEffect", "walkEffect", "dieEffect", "horizontalLines", 
+        "trail", "glow", "shockwaves", 
         "screenShake", "bloomParticles", "particleTrails", "screenDistortion"
       ];
       
@@ -311,7 +321,7 @@
     const qualityPresets = {
       "Potato": {
         quality: {
-          blockTexture: 0, jumpEffect: 0, walkEffect: 0, dieEffect: 0, 
+          blockTexture: false, jumpEffect: 0, walkEffect: 0, dieEffect: 0, 
           horizontalLines: 0, trail: 0, glow: 0
         },
         advanced: {
@@ -321,7 +331,7 @@
       },
       "Low": {
         quality: {
-          blockTexture: 0, jumpEffect: 5, walkEffect: 0, dieEffect: 0, 
+          blockTexture: false, jumpEffect: 5, walkEffect: 0, dieEffect: 0, 
           horizontalLines: 0, trail: 0, glow: 0
         },
         advanced: {
@@ -331,7 +341,7 @@
       },
       "Medium": {
         quality: {
-          blockTexture: 100, jumpEffect: 10, walkEffect: 0, dieEffect: 10, 
+          blockTexture: true, jumpEffect: 10, walkEffect: 0, dieEffect: 10, 
           horizontalLines: 0, trail: 0, glow: 0
         },
         advanced: {
@@ -341,7 +351,7 @@
       },
       "Medium+": {
         quality: {
-          blockTexture: 100, jumpEffect: 15, walkEffect: 15, dieEffect: 15, 
+          blockTexture: true, jumpEffect: 15, walkEffect: 15, dieEffect: 15, 
           horizontalLines: 0, trail: 0, glow: 0
         },
         advanced: {
@@ -351,7 +361,7 @@
       },
       "High": {
         quality: {
-          blockTexture: 100, jumpEffect: 15, walkEffect: 15, dieEffect: 15, 
+          blockTexture: true, jumpEffect: 15, walkEffect: 15, dieEffect: 15, 
           horizontalLines: 15, trail: 0, glow: 0
         },
         advanced: {
@@ -361,7 +371,7 @@
       },
       "High+": {
         quality: {
-          blockTexture: 100, jumpEffect: 33, walkEffect: 33, dieEffect: 33, 
+          blockTexture: true, jumpEffect: 33, walkEffect: 33, dieEffect: 33, 
           horizontalLines: 33, trail: 0, glow: 0
         },
         advanced: {
@@ -371,7 +381,7 @@
       },
       "Extreme": {
         quality: {
-          blockTexture: 100, jumpEffect: 60, walkEffect: 60, dieEffect: 60, 
+          blockTexture: true, jumpEffect: 60, walkEffect: 60, dieEffect: 60, 
           horizontalLines: 60, trail: 0, glow: 0
         },
         advanced: {
@@ -381,7 +391,7 @@
       },
       "Extreme+": {
         quality: {
-          blockTexture: 100, jumpEffect: 64, walkEffect: 64, dieEffect: 64, 
+          blockTexture: true, jumpEffect: 64, walkEffect: 64, dieEffect: 64, 
           horizontalLines: 64, trail: 100, glow: 100
         },
         advanced: {
@@ -391,7 +401,7 @@
       },
       "Ultra": {
         quality: {
-          blockTexture: 100, jumpEffect: 100, walkEffect: 100, dieEffect: 100, 
+          blockTexture: true, jumpEffect: 100, walkEffect: 100, dieEffect: 100, 
           horizontalLines: 100, trail: 0, glow: 100
         },
         advanced: {
@@ -401,7 +411,7 @@
       },
       "Ultra+": {
         quality: {
-          blockTexture: 100, jumpEffect: 120, walkEffect: 120, dieEffect: 120, 
+          blockTexture: true, jumpEffect: 120, walkEffect: 120, dieEffect: 120, 
           horizontalLines: 120, trail: 100, glow: 100
         },
         advanced: {
@@ -411,7 +421,7 @@
       },
       "Glow Highest": {
         quality: {
-          blockTexture: 100, jumpEffect: 200, walkEffect: 200, dieEffect: 200, 
+          blockTexture: true, jumpEffect: 200, walkEffect: 200, dieEffect: 200, 
           horizontalLines: 200, trail: 100, glow: 150
         },
         advanced: {
@@ -423,11 +433,11 @@
 
     // Setup event listeners for range inputs
     const allRangeIds = [
-      "blockTexture", "jumpEffect", "walkEffect", "dieEffect", 
-      "horizontalLines", "trail", "glow", "shockwaves", 
-      "screenShake", "bloomParticles", "particleTrails", "screenDistortion"
+      "jumpEffect", "walkEffect", "dieEffect", "horizontalLines", 
+      "trail", "glow", "shockwaves", "screenShake", 
+      "bloomParticles", "particleTrails", "screenDistortion"
     ];
-    
+
     allRangeIds.forEach(id => {
       const input = document.getElementById(id);
       if (input) {
@@ -436,7 +446,25 @@
         input.addEventListener("change", () => {
           document.getElementById("quality").value = "Custom";
         });
+        // Also switch to custom when user starts dragging (mousedown)
+        input.addEventListener("mousedown", () => {
+          document.getElementById("quality").value = "Custom";
+        });
+        // For touch devices
+        input.addEventListener("touchstart", () => {
+          document.getElementById("quality").value = "Custom";
+        });
       }
+    });
+
+    // When block texture checkbox changes, switch to custom mode
+    document.getElementById("blockTexture").addEventListener("change", () => {
+      document.getElementById("quality").value = "Custom";
+    });
+
+    // When FPS dropdown changes, switch to custom mode
+    document.getElementById("fps").addEventListener("change", () => {
+      document.getElementById("quality").value = "Custom";
     });
 
     // Toggle visual effects settings
@@ -472,8 +500,13 @@
           for (const [key, value] of Object.entries(preset.quality)) {
             const input = document.getElementById(key);
             if (input) {
-              input.value = value;
-              updateRangeValue(key);
+              if (key === "blockTexture") {
+                // Special handling for checkbox
+                input.checked = Boolean(value);
+              } else {
+                input.value = value;
+                updateRangeValue(key);
+              }
             }
           }
         }
@@ -497,7 +530,7 @@
         maxFPS: parseInt(document.getElementById("fps").value) || 0,
         qualityPreset: document.getElementById("quality").value === "Custom" ? "Extreme+" : document.getElementById("quality").value,
         quality: {
-          blockTexture: parseInt(document.getElementById("blockTexture").value) || 0,
+          blockTexture: document.getElementById("blockTexture").checked ? 100 : 0,
           jumpEffect: parseInt(document.getElementById("jumpEffect").value) || 0,
           walkEffect: parseInt(document.getElementById("walkEffect").value) || 0,
           dieEffect: parseInt(document.getElementById("dieEffect").value) || 0,
@@ -552,6 +585,7 @@
         }
       }
     });
+    
   </script>
 </body>
 </html>
