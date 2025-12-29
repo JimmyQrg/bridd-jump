@@ -6,4 +6,5 @@
     <li>Fixed settings</li>
     <li>Brought back animated dying effects</li>
     <li>Fixed horizontal line effect</li>
+    <li>Split Files</li>
 </ol>
