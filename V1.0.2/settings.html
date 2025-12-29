@@ -262,14 +262,11 @@
         
         // Set basic effects if they exist
         if (settings.quality) {
-          // Set basic effects if they exist
-          if (settings.quality) {
-            // Block texture is now a checkbox - convert numeric to boolean
-            // In game.js: 0 = off, 1 or more = on
-            const blockTextureValue = settings.quality.blockTexture || 100;
-            document.getElementById("blockTexture").checked = blockTextureValue >= 1;
-            // ... other settings
-          }
+          // Block texture is now a checkbox - convert numeric to boolean
+          // In game.js: 0 = off, 1 or more = on
+          const blockTextureValue = settings.quality.blockTexture || 100;
+          document.getElementById("blockTexture").checked = blockTextureValue >= 1;
+          
           document.getElementById("jumpEffect").value = settings.quality.jumpEffect || 100;
           document.getElementById("walkEffect").value = settings.quality.walkEffect || 100;
           document.getElementById("dieEffect").value = settings.quality.dieEffect || 100;
