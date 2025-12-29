@@ -1352,7 +1352,7 @@ function applyAmbientOcclusion(){
 
 /* ---------- ENHANCED PARTICLE EFFECTS ---------- */
 function spawnParticlesEarly(x, y, type, amountMul = 1) {
-  const color = type === "jump" ? "#0ff" : type === "double" ? "#ff0" : "#fff";
+  const color = type === "jump" ? "#0ff" : type === "double" ? "#fff" : "#fff";
   const baseCount = type === "land" ? 10 : 15;
   const count = Math.max(0, Math.floor(baseCount * amountMul * runtime.effects.jumpEffectMul));
   
