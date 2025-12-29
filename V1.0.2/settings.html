@@ -6,109 +6,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: black;
-      color: #0ff;
-      font-family: 'Press Start 2P', cursive;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-    }
-    .container {
-      background: rgba(0,0,0,0.9);
-      border: 3px solid #0ff;
-      border-radius: 20px;
-      padding: 30px;
-      width: 640px;
-      max-width: 95%;
-      text-align: center;
-    }
-    h1 {
-      font-size: 24px;
-      margin-bottom: 20px;
-      text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
-    }
-    label {
-      display: block;
-      margin: 15px 0 5px;
-      font-size: 12px;
-    }
+    body { margin: 0; padding: 0; background: black; color: #0ff;
+      font-family: 'Press Start 2P', cursive; display: flex;
+      justify-content: center; align-items: center; min-height: 100vh; }
+    .container { background: rgba(0,0,0,0.9); border: 3px solid #0ff;
+      border-radius: 20px; padding: 30px; width: 700px; max-width: 95%;
+      text-align: center; }
+    h1 { font-size: 24px; margin-bottom: 20px;
+      text-shadow: 0 0 10px #0ff, 0 0 20px #0ff; }
+    label { display: block; margin: 15px 0 5px; font-size: 12px; }
     select, input[type=range], input[type=checkbox] {
-      margin-bottom: 10px;
-      background: black;
-      color: #0ff;
-      border: 2px solid #0ff;
-      font-family: 'Press Start 2P', cursive;
-      font-size: 12px;
-      padding: 5px;
-    }
-    select, input[type=range] {
-      width: 100%;
-    }
-    .range-value {
-      font-size: 10px;
-      margin-top: -5px;
-      margin-bottom: 10px;
-      color: #fff;
-    }
-    button {
-      margin: 15px;
-      padding: 12px 30px;
-      font-size: 12px;
-      cursor: pointer;
-      color: #0ff;
-      background: black;
-      border: 3px solid #0ff;
-      border-radius: 10px;
-      font-family: 'Press Start 2P', cursive;
-      transition: 0.3s;
-    }
-    button:hover {
-      background: #0ff;
-      color: black;
-    }
-    #advancedSettings {
-      display: none;
-      margin-top: 10px;
-      border-top: 1px solid #0ff;
-      padding-top: 10px;
-    }
-    #toggleAdvanced {
-      font-size: 12px;
-      background: transparent;
-      border: 2px solid #0ff;
-      padding: 8px 12px;
-      cursor: pointer;
-      margin-bottom: 10px;
-    }
-    #toggleAdvanced:hover {
-      background: #0ff;
-      color: black;
-    }
-    .checkbox-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 10px 0;
-    }
-    .checkbox-container label {
-      margin: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      cursor: pointer;
-      font-size: 10px;
-    }
-    .checkbox-container input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-      margin: 0;
-      cursor: pointer;
-    }
+      margin-bottom: 10px; background: black; color: #0ff;
+      border: 2px solid #0ff; font-family: 'Press Start 2P', cursive;
+      font-size: 12px; padding: 5px; }
+    select, input[type=range] { width: 100%; }
+    .range-value { font-size: 10px; margin-top: -5px; margin-bottom: 10px; color: #fff; }
+    button { margin: 15px; padding: 12px 30px; font-size: 12px; cursor: pointer;
+      color: #0ff; background: black; border: 3px solid #0ff; border-radius: 10px;
+      font-family: 'Press Start 2P', cursive; transition: 0.3s; }
+    button:hover { background: #0ff; color: black; }
+    #advancedSettings { display: none; margin-top: 10px; border-top: 1px solid #0ff;
+      padding-top: 10px; }
+    #toggleAdvanced { font-size: 12px; background: transparent; border: 2px solid #0ff;
+      padding: 8px 12px; cursor: pointer; margin-bottom: 10px; }
+    #toggleAdvanced:hover { background: #0ff; color: black; }
+    .checkbox-container { display: flex; align-items: center; justify-content: center;
+      margin: 10px 0; }
+    .checkbox-container label { margin: 0; display: flex; align-items: center;
+      justify-content: center; gap: 10px; cursor: pointer; font-size: 10px; }
+    .checkbox-container input[type="checkbox"] { width: 20px; height: 20px;
+      margin: 0; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -118,46 +45,27 @@
     <label for="fps">Max FPS:</label>
     <select id="fps">
       <option value="0">Unlimited</option>
-      <option value="5">5</option>
-      <option value="10">10</option>
-      <option value="15">15</option>
-      <option value="20">20</option>
-      <option value="25">25</option>
       <option value="30">30</option>
-      <option value="35">35</option>
-      <option value="40">40</option>
-      <option value="45">45</option>
-      <option value="50">50</option>
       <option value="60">60</option>
-      <option value="70">70</option>
-      <option value="80">80</option>
-      <option value="90">90</option>
-      <option value="100">100</option>
-      <option value="110">110</option>
       <option value="120">120</option>
-      <option value="130">130</option>
-      <option value="140">140</option>
-      <option value="150">150</option>
-      <option value="160">160</option>
-      <option value="180">180</option>
-      <option value="200">200</option>
-      <option value="250">250</option>
-      <option value="300">300</option>
+      <option value="144">144</option>
+      <option value="240">240</option>
     </select>
 
     <label for="quality">Quality Preset:</label>
     <select id="quality">
-      <option>Potato</option>
-      <option>Low</option>
-      <option>Medium</option>
-      <option>Medium+</option>
-      <option>High</option>
-      <option>High+</option>
-      <option>Extreme</option>
-      <option selected>Extreme+</option>
-      <option>Ultra</option>
-      <option>Ultra+</option>
-      <option>Glow Highest</option>
+      <option value="Potato">Potato</option>
+      <option value="Low">Low</option>
+      <option value="Medium">Medium</option>
+      <option value="Medium+">Medium+</option>
+      <option value="High">High</option>
+      <option value="High+">High+</option>
+      <option value="Extreme">Extreme</option>
+      <option value="Extreme+" selected>Extreme+</option>
+      <option value="Ultra">Ultra</option>
+      <option value="Ultra+">Ultra+</option>
+      <option value="Glow Highest">Glow Highest</option>
+      <option value="All Effects">All Effects</option>
     </select>
 
     <button id="toggleAdvanced">Advanced Settings ▼</button>
@@ -187,11 +95,32 @@
       <input type="range" id="glow" min="0" max="200" value="100">
       <div class="range-value" id="glowVal">100%</div>
 
-      <!-- Block Texture Checkbox at the end -->
+      <!-- NEW EFFECTS -->
+      <label>Screen Shake Intensity</label>
+      <input type="range" id="screenShake" min="0" max="200" value="100">
+      <div class="range-value" id="screenShakeVal">100%</div>
+
+      <label>Particle Physics</label>
+      <input type="range" id="particlePhysics" min="0" max="200" value="100">
+      <div class="range-value" id="particlePhysicsVal">100%</div>
+
+      <label>Color Intensity</label>
+      <input type="range" id="colorIntensity" min="0" max="200" value="100">
+      <div class="range-value" id="colorIntensityVal">100%</div>
+
+      <label>Motion Blur</label>
+      <input type="range" id="motionBlur" min="0" max="200" value="0">
+      <div class="range-value" id="motionBlurVal">0%</div>
+
+      <label>After Images</label>
+      <input type="range" id="afterImages" min="0" max="200" value="0">
+      <div class="range-value" id="afterImagesVal">0%</div>
+
+      <!-- Block Texture Checkbox (FIXED LOGIC) -->
       <div class="checkbox-container">
         <label>
           <input type="checkbox" id="blockTexture" checked>
-          Disable Block Texture
+          Enable Block Texture
         </label>
       </div>
     </div>
@@ -203,7 +132,71 @@
   </div>
 
   <script>
-    // Load settings from localStorage with the correct key
+    // Quality presets with all new effects
+    const qualityPresets = {
+      "Potato": {
+        jumpEffect: 0, walkEffect: 0, dieEffect: 0, horizontalLines: 0,
+        trail: 0, glow: 0, screenShake: 0, particlePhysics: 0,
+        colorIntensity: 50, motionBlur: 0, afterImages: 0, blockTexture: false
+      },
+      "Low": {
+        jumpEffect: 20, walkEffect: 0, dieEffect: 20, horizontalLines: 0,
+        trail: 0, glow: 0, screenShake: 20, particlePhysics: 20,
+        colorIntensity: 60, motionBlur: 0, afterImages: 0, blockTexture: false
+      },
+      "Medium": {
+        jumpEffect: 50, walkEffect: 30, dieEffect: 50, horizontalLines: 0,
+        trail: 0, glow: 0, screenShake: 40, particlePhysics: 40,
+        colorIntensity: 75, motionBlur: 0, afterImages: 0, blockTexture: true
+      },
+      "Medium+": {
+        jumpEffect: 70, walkEffect: 50, dieEffect: 70, horizontalLines: 30,
+        trail: 0, glow: 0, screenShake: 60, particlePhysics: 60,
+        colorIntensity: 85, motionBlur: 0, afterImages: 0, blockTexture: true
+      },
+      "High": {
+        jumpEffect: 85, walkEffect: 70, dieEffect: 85, horizontalLines: 60,
+        trail: 30, glow: 30, screenShake: 75, particlePhysics: 75,
+        colorIntensity: 95, motionBlur: 20, afterImages: 0, blockTexture: true
+      },
+      "High+": {
+        jumpEffect: 100, walkEffect: 85, dieEffect: 100, horizontalLines: 80,
+        trail: 60, glow: 60, screenShake: 85, particlePhysics: 85,
+        colorIntensity: 110, motionBlur: 40, afterImages: 20, blockTexture: true
+      },
+      "Extreme": {
+        jumpEffect: 120, walkEffect: 100, dieEffect: 120, horizontalLines: 100,
+        trail: 80, glow: 80, screenShake: 95, particlePhysics: 95,
+        colorIntensity: 125, motionBlur: 60, afterImages: 40, blockTexture: true
+      },
+      "Extreme+": {
+        jumpEffect: 140, walkEffect: 120, dieEffect: 140, horizontalLines: 120,
+        trail: 100, glow: 100, screenShake: 110, particlePhysics: 110,
+        colorIntensity: 140, motionBlur: 80, afterImages: 60, blockTexture: true
+      },
+      "Ultra": {
+        jumpEffect: 160, walkEffect: 140, dieEffect: 160, horizontalLines: 140,
+        trail: 120, glow: 120, screenShake: 125, particlePhysics: 125,
+        colorIntensity: 155, motionBlur: 100, afterImages: 80, blockTexture: true
+      },
+      "Ultra+": {
+        jumpEffect: 180, walkEffect: 160, dieEffect: 180, horizontalLines: 160,
+        trail: 140, glow: 140, screenShake: 140, particlePhysics: 140,
+        colorIntensity: 170, motionBlur: 120, afterImages: 100, blockTexture: true
+      },
+      "Glow Highest": {
+        jumpEffect: 200, walkEffect: 180, dieEffect: 200, horizontalLines: 180,
+        trail: 160, glow: 150, screenShake: 155, particlePhysics: 155,
+        colorIntensity: 185, motionBlur: 140, afterImages: 120, blockTexture: true
+      },
+      "All Effects": {
+        jumpEffect: 200, walkEffect: 200, dieEffect: 200, horizontalLines: 200,
+        trail: 200, glow: 200, screenShake: 200, particlePhysics: 200,
+        colorIntensity: 200, motionBlur: 200, afterImages: 200, blockTexture: true
+      }
+    };
+
+    // Load settings
     function loadSettings() {
       try {
         const saved = localStorage.getItem("briddSettings");
@@ -211,128 +204,59 @@
         
         const settings = JSON.parse(saved);
         
-        // Set FPS
         document.getElementById("fps").value = settings.maxFPS || 0;
-        
-        // Set quality preset
         document.getElementById("quality").value = settings.qualityPreset || "Extreme+";
         
-        // Set advanced settings if they exist
         if (settings.quality) {
-          document.getElementById("jumpEffect").value = settings.quality.jumpEffect || 100;
-          document.getElementById("walkEffect").value = settings.quality.walkEffect || 100;
-          document.getElementById("dieEffect").value = settings.quality.dieEffect || 100;
-          document.getElementById("horizontalLines").value = settings.quality.horizontalLines || 100;
-          document.getElementById("trail").value = settings.quality.trail || 100;
-          document.getElementById("glow").value = settings.quality.glow || 100;
+          const ids = ["jumpEffect","walkEffect","dieEffect","horizontalLines","trail","glow",
+                      "screenShake","particlePhysics","colorIntensity","motionBlur","afterImages"];
           
-          // Set block texture checkbox (convert to boolean)
-          const blockTexture = Boolean(settings.quality.blockTexture);
-          document.getElementById("blockTexture").checked = blockTexture;
+          ids.forEach(id => {
+            if(settings.quality[id] !== undefined) {
+              document.getElementById(id).value = settings.quality[id];
+              updateRangeValue(id);
+            }
+          });
+          
+          document.getElementById("blockTexture").checked = Boolean(settings.quality.blockTexture);
         }
-        
-        // Update all range value displays
-        updateRangeValue("jumpEffect");
-        updateRangeValue("walkEffect");
-        updateRangeValue("dieEffect");
-        updateRangeValue("horizontalLines");
-        updateRangeValue("trail");
-        updateRangeValue("glow");
-        
-      } catch (e) {
-        console.error("Failed to load settings:", e);
-      }
+      } catch(e) { console.error("Failed to load:", e); }
     }
 
-    // Update range value display
     function updateRangeValue(id) {
       const input = document.getElementById(id);
       const display = document.getElementById(id + "Val");
-      if (input && display) {
-        display.textContent = input.value + "%";
-      }
+      if(input && display) display.textContent = input.value + "%";
     }
 
-    // Quality presets mapping (matching index.html - with boolean blockTexture)
-    const qualityPresets = {
-      "Potato": {
-        jumpEffect: 0, walkEffect: 0, dieEffect: 0, 
-        horizontalLines: 0, trail: 0, glow: 0, blockTexture: false
-      },
-      "Low": {
-        jumpEffect: 5, walkEffect: 0, dieEffect: 0, 
-        horizontalLines: 0, trail: 0, glow: 0, blockTexture: false
-      },
-      "Medium": {
-        jumpEffect: 10, walkEffect: 0, dieEffect: 10, 
-        horizontalLines: 0, trail: 0, glow: 0, blockTexture: true
-      },
-      "Medium+": {
-        jumpEffect: 15, walkEffect: 15, dieEffect: 15, 
-        horizontalLines: 0, trail: 0, glow: 0, blockTexture: true
-      },
-      "High": {
-        jumpEffect: 15, walkEffect: 15, dieEffect: 15, 
-        horizontalLines: 15, trail: 0, glow: 0, blockTexture: true
-      },
-      "High+": {
-        jumpEffect: 33, walkEffect: 33, dieEffect: 33, 
-        horizontalLines: 33, trail: 0, glow: 0, blockTexture: true
-      },
-      "Extreme": {
-        jumpEffect: 60, walkEffect: 60, dieEffect: 60, 
-        horizontalLines: 60, trail: 0, glow: 0, blockTexture: true
-      },
-      "Extreme+": {
-        jumpEffect: 64, walkEffect: 64, dieEffect: 64, 
-        horizontalLines: 64, trail: 100, glow: 100, blockTexture: true
-      },
-      "Ultra": {
-        jumpEffect: 100, walkEffect: 100, dieEffect: 100, 
-        horizontalLines: 100, trail: 0, glow: 100, blockTexture: true
-      },
-      "Ultra+": {
-        jumpEffect: 120, walkEffect: 120, dieEffect: 120, 
-        horizontalLines: 120, trail: 100, glow: 100, blockTexture: true
-      },
-      "Glow Highest": {
-        jumpEffect: 200, walkEffect: 200, dieEffect: 200, 
-        horizontalLines: 200, trail: 100, glow: 150, blockTexture: true
-      }
-    };
-
-    // Setup event listeners for range inputs
-    ["jumpEffect", "walkEffect", "dieEffect", "horizontalLines", "trail", "glow"].forEach(id => {
+    // Setup sliders
+    ["jumpEffect","walkEffect","dieEffect","horizontalLines","trail","glow",
+     "screenShake","particlePhysics","colorIntensity","motionBlur","afterImages"].forEach(id => {
       const input = document.getElementById(id);
-      if (input) {
+      if(input) {
         input.addEventListener("input", () => updateRangeValue(id));
-        // When manually adjusting sliders, switch to custom mode
         input.addEventListener("change", () => {
           document.getElementById("quality").value = "Custom";
         });
       }
     });
 
-    // Toggle advanced settings
+    // Toggle advanced
     document.getElementById("toggleAdvanced").addEventListener("click", function() {
       const adv = document.getElementById("advancedSettings");
-      if (adv.style.display === "none" || adv.style.display === "") {
-        adv.style.display = "block";
-        this.textContent = "Advanced Settings ▲";
-      } else {
-        adv.style.display = "none";
-        this.textContent = "Advanced Settings ▼";
-      }
+      adv.style.display = adv.style.display === "none" ? "block" : "none";
+      this.textContent = adv.style.display === "block" ? 
+        "Advanced Settings ▲" : "Advanced Settings ▼";
     });
 
-    // When quality preset changes, update sliders and checkbox
+    // Preset change
     document.getElementById("quality").addEventListener("change", function() {
       const preset = qualityPresets[this.value];
-      if (preset) {
-        for (const [key, value] of Object.entries(preset)) {
+      if(preset) {
+        for(const [key, value] of Object.entries(preset)) {
           const input = document.getElementById(key);
-          if (input) {
-            if (input.type === "checkbox") {
+          if(input) {
+            if(input.type === "checkbox") {
               input.checked = Boolean(value);
             } else {
               input.value = value;
@@ -343,7 +267,7 @@
       }
     });
 
-    // Save settings and go back to game
+    // Save
     document.getElementById("saveBtn").addEventListener("click", function() {
       const settings = {
         maxFPS: parseInt(document.getElementById("fps").value) || 0,
@@ -355,26 +279,29 @@
           horizontalLines: parseInt(document.getElementById("horizontalLines").value) || 0,
           trail: parseInt(document.getElementById("trail").value) || 0,
           glow: parseInt(document.getElementById("glow").value) || 0,
-          blockTexture: document.getElementById("blockTexture").checked // Boolean
+          screenShake: parseInt(document.getElementById("screenShake").value) || 0,
+          particlePhysics: parseInt(document.getElementById("particlePhysics").value) || 0,
+          colorIntensity: parseInt(document.getElementById("colorIntensity").value) || 0,
+          motionBlur: parseInt(document.getElementById("motionBlur").value) || 0,
+          afterImages: parseInt(document.getElementById("afterImages").value) || 0,
+          blockTexture: document.getElementById("blockTexture").checked
         }
       };
       
       try {
         localStorage.setItem("briddSettings", JSON.stringify(settings));
-        // Go back to the game
         window.location.href = "index.html";
-      } catch (e) {
-        console.error("Failed to save settings:", e);
-        alert("Failed to save settings!");
+      } catch(e) {
+        console.error("Save failed:", e);
+        alert("Failed to save!");
       }
     });
 
-    // Cancel button - just go back without saving
+    // Cancel
     document.getElementById("cancelBtn").addEventListener("click", function() {
       window.location.href = "index.html";
     });
 
-    // Load settings on page load
     window.addEventListener("load", loadSettings);
   </script>
 </body>
