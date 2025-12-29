@@ -842,7 +842,7 @@ function draw(){
       // Smooth fade over time - decrease alpha gradually
       // Start fading after 3 ticks, fade over 30 ticks total
       if(t.age > 3) {
-        const fadeProgress = (t.age - 3) / 30;
+        const fadeProgress = (t.age - 3) / 20;
         t.alpha = 0.6 * (1 - fadeProgress); // Linear fade from 0.6 to 0
       }
     }
