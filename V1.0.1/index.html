@@ -62,6 +62,7 @@
     <h1>BRIDD JUMP</h1>
     <div id="bestScore">Best Score: 0</div>
     <button id="startBtn" class="btn">START</button>
+    <button id="settingsBtn" class="btn">SETTINGS (DOESN'T WORK YET)</button>
   </div>
 
   <div id="scoreHUD">Score: 0</div>
@@ -104,7 +105,7 @@ const GRAVITY = 0.7;
 
 /* Player object blueprint */
 let player = {
-  x: 100, y: 0, width: 50, height: 50, vy: 0, speed: 8,
+  x: 100, y: 0, width: 50, height: 50, vy: 0, speed: 11,
   color: "#0ff", hitboxScale: 0.6, jumpsLeft: 2, onGround:false, visible:true,
   horizMultiplier:1, vertMultiplier:1, accountEmail: "player@example.com"
 };
@@ -252,7 +253,7 @@ function resetWorld(){
   player.x = 100;
   player.y = canvas.height/2 - player.height;
   player.vy = 0;
-  player.speed = 8;
+  player.speed = 11;
   player.jumpsLeft = 2;
   player.onGround = false;
   player.visible = true;
@@ -745,6 +746,20 @@ function startGame(){
   player.visible = true;
 }
 document.getElementById('startBtn').addEventListener('click', startGame);
+
+/* ---------- Settings button (open settings.html if present) ---------- */
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  // Try to fetch settings.html HEAD to decide
+  fetch('settings.html', { method: 'HEAD' }).then(resp => {
+    if(resp.ok) {
+      window.location.href = 'settings.html';
+    } else {
+      alert('cannot open settings, settings.html required');
+    }
+  }).catch(()=> {
+    alert('cannot open settings, settings.html required');
+  });
+});
 
 /* ---------- Game initialization ---------- */
 // make sure we have at least a default settings object saved if none exists

@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Schedule | Infinite Campus</title>
-<link rel="icon" href="infinite-campus.png">
+<link rel="icon" href="https://raw.githubusercontent.com/JimmyQrg/bridd-jump/main/infinite-campus.png">
 
 <!-- Pixel font -->
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -62,6 +62,7 @@
     <h1>BRIDD JUMP</h1>
     <div id="bestScore">Best Score: 0</div>
     <button id="startBtn" class="btn">START</button>
+    <button id="settingsBtn" class="btn">SETTINGS</button>
   </div>
 
   <div id="scoreHUD">Score: 0</div>
@@ -71,10 +72,8 @@
 <script>
 /* ===========================
    FULL, STANDALONE index.html
-   - Keeps UI exactly as overlay above
-   - Fixes 'black after start' bug
-   - Integrates settings via localStorage key 'briddSettings'
-   - Alerts if settings.html missing when trying to open it
+   - Integrated all particle effects from early version
+   - Keeps settings functionality
    =========================== */
 
 /* ---------- Utilities ---------- */
@@ -84,6 +83,14 @@ function showToast(msg, ms=1200){
   d.style.display = 'block';
   clearTimeout(d._timer);
   d._timer = setTimeout(()=> d.style.display = 'none', ms);
+}
+
+function lerpColor(c1,c2,t){ 
+  return { 
+    r: c1.r + (c2.r - c1.r)*t, 
+    g: c1.g + (c2.g - c1.g)*t, 
+    b: c1.b + (c2.b - c1.b)*t 
+  }; 
 }
 
 /* ---------- Canvas & resizing ---------- */
@@ -104,7 +111,7 @@ const GRAVITY = 0.7;
 
 /* Player object blueprint */
 let player = {
-  x: 100, y: 0, width: 50, height: 50, vy: 0, speed: 8,
+  x: 100, y: 0, width: 50, height: 50, vy: 0, speed: 11,
   color: "#0ff", hitboxScale: 0.6, jumpsLeft: 2, onGround:false, visible:true,
   horizMultiplier:1, vertMultiplier:1, accountEmail: "player@example.com"
 };
@@ -232,10 +239,7 @@ function applySettings(s){
 /* initial apply */
 applySettings(settings);
 
-/* ---------- Utility drawing helpers ---------- */
-function lerpColor(c1,c2,t){ return { r: c1.r + (c2.r - c1.r)*t, g: c1.g + (c2.g - c1.g)*t, b: c1.b + (c2.b - c1.b)*t }; }
-
-/* ---------- World initialization & reset (fix black-screen issue) ---------- */
+/* ---------- World initialization & reset ---------- */
 let lastPlatformX = 0, lastPlatformY = 0;
 
 function resetWorld(){
@@ -252,7 +256,7 @@ function resetWorld(){
   player.x = 100;
   player.y = canvas.height/2 - player.height;
   player.vy = 0;
-  player.speed = 8;
+  player.speed = 11;
   player.jumpsLeft = 2;
   player.onGround = false;
   player.visible = true;
@@ -262,11 +266,11 @@ function resetWorld(){
   score = 0; colorLerp = 0; globalTime = 0;
   colorIndex = 0; platformColor = {...baseColors[0]}; nextColor = baseColors[1];
 
-  // Create a guaranteed ground platform inside viewport so you do NOT get a black void
+  // Create a guaranteed ground platform
   const groundHeight = BLOCK_SIZE;
   platforms.push({
     x: 0,
-    y: Math.max(100, canvas.height - groundHeight * 2),  // visible on screen
+    y: Math.max(100, canvas.height - groundHeight * 2),
     width: Math.max(canvas.width, BLOCK_SIZE*10),
     height: groundHeight,
     color: {...platformColor},
@@ -277,7 +281,7 @@ function resetWorld(){
   lastPlatformY = platforms[platforms.length-1].y;
 }
 
-/* ---------- Platform generator (blocks) ---------- */
+/* ---------- Platform generator ---------- */
 function generateBlockPlatform(lastX, lastY){
   let blockCount = Math.floor(Math.random()*8)+1;
   if(Math.random()<0.7) blockCount = Math.min(blockCount,Math.floor(Math.random()*3+1));
@@ -288,12 +292,12 @@ function generateBlockPlatform(lastX, lastY){
 
   for(let i=0;i<blockCount;i++){
     platforms.push({ x: x + i*BLOCK_SIZE, y, width: BLOCK_SIZE, height: BLOCK_SIZE, color: {...platformColor}, passed:false });
-    if(Math.random() < 0.2){
+    if(Math.random() < 0.08){ // Changed from 0.2 to 0.08 to match early version
       spikes.push({ x: x + i*BLOCK_SIZE + BLOCK_SIZE*0.2, y: y - BLOCK_SIZE + BLOCK_SIZE*0.2, width: BLOCK_SIZE*0.6, height: BLOCK_SIZE*0.6, baseY: y - BLOCK_SIZE + BLOCK_SIZE*0.2, hit:true, passed:false });
     }
   }
 
-  // gems
+  // gems (from early version)
   for(let i=0;i<blockCount;i++){
     if(Math.random() < 0.1 || gemEveryBlock){
       let gemX = x + i*BLOCK_SIZE + BLOCK_SIZE/4;
@@ -317,47 +321,87 @@ function checkSpikeCollision(spike){
   return hbX + hbW > spike.x && hbX < spike.x + spike.width && hbY + hbH > spike.y && hbY < spike.y + spike.height;
 }
 
-/* ---------- Particles / crash pieces ---------- */
-class Particle {
-  constructor(x,y,vx,vy,life,color){
-    this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.life = life; this.color = color;
-  }
-  update(){ this.x += this.vx; this.y += this.vy; this.vy += 0.1; this.life -= 1; }
-  draw(){ if(this.life>0){ ctx.fillStyle = this.color; ctx.fillRect(this.x - cameraX, this.y - cameraY, 4,4); } }
-}
-
-function spawnParticles(cx,cy,type,amountMul=1){
-  const base = type === "double" ? 20 : (type === "land" ? 10 : 15);
-  const count = Math.max(0, Math.floor(base * (amountMul || runtime.effects.jumpEffectMul || 1)));
-  const color = type === "double" ? "#ff0" : (type === "jump" ? "#0ff" : "#fff");
+/* ---------- PARTICLE EFFECTS (from early version) ---------- */
+function spawnJumpParticles(cx, cy, type){
+  const color = type === "jump" ? "#0ff" : type === "double" ? "#ff0" : "#fff";
+  const baseCount = 15;
+  const count = Math.max(0, Math.floor(baseCount * runtime.effects.jumpEffectMul));
+  
   for(let i=0;i<count;i++){
-    const vx = (Math.random()-0.5)*6;
-    const vy = (Math.random()-1.5)*6;
-    particles.push(new Particle(cx + (Math.random()-0.5)*6, cy + (Math.random()-0.5)*6, vx, vy, Math.floor(Math.random()*40+20), color));
-  }
-}
-
-function createCrash(){
-  const pieces = Math.max(6, Math.floor(20 * (runtime.effects.dieEffectMul || 1)));
-  for(let i=0;i<pieces;i++){
-    crashPieces.push({
-      x: player.x + Math.random()*player.width,
-      y: player.y + Math.random()*player.height,
-      vx: (Math.random()-0.5)*12,
-      vy: (Math.random()-1)*12,
-      size: Math.random()*player.width/4+4,
-      color: player.color,
-      life: 80 + Math.random()*60
+    particles.push({
+      x: cx + (Math.random()-0.5)*5,
+      y: cy + (Math.random()-0.5)*5,
+      vx: (Math.random()-0.5)*5,
+      vy: (Math.random()-1.5)*5,
+      life: Math.random()*30+20,
+      color: color
     });
   }
 }
 
-/* ---------- Lines background ---------- */
+function spawnLandParticles(cx, cy){
+  const baseCount = 15;
+  const count = Math.max(0, Math.floor(baseCount * runtime.effects.walkEffectMul));
+  
+  for(let i=0;i<count;i++){
+    particles.push({
+      x: cx + (Math.random()-0.5)*10,
+      y: cy + (Math.random()-0.5)*10,
+      vx: (Math.random()-0.5)*8,
+      vy: (Math.random()-1)*4,
+      life: Math.random()*25+15,
+      color: "#fff"
+    });
+  }
+}
+
+function spawnGemParticles(cx, cy){
+  const baseCount = 15;
+  const count = Math.max(0, Math.floor(baseCount * runtime.effects.jumpEffectMul));
+  
+  for(let i=0;i<count;i++){
+    particles.push({
+      x: cx + (Math.random()-0.5)*10,
+      y: cy + (Math.random()-0.5)*10,
+      vx: (Math.random()-0.5)*6,
+      vy: (Math.random()-1.5)*6,
+      life: Math.random()*35+25,
+      color: "#ff0"
+    });
+  }
+}
+
+/* ---------- Crash pieces (from early version) ---------- */
+function createCrash(){
+  const baseCount = 20;
+  const count = Math.max(6, Math.floor(baseCount * runtime.effects.dieEffectMul));
+  
+  for(let i=0;i<count;i++){
+    crashPieces.push({
+      x: player.x + Math.random()*player.width,
+      y: player.y + Math.random()*player.height,
+      vx: (Math.random()-0.5)*15,
+      vy: (Math.random()-1)*15,
+      size: Math.random()*player.width/4+5,
+      color: player.color,
+      life: 100
+    });
+  }
+}
+
+/* ---------- Lines background (from early version) ---------- */
 function addLine(){
   if(!runtime.linesEnabled) return;
-  const chance = Math.min(1, 0.15 * (runtime.effects.horizontalLinesMul || 0));
+  const chance = Math.min(1, 0.15 * runtime.effects.horizontalLinesMul);
   if(Math.random() > chance) return;
-  lines.push({ x: canvas.width + Math.random()*200, y: Math.random()*canvas.height, width: Math.random()*50+20, passed:false });
+  
+  lines.push({ 
+    x: canvas.width, 
+    y: Math.random()*canvas.height, 
+    width: Math.random()*100+20, 
+    speed: (player.speed+5)*0.5,
+    passed: false 
+  });
 }
 
 /* ---------- Input handling ---------- */
@@ -373,19 +417,20 @@ function jump(){
   if(!player.visible) return;
   if(cheats.infiniteJump || player.jumpsLeft > 0){
     player.vy = JUMP_SPEED;
-    spawnParticles(player.x + player.width/2, player.y + player.height, player.jumpsLeft === 2 ? "jump" : "double", runtime.effects.jumpEffectMul);
+    spawnJumpParticles(player.x + player.width/2, player.y + player.height, 
+                      player.jumpsLeft === 2 ? "jump" : "double");
     if(!cheats.infiniteJump) player.jumpsLeft--;
   }
 }
 
-/* ---------- Game step (physics/collisions) ---------- */
+/* ---------- Game step ---------- */
 function worldStep(deltaSec){
   if(!gameRunning) return;
-  // accelerate slowly
+  
   player.speed += 0.002;
 
   // color cycling
-  colorLerp += deltaSec/25;
+  colorLerp += deltaSec/5; // Faster color cycling like early version
   if(colorLerp >= 1){
     colorIndex = (colorIndex + 1) % baseColors.length;
     nextColor = baseColors[(colorIndex+1) % baseColors.length];
@@ -409,8 +454,8 @@ function worldStep(deltaSec){
         player.vy = 0;
         player.onGround = true;
         player.jumpsLeft = 2;
-        spawnParticles(player.x + player.width/2, player.y + player.height, "land", runtime.effects.walkEffectMul);
-        plat.y += 2; // subtle sink
+        spawnLandParticles(player.x + player.width/2, player.y + player.height);
+        plat.y += 2; // subtle sink from early version
       }
     }
     if(!plat.passed && player.x > plat.x + plat.width){
@@ -432,11 +477,13 @@ function worldStep(deltaSec){
     }
   }
 
-  // gems
+  // gems (from early version)
   for(let g of gems){
-    if(!g.collected && player.x + player.width > g.x && player.x < g.x + g.size && player.y + player.height > g.y && player.y < g.y + g.size){
-      score += 50; g.collected = true;
-      spawnParticles(g.x + g.size/2, g.y + g.size/2, "double", runtime.effects.jumpEffectMul);
+    if(!g.collected && player.x + player.width > g.x && player.x < g.x + g.size && 
+       player.y + player.height > g.y && player.y < g.y + g.size){
+      score += 50; 
+      g.collected = true;
+      spawnGemParticles(g.x + g.size/2, g.y + g.size/2);
     }
   }
 
@@ -452,27 +499,29 @@ function worldStep(deltaSec){
   // update crash pieces
   for(let i=crashPieces.length-1;i>=0;i--){
     const p = crashPieces[i];
-    p.vy += GRAVITY;
-    p.x += p.vx; p.y += p.vy; p.life--;
-    if(p.life <= 0) crashPieces.splice(i,1);
+    p.vy += GRAVITY*0.5; // Slower gravity for crash pieces
+    p.x += p.vx; p.y += p.vy; 
+    if(p.life) p.life--;
+    if(p.y > canvas.height + 100) crashPieces.splice(i,1);
   }
 
   // update particles
   for(let i=particles.length-1;i>=0;i--){
     const p = particles[i];
-    p.update();
+    p.x += p.vx; p.y += p.vy; 
+    p.life--;
     if(p.life <= 0) particles.splice(i,1);
   }
 
   // update lines array movement
   for(let i=lines.length-1;i>=0;i--){
     const l = lines[i];
-    l.x -= player.speed * 0.5 * player.horizMultiplier;
-    if(l.x + 50 < 0) lines.splice(i,1);
+    l.x -= l.speed * player.horizMultiplier;
+    if(l.x + l.width < 0) lines.splice(i,1);
   }
 }
 
-/* ---------- Death / tryDie ---------- */
+/* ---------- Death ---------- */
 function tryDie(spike){
   if(!player.visible) return;
   if(cheats.invincible) return;
@@ -486,138 +535,74 @@ function tryDie(spike){
       localStorage.setItem('bestScore', bestScore);
     }
     setTimeout(()=> {
-      // show menu again
       document.getElementById('menu').style.display = 'flex';
       document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
     }, 900);
   }
 }
 
-/* ---------- Command handling (Ctrl+Shift+A) ---------- */
-window.addEventListener('keydown', function(e){
-  // Ctrl + Shift + A opens prompt
-  if(e.ctrlKey && e.shiftKey && e.code === 'KeyA'){
-    const input = prompt("Enter command:");
-    if(!input) return;
-    const args = input.trim().split(/\s+/);
-    const command = args[0];
-    const root1 = args[1];
-    const root2 = args[2];
-    const root3 = args[3];
-
-    if(command === '/die'){
-      if(player.visible){
-        player.visible = false;
-        createCrash();
-        gameRunning = false;
-        if(score>bestScore){ bestScore = Math.floor(score); localStorage.setItem('bestScore', bestScore); }
-        setTimeout(()=> { document.getElementById('menu').style.display = 'flex'; }, 500);
-      }
-      return;
-    }
-
-    if(command === '/score'){
-      if(root1 === 'set' && root2 !== undefined){
-        const v = Number(root2);
-        if(!isNaN(v)) score = v; else alert('Invalid value');
-      } else if(root1 === 'add' && root2 !== undefined){
-        const v = Number(root2);
-        if(!isNaN(v)) score += v; else alert('Invalid value');
-      } else alert('Usage: /score set <value>  OR  /score add <value>');
-      return;
-    }
-
-    if(command === '/clear' && root1 === 'bestScore'){
-      bestScore = 0;
-      localStorage.setItem('bestScore', 0);
-      document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
-      alert('Best score cleared.');
-      return;
-    }
-
-    if(command === '/gamerule'){
-      switch(root1){
-        case 'infiniteJump': cheats.infiniteJump = (root2 === 'true'); break;
-        case 'death': cheats.invincible = (root2 === 'false'); break;
-        case 'speed':
-          if(!player.speedMultiplier) player.speedMultiplier = 1;
-          if(root2 === 'reset') player.speedMultiplier = 1;
-          if(root2 === 'add' && !isNaN(parseFloat(root3))) player.speedMultiplier += parseFloat(root3);
-          if(root2 === 'set' && !isNaN(parseFloat(root3))) player.speedMultiplier = parseFloat(root3);
-          break;
-        default: alert('Unknown gamerule');
-      }
-      return;
-    }
-
-    if(command === '/variable'){
-      if(!root1){
-        let accountLocal = localStorage.getItem('account') || 'player';
-        let isCreator = ['bw55133@pausd.us','ikunbeautiful@gmail.com','benranwu@gmail.com'].includes(accountLocal);
-        alert('test mode: '+testMode+'\n'+'infinite jump: '+cheats.infiniteJump+'\n'+'float: '+cheats.float+'\n'+'death: '+(!cheats.invincible)+'\n'+'score: '+score+'\n'+'best score: '+bestScore+'\n'+'account: '+(isCreator?'creator':'player')+'\n'+'player speed: '+player.speed+'\n'+'jump height: '+(-JUMP_SPEED));
-      }
-      return;
-    }
-
-    if(command === '/code'){
-      if(root1 === '770709'){ testMode = !testMode; alert(testMode ? 'TEST MODE ON' : 'TEST MODE OFF'); }
-      else if(root1 === 'lanseyaoji'){ if(player.speed < 5) player.speed = 5; else player.speed *= 1.5; alert('Player speed: '+player.speed); }
-      else if(root1 === 'jinyumantang'){ gemEveryBlock = !gemEveryBlock; alert('Gem generation: '+gemEveryBlock); }
-      else if(root1 === 'JiMmYiStHeCoOlEsTgUy|2025.letmecheat|L^UP++0U+L0UD'){
-        if(account !== '𐀒𐀒𐀒'){ oldAccount = account; account = '𐀒𐀒𐀒'; } else account = oldAccount || 'player';
-        alert('Account toggled: '+account);
-      }
-      return;
-    }
-
-    alert('Unknown command');
-  }
-});
-
 /* ---------- Rendering ---------- */
-let lastRenderTime = performance.now();
-let fps = 0;
 function draw(){
-  // clear
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // background (plain)
+  // background
   ctx.fillStyle = "#000";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // horizontal lines background
+  // horizontal lines background (from early version)
   if(runtime.linesEnabled){
     for(let l of lines){
-      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.strokeStyle = "rgba(255,255,255,0.6)";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(l.x - cameraX, l.y - cameraY);
       ctx.lineTo(l.x + l.width - cameraX, l.y - cameraY);
       ctx.stroke();
+      
+      // Second line for depth (from early version)
+      ctx.beginPath();
+      ctx.moveTo(l.x - 5 - cameraX, l.y + 2 - cameraY);
+      ctx.lineTo(l.x + l.width - 5 - cameraX, l.y + 2 - cameraY);
+      ctx.stroke();
     }
   }
 
-  // platforms
+  // platforms with glow effect (from early version)
   for(let plat of platforms){
     const useTexture = runtime.effects.blockTextureMul > 0.5;
+    
+    // Glow effect (from early version)
+    let glow = Math.sin(globalTime*3)*10 + 15;
+    if(runtime.glowEnabled){
+      ctx.shadowColor = `rgb(${plat.color.r},${plat.color.g},${plat.color.b})`;
+      ctx.shadowBlur = plat === platforms[0] ? glow : 0;
+    }
+    
     if(useTexture){
+      // Block texture with lines (from early version)
       for(let y = plat.y; y < canvas.height; y += BLOCK_SIZE){
         let dark = (y === plat.y) ? 1 : 0.3;
-        const grd = ctx.createLinearGradient(plat.x - cameraX, y - cameraY, plat.x + plat.width - cameraX, y + BLOCK_SIZE - cameraY);
-        grd.addColorStop(0, `rgba(${Math.floor(plat.color.r*dark)},${Math.floor(plat.color.g*dark)},${Math.floor(plat.color.b*dark)},1)`);
-        grd.addColorStop(1, "rgba(0,0,0,1)");
-        ctx.fillStyle = grd;
-        if(runtime.glowEnabled){ ctx.shadowColor = `rgba(${plat.color.r},${plat.color.g},${plat.color.b},0.9)`; ctx.shadowBlur = plat === platforms[0] ? 12 : 0; }
+        ctx.fillStyle = `rgba(${Math.floor(plat.color.r*dark)},${Math.floor(plat.color.g*dark)},${Math.floor(plat.color.b*dark)},1)`;
         ctx.fillRect(plat.x - cameraX, y - cameraY, plat.width, BLOCK_SIZE);
-        ctx.shadowBlur = 0;
+        
+        // Texture lines (from early version)
+        ctx.strokeStyle = "rgba(255,255,255,0.1)";
+        for(let t=5; t<plat.width; t+=5){
+          ctx.beginPath();
+          ctx.moveTo(plat.x - cameraX + t, y - cameraY);
+          ctx.lineTo(plat.x - cameraX + t, y + BLOCK_SIZE - cameraY);
+          ctx.stroke();
+        }
       }
     } else {
       ctx.fillStyle = `rgb(${plat.color.r},${plat.color.g},${plat.color.b})`;
       ctx.fillRect(plat.x - cameraX, plat.y - cameraY, plat.width, plat.height);
     }
+    
+    if(runtime.glowEnabled) ctx.shadowBlur = 0;
   }
 
-  // spikes
+  // spikes (with pulse effect from early version)
   for(let s of spikes){
     let pulse = Math.sin(globalTime*5 + s.x) * 5;
     ctx.fillStyle = "red";
@@ -629,19 +614,23 @@ function draw(){
     ctx.fill();
   }
 
-  // gems
+  // gems (floating and glowing from early version)
   for(let g of gems){
     if(g.collected) continue;
     g.floatOffset = g.floatOffset || Math.random()*Math.PI*2;
     let floatY = Math.sin(globalTime*3 + g.floatOffset) * 5;
+    
     ctx.save();
     ctx.translate(g.x + g.size/2 - cameraX, g.y + g.size/2 - cameraY + floatY);
     ctx.rotate(Math.PI/4);
     ctx.fillStyle = "white";
-    if(runtime.glowEnabled){ ctx.shadowColor = "white"; ctx.shadowBlur = 20 + 10 * Math.sin(globalTime*5); }
+    if(runtime.glowEnabled){ 
+      ctx.shadowColor = "white"; 
+      ctx.shadowBlur = 20 + 10 * Math.sin(globalTime*5); 
+    }
     ctx.fillRect(-g.size/2, -g.size/2, g.size, g.size);
     ctx.restore();
-    ctx.shadowBlur = 0;
+    if(runtime.glowEnabled) ctx.shadowBlur = 0;
   }
 
   // trail clones
@@ -649,7 +638,7 @@ function draw(){
     if(trail.length === 0 || Math.hypot(player.x - trail[trail.length-1].x, player.y - trail[trail.length-1].y) > 15){
       trail.push({ x: player.x, y: player.y, width: player.width, height: player.height, color: player.color });
     }
-    const maxTrailLen = Math.max(10, Math.floor(50 * (runtime.effects.trailMul || 1)));
+    const maxTrailLen = Math.max(10, Math.floor(50 * runtime.effects.trailMul));
     if(trail.length > maxTrailLen) trail.shift();
     for(let i=0;i<trail.length;i++){
       const t = trail[i];
@@ -673,32 +662,36 @@ function draw(){
     ctx.fillRect(p.x - cameraX, p.y - cameraY, p.size, p.size);
   }
 
-  // particles
+  // particles (from early version with alpha fade)
   for(let p of particles){
     if(p.life > 0){
       ctx.fillStyle = p.color;
-      ctx.fillRect(p.x - cameraX, p.y - cameraY, 4, 4);
+      ctx.globalAlpha = p.life / 50; // Fade out
+      ctx.fillRect(p.x - cameraX, p.y - cameraY, 5, 5);
+      ctx.globalAlpha = 1;
     }
   }
 
   // player
   if(player.visible){
-    if(runtime.glowEnabled){ ctx.shadowColor = "#0ff"; ctx.shadowBlur = 20; }
+    if(runtime.glowEnabled){ 
+      ctx.shadowColor = "#0ff"; 
+      ctx.shadowBlur = 20; 
+    }
     ctx.fillStyle = player.color;
     ctx.fillRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
     if(runtime.glowEnabled) ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#0ff"; ctx.lineWidth = 6; ctx.strokeRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
+    ctx.strokeStyle = "#fff"; // White stroke from early version
+    ctx.lineWidth = 6; 
+    ctx.strokeRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
   }
 
   // HUD
   const hudScore = document.getElementById('scoreHUD');
   hudScore.innerText = 'Score: ' + Math.floor(score);
-  document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
-
-  // fps label already updated in loop
 }
 
-/* ---------- Main loop with FPS limiting ---------- */
+/* ---------- Main loop ---------- */
 let lastLoopTime = performance.now();
 let accumulated = 0;
 function mainLoop(now){
@@ -720,7 +713,8 @@ function mainLoop(now){
   if(gameRunning && player.visible){
     worldStep(deltaSec);
   }
-  // camera smoothing: center camera on player (offset)
+  
+  // camera smoothing
   const targetCamX = player.x - 150;
   const targetCamY = player.y - canvas.height/2 + player.height*1.5;
   cameraX = cameraX * 0.9 + targetCamX * 0.1;
@@ -729,9 +723,8 @@ function mainLoop(now){
   // draw
   draw();
 
-  // update crash/particles movement done in worldStep; here we update FPS display
-  fps = 1000 / Math.max(1, deltaMs);
-  // update fps label top-left (as "FPS: current / max")
+  // update FPS display
+  const fps = 1000 / Math.max(1, deltaMs);
   const fpsLabel = document.getElementById('fpsLabel');
   const maxFPSText = settings.maxFPS === 0 ? 'Unlimited' : settings.maxFPS;
   fpsLabel.innerText = `FPS: ${Math.round(fps)} / ${maxFPSText} — Quality: ${settings.qualityPreset}`;
@@ -746,8 +739,20 @@ function startGame(){
 }
 document.getElementById('startBtn').addEventListener('click', startGame);
 
+/* ---------- Settings button ---------- */
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  fetch('settings.html', { method: 'HEAD' }).then(resp => {
+    if(resp.ok) {
+      window.location.href = 'settings.html';
+    } else {
+      alert('settings.html not found');
+    }
+  }).catch(()=> {
+    alert('settings.html not found');
+  });
+});
+
 /* ---------- Game initialization ---------- */
-// make sure we have at least a default settings object saved if none exists
 if(!localStorage.getItem(LS_KEY)){
   writeSettings(defaultSettings);
   settings = readSettings();
@@ -757,33 +762,15 @@ if(!localStorage.getItem(LS_KEY)){
   applySettings(settings);
 }
 
-// init ground/platforms and show menu
+// Initialize game
 resetWorld();
 document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
 document.getElementById('menu').style.display = 'flex';
 
-// start the RAF loop
+// Start the game loop
 requestAnimationFrame(mainLoop);
 
-/* ---------- Expose some functions for settings window if opened in same origin ---------- */
-window.getCurrentSettings = () => settings;
-window.applySettings = (s) => { applySettings(s); settings = s; };
-window.setQualityPreset = (name) => {
-  settings.qualityPreset = name;
-  const p = qualityPresets[name];
-  if(p){
-    settings.quality.jumpEffect = p.jumpEffect || 0;
-    settings.quality.walkEffect = p.walkEffect || 0;
-    settings.quality.dieEffect = p.dieEffect || 0;
-    settings.quality.horizontalLines = p.horizontalLines || 0;
-    settings.quality.trail = p.trail ? 100 : 0;
-    settings.quality.blockTexture = p.blockTexture ? 100 : 0;
-  }
-  applySettings(settings);
-};
-
-console.log('Index.html loaded (complete).');
-
+console.log('Game loaded with enhanced particle effects!');
 </script>
 </body>
 </html>
