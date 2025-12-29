@@ -312,7 +312,7 @@
       }
     });
 
-    // Save settings
+    // Save settings and go back to game
     document.getElementById("saveBtn").addEventListener("click", function() {
       const settings = {
         maxFPS: parseInt(document.getElementById("fps").value) || 0,
@@ -330,16 +330,17 @@
       
       try {
         localStorage.setItem("briddSettings", JSON.stringify(settings));
-        window.close();
+        // Go back to the game
+        window.location.href = "index.html";
       } catch (e) {
         console.error("Failed to save settings:", e);
         alert("Failed to save settings!");
       }
     });
 
-    // Cancel button
+    // Cancel button - just go back without saving
     document.getElementById("cancelBtn").addEventListener("click", function() {
-      window.close();
+      window.location.href = "index.html";
     });
 
     // Load settings on page load

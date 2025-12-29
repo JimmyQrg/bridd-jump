@@ -85,17 +85,17 @@
   </div>
 
   <div id="scoreHUD">Score: 0</div>
-  <div id="fpsLabel">FPS: -- / -- | TPS: --</div>
+  <div id="fpsLabel">FPS: -- / --</div>
   <div id="debugToast"></div>
   <div id="mobileCommandBtn" title="Open Command (Ctrl+Shift+A)"></div>
 
 <script>
 /* ===========================
    FULL, STANDALONE index.html
-   - Only imports particle effects from early version
-   - Keeps all other features from current version
-   - Adds tick system (60 TPS)
-   - Adds mobile command button
+   - Fixed tick system (always 60 TPS internally)
+   - Fixed trail effect fade
+   - Fixed player shaking
+   - Fixed FPS display
    =========================== */
 
 /* ---------- Utilities ---------- */
@@ -105,6 +105,14 @@ function showToast(msg, ms=1200){
   d.style.display = 'block';
   clearTimeout(d._timer);
   d._timer = setTimeout(()=> d.style.display = 'none', ms);
+}
+
+function lerpColor(c1,c2,t){ 
+  return { 
+    r: c1.r + (c2.r - c1.r)*t, 
+    g: c1.g + (c2.g - c1.g)*t, 
+    b: c1.b + (c2.b - c1.b)*t 
+  }; 
 }
 
 /* ---------- Canvas & resizing ---------- */
@@ -122,7 +130,7 @@ resize();
 const BLOCK_SIZE = 50;
 const JUMP_SPEED = -15;
 const GRAVITY = 0.7;
-const TICKS_PER_SECOND = 60; // Game runs at 60 TPS
+const TICKS_PER_SECOND = 60; // Game always runs at 60 TPS internally
 const TICK_INTERVAL = 1000 / TICKS_PER_SECOND; // ~16.67ms per tick
 
 /* Player object blueprint */
@@ -143,7 +151,6 @@ let cameraX = 0, cameraY = 0;
 
 /* Tick system */
 let tickAccumulator = 0;
-let ticksThisSecond = 0;
 let lastFpsUpdateTime = performance.now();
 
 /* color cycling */
@@ -256,9 +263,6 @@ function applySettings(s){
 /* initial apply */
 applySettings(settings);
 
-/* ---------- Utility drawing helpers ---------- */
-function lerpColor(c1,c2,t){ return { r: c1.r + (c2.r - c1.r)*t, g: c1.g + (c2.g - c1.g)*t, b: c1.b + (c2.b - c1.b)*t }; }
-
 /* ---------- World initialization & reset ---------- */
 let lastPlatformX = 0, lastPlatformY = 0;
 
@@ -342,8 +346,6 @@ function checkSpikeCollision(spike){
 }
 
 /* ---------- IMPORTED PARTICLE EFFECTS FROM EARLY VERSION ---------- */
-/* ONLY the particle functions, nothing else! */
-
 function spawnParticlesEarly(x, y, type, amountMul = 1) {
   const color = type === "jump" ? "#0ff" : type === "double" ? "#ff0" : "#fff";
   const baseCount = type === "land" ? 10 : 15;
@@ -386,7 +388,6 @@ function addLine(){
   const chance = Math.min(1, 0.15 * runtime.effects.horizontalLinesMul);
   if(Math.random() > chance) return;
   
-  // From early version: two parallel lines
   lines.push({ 
     x: canvas.width + Math.random() * 200, 
     y: Math.random() * canvas.height, 
@@ -416,17 +417,14 @@ function jump(){
   }
 }
 
-/* ---------- TICK SYSTEM (Game logic at fixed 60 TPS) ---------- */
-function gameTick(deltaTime) {
+/* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
+function gameTick() {
   if(!gameRunning || !player.visible) return;
-  
-  // Convert deltaTime from milliseconds to seconds
-  const deltaSec = deltaTime / 1000;
   
   player.speed += 0.002;
 
   // color cycling
-  colorLerp += deltaSec/25;
+  colorLerp += 1/25/TICKS_PER_SECOND; // Adjust for 60 TPS
   if(colorLerp >= 1){
     colorIndex = (colorIndex + 1) % baseColors.length;
     nextColor = baseColors[(colorIndex+1) % baseColors.length];
@@ -434,7 +432,7 @@ function gameTick(deltaTime) {
   }
   platformColor = lerpColor(baseColors[colorIndex], nextColor, colorLerp);
 
-  // physics
+  // FIXED PHYSICS: No delta time scaling - runs at fixed 60 TPS
   player.y += player.vy * player.vertMultiplier;
   if(cheats.float && player.vy > 0) player.vy *= 0.5;
   player.vy += GRAVITY * player.vertMultiplier;
@@ -512,8 +510,6 @@ function gameTick(deltaTime) {
     l.x -= l.speed;
     if(l.x + l.width < 0) lines.splice(i,1);
   }
-  
-  ticksThisSecond++;
 }
 
 /* ---------- Death / tryDie ---------- */
@@ -539,6 +535,9 @@ function tryDie(spike){
 /* ---------- Rendering ---------- */
 let lastRenderTime = performance.now();
 let fps = 0;
+let frameCount = 0;
+let lastFpsDisplayUpdate = performance.now();
+
 function draw(){
   // clear
   ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -547,7 +546,7 @@ function draw(){
   ctx.fillStyle = "#000";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // horizontal lines background (from early version - two parallel lines)
+  // horizontal lines background
   if(runtime.linesEnabled){
     for(let l of lines){
       ctx.strokeStyle = "rgba(255,255,255,0.6)";
@@ -612,22 +611,22 @@ function draw(){
     ctx.shadowBlur = 0;
   }
 
-  // trail clones
+  // FIXED TRAIL EFFECT: Fades faster
   if(player.visible && runtime.trailEnabled){
     if(trail.length === 0 || Math.hypot(player.x - trail[trail.length-1].x, player.y - trail[trail.length-1].y) > 15){
       trail.push({ x: player.x, y: player.y, width: player.width, height: player.height, color: player.color });
     }
-    const maxTrailLen = Math.max(10, Math.floor(50 * runtime.effects.trailMul));
+    const maxTrailLen = Math.max(8, Math.floor(30 * runtime.effects.trailMul)); // Reduced from 50 to 30
     if(trail.length > maxTrailLen) trail.shift();
     for(let i=0;i<trail.length;i++){
       const t = trail[i];
       ctx.save();
       let alpha = (i+1)/trail.length;
-      ctx.globalAlpha = alpha * 0.6;
-      if(runtime.glowEnabled){ ctx.shadowColor = t.color; ctx.shadowBlur = 15 * alpha; }
+      ctx.globalAlpha = alpha * 0.3; // Reduced from 0.6 to 0.3 for faster fade
+      if(runtime.glowEnabled){ ctx.shadowColor = t.color; ctx.shadowBlur = 10 * alpha; } // Reduced from 15 to 10
       ctx.fillStyle = t.color;
       ctx.fillRect(t.x - cameraX, t.y - cameraY, t.width, t.height);
-      ctx.strokeStyle = t.color; ctx.lineWidth = 4; ctx.strokeRect(t.x - cameraX, t.y - cameraY, t.width, t.height);
+      ctx.strokeStyle = t.color; ctx.lineWidth = 3; ctx.strokeRect(t.x - cameraX, t.y - cameraY, t.width, t.height); // Reduced from 4 to 3
       ctx.restore();
     }
     ctx.globalAlpha = 1;
@@ -635,23 +634,23 @@ function draw(){
     trail = [];
   }
 
-  // crash pieces (from early version)
+  // crash pieces
   for(let p of crashPieces){
     ctx.fillStyle = p.color;
     ctx.fillRect(p.x - cameraX, p.y - cameraY, p.size, p.size);
   }
 
-  // particles (from early version with alpha fade)
+  // particles
   for(let p of particles){
     if(p.life > 0){
       ctx.fillStyle = p.color;
-      ctx.globalAlpha = p.life / 50; // Fade out like early version
+      ctx.globalAlpha = p.life / 50;
       ctx.fillRect(p.x - cameraX, p.y - cameraY, 5, 5);
       ctx.globalAlpha = 1;
     }
   }
 
-  // player (KEEP CURRENT VERSION STYLE)
+  // player
   if(player.visible){
     if(runtime.glowEnabled){ ctx.shadowColor = "#0ff"; ctx.shadowBlur = 20; }
     ctx.fillStyle = player.color;
@@ -663,13 +662,14 @@ function draw(){
   // HUD
   const hudScore = document.getElementById('scoreHUD');
   hudScore.innerText = 'Score: ' + Math.floor(score);
+  
+  // FPS counter
+  frameCount++;
 }
 
-/* ---------- Main loop with TICK SYSTEM ---------- */
+/* ---------- Main loop with proper FPS limiting ---------- */
 let lastLoopTime = performance.now();
 let accumulated = 0;
-let fpsUpdateInterval = 500; // Update FPS display every 500ms (0.5s)
-let lastFpsDisplayUpdate = performance.now();
 
 function mainLoop(now){
   requestAnimationFrame(mainLoop);
@@ -679,17 +679,16 @@ function mainLoop(now){
   lastLoopTime = now;
   globalTime += deltaMs / 1000;
 
-  // Calculate FPS for display
+  // Calculate FPS
   fps = 1000 / Math.max(1, deltaMs);
   
-  // Update FPS display only every 0.5 seconds to reduce lag
-  if(now - lastFpsDisplayUpdate > fpsUpdateInterval){
+  // Update FPS display only every 0.5 seconds
+  if(now - lastFpsDisplayUpdate > 500){
     const fpsLabel = document.getElementById('fpsLabel');
     const maxFPSText = settings.maxFPS === 0 ? 'Unlimited' : settings.maxFPS;
-    const tpsText = Math.min(ticksThisSecond * 2, TICKS_PER_SECOND); // Multiply by 2 because we update every 0.5s
-    fpsLabel.innerText = `FPS: ${Math.round(fps)} / ${maxFPSText} | TPS: ${tpsText} | Quality: ${settings.qualityPreset}`;
+    fpsLabel.innerText = `FPS: ${Math.round(fps)} / ${maxFPSText} — Quality: ${settings.qualityPreset}`;
     lastFpsDisplayUpdate = now;
-    ticksThisSecond = 0; // Reset tick counter
+    frameCount = 0;
   }
 
   // FPS limiting for rendering
@@ -699,18 +698,18 @@ function mainLoop(now){
     accumulated = 0;
   }
 
-  // TICK SYSTEM: Run game logic at fixed 60 TPS
+  // Fixed tick system: always run at 60 TPS regardless of FPS
   tickAccumulator += deltaMs;
   while(tickAccumulator >= TICK_INTERVAL) {
-    gameTick(TICK_INTERVAL);
+    gameTick();
     tickAccumulator -= TICK_INTERVAL;
   }
 
-  // camera smoothing
+  // FIXED CAMERA SMOOTHING: Reduced smoothing to prevent shaking
   const targetCamX = player.x - 150;
   const targetCamY = player.y - canvas.height/2 + player.height*1.5;
-  cameraX = cameraX * 0.9 + targetCamX * 0.1;
-  cameraY = cameraY * 0.9 + targetCamY * 0.1;
+  cameraX = cameraX * 0.95 + targetCamX * 0.05; // Increased from 0.9/0.1 to 0.95/0.05 for less smoothing
+  cameraY = cameraY * 0.95 + targetCamY * 0.05; // Increased from 0.9/0.1 to 0.95/0.05 for less smoothing
 
   // draw (rendering at monitor refresh rate)
   draw();
@@ -814,7 +813,6 @@ function startGame(){
   gameRunning = true;
   player.visible = true;
   tickAccumulator = 0;
-  ticksThisSecond = 0;
 }
 document.getElementById('startBtn').addEventListener('click', startGame);
 
@@ -849,7 +847,7 @@ document.getElementById('menu').style.display = 'flex';
 // start the RAF loop
 requestAnimationFrame(mainLoop);
 
-console.log('Index.html loaded with early version particle effects only.');
+console.log('Index.html loaded with fixed tick system and trail effect.');
 </script>
 </body>
 </html>
