@@ -289,7 +289,7 @@ function resetWorld(){
   score = 0; colorLerp = 0; globalTime = 0;
   colorIndex = 0; platformColor = {...baseColors[0]}; nextColor = baseColors[1];
 
-  // Create a guaranteed ground platform inside viewport so you do NOT get a black void
+  // Create a guaranteed ground platform
   const groundHeight = BLOCK_SIZE;
   platforms.push({
     x: 0,
@@ -300,8 +300,16 @@ function resetWorld(){
     passed: false
   });
 
-  lastPlatformX = platforms[platforms.length-1].x + platforms[platforms.length-1].width;
-  lastPlatformY = platforms[platforms.length-1].y;
+  lastPlatformX = platforms[0].x + platforms[0].width;
+  lastPlatformY = platforms[0].y;
+  
+  // Generate additional initial platforms to ensure player has ground
+  const initialBlocksNeeded = 25;
+  while(platforms.length < initialBlocksNeeded) {
+    const out = generateBlockPlatform(lastPlatformX, lastPlatformY);
+    lastPlatformX = out.x;
+    lastPlatformY = out.y;
+  }
 }
 
 /* ---------- Platform generator ---------- */
@@ -418,23 +426,26 @@ function jump(){
 
 /* ---------- OPTIMIZED MEMORY MANAGEMENT ---------- */
 function cleanupOffScreenObjects() {
-  // Clean up platforms that are 6 blocks off-screen to the left
+  // Keep first 25 blocks (index 0-24) regardless of position
+  const MIN_KEEP_BLOCKS = 25;
+  
+  // Clean up platforms that are 6 blocks off-screen to the left, but keep first 25
   const deleteThreshold = cameraX - DELETE_OFFSET;
   
-  for(let i = platforms.length - 1; i >= 0; i--) {
+  for(let i = platforms.length - 1; i >= MIN_KEEP_BLOCKS; i--) { // Start from MIN_KEEP_BLOCKS
     if(platforms[i].x + platforms[i].width < deleteThreshold) {
       platforms.splice(i, 1);
     }
   }
   
-  // Clean up spikes
+  // Clean up spikes (keep spikes associated with first 25 blocks)
   for(let i = spikes.length - 1; i >= 0; i--) {
     if(spikes[i].x + spikes[i].width < deleteThreshold) {
       spikes.splice(i, 1);
     }
   }
   
-  // Clean up gems
+  // Clean up gems (keep gems associated with first 25 blocks)
   for(let i = gems.length - 1; i >= 0; i--) {
     if(gems[i].x + 20 < deleteThreshold) {
       gems.splice(i, 1);
@@ -751,10 +762,13 @@ function mainLoop(now){
   
   const deltaMs = now - lastLoopTime;
   lastLoopTime = now;
-  globalTime += deltaMs / 1000;
+  
+  // Cap delta time to prevent large jumps (e.g., when tab is inactive)
+  const cappedDeltaMs = Math.min(deltaMs, 100); // Max 100ms (10 FPS minimum)
+  globalTime += cappedDeltaMs / 1000;
 
   // Calculate FPS
-  fps = 1000 / Math.max(1, deltaMs);
+  fps = 1000 / Math.max(1, cappedDeltaMs);
   
   // Update FPS display only every 0.5 seconds
   if(now - lastFpsDisplayUpdate > 500){
@@ -767,23 +781,37 @@ function mainLoop(now){
 
   // FPS limiting for rendering
   if(runtime.minFrameTime > 0){
-    accumulated += deltaMs;
+    accumulated += cappedDeltaMs;
     if(accumulated < runtime.minFrameTime) return;
     accumulated = 0;
   }
 
   // Fixed tick system: always run at 60 TPS regardless of FPS
-  tickAccumulator += deltaMs;
-  while(tickAccumulator >= TICK_INTERVAL) {
+  // Use cappedDeltaMs to prevent large time jumps
+  tickAccumulator += cappedDeltaMs;
+  
+  // Run exactly one game tick per frame when FPS is 60 or higher
+  // When FPS is lower than 60, run multiple ticks to catch up
+  const maxTicksPerFrame = 5; // Prevent spiral of death
+  let ticksThisFrame = 0;
+  
+  while(tickAccumulator >= TICK_INTERVAL && ticksThisFrame < maxTicksPerFrame) {
     gameTick();
     tickAccumulator -= TICK_INTERVAL;
+    ticksThisFrame++;
+  }
+  
+  // If we're running behind, reset accumulator to prevent lag buildup
+  if(tickAccumulator > TICK_INTERVAL * 10) {
+    tickAccumulator = TICK_INTERVAL; // Keep some buffer
   }
 
-  // Camera smoothing
+  // Camera smoothing - use actual delta time for smoothness
   const targetCamX = player.x - 150;
   const targetCamY = player.y - canvas.height/2 + player.height*1.5;
-  cameraX = cameraX * 0.95 + targetCamX * 0.05;
-  cameraY = cameraY * 0.95 + targetCamY * 0.05;
+  const smoothingFactor = 0.1 * (cappedDeltaMs / 16.67); // Adjust for frame rate
+  cameraX = cameraX * (1 - smoothingFactor) + targetCamX * smoothingFactor;
+  cameraY = cameraY * (1 - smoothingFactor) + targetCamY * smoothingFactor;
 
   // Draw (rendering at monitor refresh rate)
   draw();
@@ -886,8 +914,10 @@ function startGame(){
   resetWorld();
   gameRunning = true;
   player.visible = true;
-  tickAccumulator = 0;
+  tickAccumulator = 0; // Reset tick accumulator on restart
+  lastLoopTime = performance.now(); // Reset time tracking
 }
+
 document.getElementById('startBtn').addEventListener('click', startGame);
 
 /* ---------- Settings button ---------- */
