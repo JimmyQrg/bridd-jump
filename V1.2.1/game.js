@@ -1191,17 +1191,19 @@ function drawGravityWaves(){
 /* 16. ENERGY RIPPLES - Energy waves from player actions */
 function createEnergyRipple(x, y, intensity = 1){
   if(!runtime.energyRipplesEnabled) return;
-  
-  energyRipples.push({
-    x: x,
-    y: y,
-    radius: 0,
-    maxRadius: 80 * intensity * runtime.advanced.energyRipplesMul,
-    speed: 4,
-    life: 1,
-    color: '#00ff00',
-    segments: Math.floor(Math.random() * 8 + 4)
-  });
+
+  for(let i = 0; i < 2; i++) {
+    energyRipples.push({
+      x: x,
+      y: y,
+      radius: 0,
+      maxRadius: 80 * intensity * runtime.advanced.energyRipplesMul,
+      speed: 4,
+      life: 1,
+      color: '#00ff00',
+      segments: Math.floor(Math.random() * 8 + 4)
+    });
+  }
 }
 
 function updateEnergyRipples(){
@@ -1252,7 +1254,7 @@ function drawEnergyRipples(){
 function createPixelDisplacement(x, y, intensity = 1){
   if(!runtime.pixelDisplacementEnabled) return;
   
-  for(let i = 0; i < Math.floor(20 * intensity * runtime.advanced.pixelDisplacementMul); i++){
+  for(let i = 0; i < Math.floor(40 * intensity * runtime.advanced.pixelDisplacementMul); i++){
     pixelDisplacements.push({
       x: x + (Math.random() - 0.5) * 50,
       y: y + (Math.random() - 0.5) * 50,
@@ -1457,15 +1459,17 @@ function createCrashEarly(amountMul = 1) {
   
   // Add shockwave effect
   if(runtime.shockwavesEnabled) {
-    shockwaves.push({
-      x: player.x + player.width/2,
-      y: player.y + player.height/2,
-      radius: 0,
-      maxRadius: 400 * runtime.advanced.shockwavesMul,
-      speed: 15 + 5 * runtime.advanced.shockwavesMul,
-      life: 1,
-      color: "#f00"
-    });
+    for(let i = 0; i < 2; i++) {
+      shockwaves.push({
+        x: player.x + player.width/2,
+        y: player.y + player.height/2,
+        radius: 0,
+        maxRadius: 400 * runtime.advanced.shockwavesMul,
+        speed: 15 + 5 * runtime.advanced.shockwavesMul,
+        life: 1,
+        color: "#f00"
+      });
+    }
   }
   
   // Add screen shake
@@ -1478,7 +1482,7 @@ function createCrashEarly(amountMul = 1) {
   
   // Add screen dust particles
   if(runtime.distortionEnabled) {
-    for(let i = 0; i < Math.floor(30 * runtime.advanced.screenDistortionMul); i++) {
+    for(let i = 0; i < Math.floor(60 * runtime.advanced.screenDistortionMul); i++) {
       screenDust.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
