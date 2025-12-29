@@ -1550,6 +1550,127 @@ function drawDarkEnergyTendrils(){
   ctx.restore();
 }
 
+/* ---------- DROP EFFECTS ---------- */
+
+/* 31. GRAVITY SURGE - Expanding gravity field when dropping */
+function createGravitySurge(x, y, intensity = 1){
+  if(!runtime.gravitySurgeEnabled) return;
+
+  gravitySurges.push({
+    x: x,
+    y: y,
+    radius: 0,
+    maxRadius: 120 * intensity * runtime.advanced.gravitySurgeMul,
+    speed: 8,
+    life: 1,
+    alpha: 0.4,
+    color: '#ff4444',
+    pulse: 0
+  });
+}
+
+function updateGravitySurge(){
+  if(!runtime.gravitySurgeEnabled) return;
+
+  for(let i = gravitySurges.length - 1; i >= 0; i--){
+    const surge = gravitySurges[i];
+    surge.radius += surge.speed;
+    surge.pulse += 0.3;
+    surge.life = 1 - (surge.radius / surge.maxRadius);
+
+    if(surge.radius >= surge.maxRadius){
+      gravitySurges.splice(i, 1);
+    }
+  }
+}
+
+function drawGravitySurge(){
+  if(!runtime.gravitySurgeEnabled || gravitySurges.length === 0) return;
+
+  ctx.save();
+  for(let surge of gravitySurges){
+    ctx.globalAlpha = surge.life * surge.alpha;
+    ctx.strokeStyle = surge.color;
+    ctx.lineWidth = 4;
+
+    // Draw pulsing gravity field
+    const pulseRadius = surge.radius * (1 + Math.sin(surge.pulse) * 0.2);
+    ctx.beginPath();
+    ctx.arc(surge.x - cameraX, surge.y - cameraY, pulseRadius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Draw inner ring
+    ctx.strokeStyle = '#ff8888';
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = surge.life * surge.alpha * 0.6;
+    ctx.beginPath();
+    ctx.arc(surge.x - cameraX, surge.y - cameraY, pulseRadius * 0.7, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* 32. SHADOW DASH - Dark shadow trail when dropping */
+function createShadowDash(x, y, intensity = 1){
+  if(!runtime.shadowDashEnabled) return;
+
+  for(let i = 0; i < Math.floor(6 * intensity * runtime.advanced.shadowDashMul); i++){
+    shadowDashes.push({
+      x: x,
+      y: y,
+      vx: (Math.random() - 0.5) * 8,
+      vy: Math.random() * 6 + 4, // Always downward
+      size: Math.random() * 12 + 8,
+      life: Math.random() * 20 + 15,
+      alpha: 0.8,
+      color: '#000000',
+      rotation: Math.random() * Math.PI * 2,
+      rotationSpeed: (Math.random() - 0.5) * 0.2
+    });
+  }
+}
+
+function updateShadowDash(){
+  if(!runtime.shadowDashEnabled) return;
+
+  for(let i = shadowDashes.length - 1; i >= 0; i--){
+    const dash = shadowDashes[i];
+    dash.x += dash.vx;
+    dash.y += dash.vy;
+    dash.vx *= 0.95;
+    dash.vy *= 0.95;
+    dash.rotation += dash.rotationSpeed;
+    dash.life--;
+    dash.alpha *= 0.95;
+
+    if(dash.life <= 0 || dash.alpha <= 0.01){
+      shadowDashes.splice(i, 1);
+    }
+  }
+}
+
+function drawShadowDash(){
+  if(!runtime.shadowDashEnabled || shadowDashes.length === 0) return;
+
+  ctx.save();
+  for(let dash of shadowDashes){
+    ctx.globalAlpha = dash.alpha;
+    ctx.fillStyle = dash.color;
+    ctx.strokeStyle = '#333333';
+    ctx.lineWidth = 1;
+
+    ctx.translate(dash.x - cameraX, dash.y - cameraY);
+    ctx.rotate(dash.rotation);
+
+    // Draw shadow shape
+    ctx.beginPath();
+    ctx.ellipse(0, 0, dash.size, dash.size * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /* ---------- ENHANCED DEATH ANIMATION ---------- */
 function createCrashEarly(amountMul = 1) {
   const baseCount = 40;

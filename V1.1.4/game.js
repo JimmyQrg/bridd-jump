@@ -1570,9 +1570,6 @@ function draw(){
   // Apply color bleed
   if(runtime.colorBleedEnabled) applyColorBleed();
 
-  // Apply time dilation
-  if(runtime.timeDilationEnabled) applyTimeDilation();
-
   ctx.restore(); // Restore from screen shake transform
 
   // HUD

@@ -34,9 +34,9 @@ resize();
 function resetWorld(){
   // clear ALL arrays
   platforms = []; spikes = []; gems = []; particles = []; crashPieces = [];
-  trail = []; lines = []; cosmicDust = []; energySpheres = []; colorStreams = [];
+  trail = []; lines = [];   cosmicDust = []; energySpheres = []; colorStreams = [];
   spirals = []; metallicParticles = []; digitalRain = []; mysticOrbs = [];
-  crystalStructures = []; darkTendrils = []; shockwaves = []; screenDust = [];
+  crystalStructures = []; darkTendrils = []; gravitySurges = []; shadowDashes = []; shockwaves = []; screenDust = [];
   bloomParticles = []; reflections = []; motionBlurBuffer = []; lightRays = [];
   parallaxLayers = []; velocityStreaks = []; impactWaves = []; platformPulses = [];
   windParticles = []; speedLines = []; lensFlares = []; screenTears = [];
@@ -154,11 +154,49 @@ function checkSpikeCollision(spike){
 /* ---------- Input handling ---------- */
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
-  if(["KeyW","ArrowUp","Space"].includes(e.code)) jump();
+  if(["KeyW","ArrowUp","Space","Tab"].includes(e.code)) jump();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 window.addEventListener('mousedown', () => jump());
 window.addEventListener('touchstart', () => jump());
+
+// Mobile controls
+let touchStartY = 0;
+let isScrolling = false;
+
+window.addEventListener('touchstart', e => {
+  touchStartY = e.touches[0].clientY;
+  isScrolling = false;
+});
+
+window.addEventListener('touchmove', e => {
+  if (!isScrolling) {
+    const touchCurrentY = e.touches[0].clientY;
+    const deltaY = touchStartY - touchCurrentY;
+
+    if (Math.abs(deltaY) > 10) { // Minimum scroll distance
+      isScrolling = true;
+      if (deltaY > 0) {
+        // Scroll up - jump
+        jump();
+      } else {
+        // Scroll down - drop
+        drop();
+      }
+    }
+  }
+});
+
+window.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.deltaY < 0) {
+    // Scroll up - jump
+    jump();
+  } else {
+    // Scroll down - drop
+    drop();
+  }
+});
 
 function jump(){
   if(!player.visible) return;
@@ -192,6 +230,28 @@ function jump(){
     if(runtime.screenShakeEnabled && runtime.advanced.screenShakeMul > 0.5) {
       screenShake = 3 * runtime.advanced.screenShakeMul;
     }
+  }
+}
+
+function drop(){
+  if(!player.visible || gameOver) return;
+
+  // Create drop effects
+  spawnParticlesEarly(player.x + player.width/2, player.y + player.height, "drop", runtime.effects.dropEffectMul);
+
+  // Create gravity surge effect
+  if(runtime.gravitySurgeEnabled) {
+    createGravitySurge(player.x + player.width/2, player.y + player.height/2, 1);
+  }
+
+  // Create shadow dash effect
+  if(runtime.shadowDashEnabled) {
+    createShadowDash(player.x + player.width/2, player.y + player.height/2, 1);
+  }
+
+  // Screen shake on drop
+  if(runtime.screenShakeEnabled) {
+    screenShake = 2 * runtime.advanced.screenShakeMul;
   }
 }
 
@@ -397,6 +457,20 @@ function cleanupOffScreenObjects() {
       darkTendrils.splice(i, 1);
     }
   }
+
+  // Clean up gravity surges
+  for(let i = gravitySurges.length - 1; i >= 0; i--) {
+    if(gravitySurges[i].life <= 0) {
+      gravitySurges.splice(i, 1);
+    }
+  }
+
+  // Clean up shadow dashes
+  for(let i = shadowDashes.length - 1; i >= 0; i--) {
+    if(shadowDashes[i].life <= 0) {
+      shadowDashes.splice(i, 1);
+    }
+  }
 }
 
 /* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
@@ -420,7 +494,15 @@ function gameTick() {
   if(!gameOver) {
     player.y += player.vy * player.vertMultiplier;
     if(cheats.float && player.vy > 0) player.vy *= 0.5;
-    player.vy += GRAVITY * player.vertMultiplier;
+
+    // Fast drop when down key is held
+    const isDropping = keys["ArrowDown"] || keys["KeyS"];
+    if(isDropping && player.vy > 0) {
+      player.vy += GRAVITY * player.vertMultiplier * 2; // Double gravity when dropping
+    } else {
+      player.vy += GRAVITY * player.vertMultiplier;
+    }
+
     player.x += player.speed * player.horizMultiplier;
   }
 
@@ -540,6 +622,8 @@ function gameTick() {
   if(runtime.mysticOrbEnabled) updateMysticFloatingOrbs();
   if(runtime.crystalStructureEnabled) updateCrystalStructureFormation();
   if(runtime.darkEnergyEnabled) updateDarkEnergyTendrils();
+  if(runtime.gravitySurgeEnabled) updateGravitySurge();
+  if(runtime.shadowDashEnabled) updateShadowDash();
   if(runtime.timeDilationEnabled) applyTimeDilation();
 
   // update crash pieces with enhanced physics
@@ -830,6 +914,8 @@ function draw(){
   if(runtime.mysticOrbEnabled) drawMysticFloatingOrbs();
   if(runtime.crystalStructureEnabled) drawCrystalStructureFormation();
   if(runtime.darkEnergyEnabled) drawDarkEnergyTendrils();
+  if(runtime.gravitySurgeEnabled) drawGravitySurge();
+  if(runtime.shadowDashEnabled) drawShadowDash();
 
   // Draw starbursts
   if(runtime.starburstsEnabled) drawStarbursts();

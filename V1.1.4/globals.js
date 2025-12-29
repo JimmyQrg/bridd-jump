@@ -59,7 +59,7 @@ try {
 let platforms = [], spikes = [], gems = [], particles = [], crashPieces = [];
 let trail = [], lines = [], cosmicDust = [], energySpheres = [], colorStreams = [];
 let spirals = [], metallicParticles = [], digitalRain = [], mysticOrbs = [];
-let crystalStructures = [], darkTendrils = [], shockwaves = [], screenDust = [];
+let crystalStructures = [], darkTendrils = [], gravitySurges = [], shadowDashes = [], shockwaves = [], screenDust = [];
 let bloomParticles = [], reflections = [], motionBlurBuffer = [], lightRays = [];
 let parallaxLayers = [], velocityStreaks = [], impactWaves = [], platformPulses = [];
 let windParticles = [], speedLines = [], lensFlares = [], screenTears = [];
@@ -84,7 +84,8 @@ let runtime = {
     dieEffectMul: 1,
     horizontalLinesMul: 1,
     trailMul: 1,
-    blockTextureMul: 1
+    blockTextureMul: 1,
+    dropEffectMul: 1
   },
   advanced: {
     shockwavesMul: 1,
@@ -126,7 +127,9 @@ let runtime = {
     digitalCharacterMul: 1,
     mysticOrbMul: 1,
     crystalStructureMul: 1,
-    darkEnergyMul: 1
+    darkEnergyMul: 1,
+    gravitySurgeMul: 1,
+    shadowDashMul: 1
   },
   glowEnabled: true,
   linesEnabled: true,
@@ -178,7 +181,9 @@ let runtime = {
   digitalCharacterEnabled: true,
   mysticOrbEnabled: true,
   crystalStructureEnabled: true,
-  darkEnergyEnabled: true
+  darkEnergyEnabled: true,
+  gravitySurgeEnabled: true,
+  shadowDashEnabled: true
 };
 
 /* ---------- Settings ---------- */
