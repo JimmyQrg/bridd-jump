@@ -1,5 +1,5 @@
 <h1>V1.0.2</h1>
-<h2>Type: Update</h2>
+<h2>Type: Release</h2>
 
 <p>Updates:</p>
 <ol>
