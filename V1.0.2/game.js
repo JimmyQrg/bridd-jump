@@ -423,11 +423,13 @@ function addLine(){
   const chance = Math.min(1, 0.15 * runtime.effects.horizontalLinesMul);
   if(Math.random() > chance) return;
   
-  // FIXED: Generate lines starting from right end of screen + 2 blocks offset
-  const startX = canvas.width + (BLOCK_SIZE * 2);
+  // FIXED: Generate lines at fixed distance from player's current position
+  // 3 blocks to the right of the player
+  const playerRightEdge = player.x + player.width;
+  const lineStartX = playerRightEdge + (BLOCK_SIZE * 3) + Math.random() * BLOCK_SIZE * 2;
   
   lines.push({ 
-    x: startX + Math.random() * 200, 
+    x: lineStartX, 
     y: Math.random() * canvas.height, 
     width: Math.random() * 100 + 20,
     speed: player.speed * 0.5,
@@ -495,9 +497,10 @@ function cleanupOffScreenObjects() {
     }
   }
   
-  // Clean up lines
+  // Clean up lines that are far behind the player
+  const lineDeleteThreshold = cameraX - DELETE_OFFSET * 2;
   for(let i = lines.length - 1; i >= 0; i--) {
-    if(lines[i].x + lines[i].width < 0) {
+    if(lines[i].x + lines[i].width < lineDeleteThreshold) {
       lines.splice(i, 1);
     }
   }
@@ -635,9 +638,12 @@ function gameTick() {
   }
   
   // update lines array movement
+  // Lines move with the camera/world, not independently
   for(let i=lines.length-1;i>=0;i--){
     const l = lines[i];
-    l.x -= l.speed;
+    // Lines should stay in their world position
+    // The camera movement will make them appear to move left
+    // No need to update x position here
   }
   
   // update shockwaves
