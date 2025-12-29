@@ -426,7 +426,7 @@ function addLine(){
   // Generate lines at fixed distance from player's current position
   // 20 blocks to the right of the player
   const playerRightEdge = player.x + player.width;
-  const lineStartX = playerRightEdge + (BLOCK_SIZE * 20) + Math.random() * BLOCK_SIZE * 2;
+  const lineStartX = playerRightEdge + (BLOCK_SIZE * 20) + Math.random() * BLOCK_SIZE * 4;
   
   lines.push({ 
     x: lineStartX, 
