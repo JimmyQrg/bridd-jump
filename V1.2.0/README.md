@@ -1,0 +1,10 @@
+<h1>V1.0.2</h1>
+<h2>Type: Update</h2>
+
+<p>Updates:</p>
+<ol>
+    <li>Fixed settings</li>
+    <li>Brought back animated dying effects</li>
+    <li>Fixed horizontal line effect</li>
+    <li>Split Files</li>
+</ol>
