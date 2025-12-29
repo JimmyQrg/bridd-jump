@@ -57,7 +57,18 @@ let dynamicFog = [], heatDistortions = [], starbursts = [], afterImages = [];
 let gravityWaves = [], energyRipples = [], pixelDisplacements = [];
 
 /* gameplay */
-let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
+let keys = {}, score = 0, bestScore = 0;
+try {
+  const savedBestScore = localStorage.getItem("bestScore");
+  if(savedBestScore !== null) {
+    const parsed = parseInt(savedBestScore);
+    if(!isNaN(parsed) && parsed >= 0) {
+      bestScore = parsed;
+    }
+  }
+} catch(e) {
+  console.warn("Failed to load best score from localStorage:", e);
+}
 let gameRunning = false;
 let cameraX = 0, cameraY = 0;
 
@@ -923,32 +934,31 @@ function updateDynamicFog(){
 
 function drawDynamicFog(){
   if(!runtime.dynamicFogEnabled || dynamicFog.length === 0) return;
-  
+
   ctx.save();
   for(let i = dynamicFog.length - 1; i >= 0; i--){
     const fog = dynamicFog[i];
     fog.x -= fog.speed;
     fog.life--;
-    
+
     if(fog.life <= 0 || fog.x < player.x - 200){
       dynamicFog.splice(i, 1);
-      continue;
+    } else {
+      ctx.globalAlpha = fog.alpha * (fog.life / 200);
+      ctx.fillStyle = '#8888aa';
+
+      const gradient = ctx.createRadialGradient(
+        fog.x - cameraX, fog.y - cameraY, 0,
+        fog.x - cameraX, fog.y - cameraY, fog.size
+      );
+      gradient.addColorStop(0, 'rgba(136, 136, 170, 0.3)');
+      gradient.addColorStop(1, 'rgba(136, 136, 170, 0)');
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(fog.x - cameraX, fog.y - cameraY, fog.size, 0, Math.PI * 2);
+      ctx.fill();
     }
-    
-    ctx.globalAlpha = fog.alpha * (fog.life / 200);
-    ctx.fillStyle = '#8888aa';
-    
-    const gradient = ctx.createRadialGradient(
-      fog.x - cameraX, fog.y - cameraY, 0,
-      fog.x - cameraX, fog.y - cameraY, fog.size
-    );
-    gradient.addColorStop(0, 'rgba(136, 136, 170, 0.3)');
-    gradient.addColorStop(1, 'rgba(136, 136, 170, 0)');
-    
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(fog.x - cameraX, fog.y - cameraY, fog.size, 0, Math.PI * 2);
-    ctx.fill();
   }
   ctx.restore();
 }
@@ -970,35 +980,34 @@ function createHeatDistortion(x, y, intensity = 1){
 
 function drawHeatDistortion(){
   if(!runtime.heatDistortionEnabled || heatDistortions.length === 0) return;
-  
+
   ctx.save();
   for(let i = heatDistortions.length - 1; i >= 0; i--){
     const heat = heatDistortions[i];
     heat.radius += heat.speed;
     heat.life = 1 - (heat.radius / heat.maxRadius);
-    
+
     if(heat.radius >= heat.maxRadius){
       heatDistortions.splice(i, 1);
-      continue;
+    } else {
+      ctx.globalAlpha = heat.life * heat.alpha;
+      ctx.strokeStyle = '#ffaa00';
+      ctx.lineWidth = 2;
+
+      // Draw wavy circle for heat effect
+      ctx.beginPath();
+      for(let angle = 0; angle < Math.PI * 2; angle += 0.1){
+        const wave = Math.sin(angle * 5 + globalTime * 10) * 5;
+        const rad = heat.radius + wave;
+        const px = heat.x - cameraX + Math.cos(angle) * rad;
+        const py = heat.y - cameraY + Math.sin(angle) * rad;
+
+        if(angle === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
     }
-    
-    ctx.globalAlpha = heat.life * heat.alpha;
-    ctx.strokeStyle = '#ffaa00';
-    ctx.lineWidth = 2;
-    
-    // Draw wavy circle for heat effect
-    ctx.beginPath();
-    for(let angle = 0; angle < Math.PI * 2; angle += 0.1){
-      const wave = Math.sin(angle * 5 + globalTime * 10) * 5;
-      const rad = heat.radius + wave;
-      const px = heat.x - cameraX + Math.cos(angle) * rad;
-      const py = heat.y - cameraY + Math.sin(angle) * rad;
-      
-      if(angle === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.stroke();
   }
   ctx.restore();
 }
@@ -1769,20 +1778,17 @@ function gameTick() {
     if(!g.collected && player.x + player.width > g.x && player.x < g.x + g.size && player.y + player.height > g.y && player.y < g.y + g.size){
       score += 50; g.collected = true;
       spawnParticlesEarly(g.x + g.size/2, g.y + g.size/2, "double", runtime.effects.jumpEffectMul);
-      
-      // Add rotation to gem
-      g.rotation += g.rotationSpeed || 0;
-      
+
       // Create lens flare on gem collect
       if(runtime.lensFlareEnabled) {
         createLensFlare(g.x + g.size/2, g.y + g.size/2, 0.5);
       }
-      
+
       // Create energy ripple on gem collect
       if(runtime.energyRipplesEnabled) {
         createEnergyRipple(g.x + g.size/2, g.y + g.size/2, 0.5);
       }
-      
+
       // Screen shake on gem collect
       if(runtime.screenShakeEnabled) {
         screenShake = 8 * runtime.advanced.screenShakeMul;
@@ -1799,21 +1805,21 @@ function gameTick() {
 
   addLine();
 
-  // Update all visual effects
-  updateParallaxLayers();
-  updateVelocityStreaks();
-  updateSpeedLines();
-  updateWindParticles();
-  updatePlatformPulse();
-  updateImpactWaves();
-  updateLensFlares();
-  updateDynamicFog();
-  updateStarbursts();
-  updateAfterImages();
-  updateGravityWaves();
-  updateEnergyRipples();
-  updatePixelDisplacements();
-  applyTimeDilation();
+  // Update visual effects only when enabled
+  if(runtime.parallaxEnabled) updateParallaxLayers();
+  if(runtime.velocityStreaksEnabled) updateVelocityStreaks();
+  if(runtime.speedLinesEnabled) updateSpeedLines();
+  if(runtime.windParticlesEnabled) updateWindParticles();
+  if(runtime.platformPulseEnabled) updatePlatformPulse();
+  if(runtime.impactWavesEnabled) updateImpactWaves();
+  if(runtime.lensFlareEnabled) updateLensFlares();
+  if(runtime.dynamicFogEnabled) updateDynamicFog();
+  if(runtime.starburstsEnabled) updateStarbursts();
+  if(runtime.afterImagesEnabled) updateAfterImages();
+  if(runtime.gravityWavesEnabled) updateGravityWaves();
+  if(runtime.energyRipplesEnabled) updateEnergyRipples();
+  if(runtime.pixelDisplacementEnabled) updatePixelDisplacements();
+  if(runtime.timeDilationEnabled) applyTimeDilation();
 
   // update crash pieces with enhanced physics
   for(let i=crashPieces.length-1;i>=0;i--){
@@ -1917,7 +1923,11 @@ function tryDie(spike){
     gameRunning = false;
     if(score > bestScore){
       bestScore = Math.floor(score);
-      localStorage.setItem('bestScore', bestScore);
+      try {
+        localStorage.setItem('bestScore', bestScore);
+      } catch(e) {
+        console.warn("Failed to save best score:", e);
+      }
     }
     setTimeout(()=> {
       document.getElementById('menu').style.display = 'flex';
@@ -1977,10 +1987,10 @@ function draw(){
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
   // Draw parallax layers first (background)
-  drawParallaxLayers();
-  
+  if(runtime.parallaxEnabled) drawParallaxLayers();
+
   // Draw dynamic fog
-  drawDynamicFog();
+  if(runtime.dynamicFogEnabled) drawDynamicFog();
 
   // horizontal lines background
   if(runtime.linesEnabled){
@@ -1991,7 +2001,7 @@ function draw(){
       ctx.moveTo(l.x - cameraX, l.y - cameraY);
       ctx.lineTo(l.x + l.width - cameraX, l.y - cameraY);
       ctx.stroke();
-      
+
       // Second parallel line from early version
       ctx.beginPath();
       ctx.moveTo(l.x - 5 - cameraX, l.y + 2 - cameraY);
@@ -2001,19 +2011,19 @@ function draw(){
   }
 
   // Draw velocity streaks
-  drawVelocityStreaks();
-  
+  if(runtime.velocityStreaksEnabled) drawVelocityStreaks();
+
   // Draw speed lines
-  drawSpeedLines();
-  
+  if(runtime.speedLinesEnabled) drawSpeedLines();
+
   // Draw wind particles
-  drawWindParticles();
+  if(runtime.windParticlesEnabled) drawWindParticles();
 
   // Draw ambient occlusion first (shadows)
-  applyAmbientOcclusion();
+  if(runtime.ambientOcclusionEnabled) applyAmbientOcclusion();
 
   // Draw depth of field (blur distant objects)
-  applyDepthOfField();
+  if(runtime.depthOfFieldEnabled) applyDepthOfField();
 
   // platforms
   for(let plat of platforms){
@@ -2061,10 +2071,12 @@ function draw(){
   for(let g of gems){
     if(g.collected) continue;
     g.floatOffset = g.floatOffset || Math.random()*Math.PI*2;
+    // Update gem rotation
+    g.rotation = (g.rotation || 0) + (g.rotationSpeed || 0);
     let floatY = Math.sin(globalTime*3 + g.floatOffset) * 5;
     ctx.save();
     ctx.translate(g.x + g.size/2 - cameraX, g.y + g.size/2 - cameraY + floatY);
-    ctx.rotate(g.rotation || 0);
+    ctx.rotate(g.rotation);
     ctx.fillStyle = "white";
     if(runtime.glowEnabled){ ctx.shadowColor = "white"; ctx.shadowBlur = 20 + 10 * Math.sin(globalTime*5); }
     ctx.fillRect(-g.size/2, -g.size/2, g.size, g.size);
@@ -2076,25 +2088,25 @@ function draw(){
   drawHeatDistortion();
   
   // Draw gravity waves
-  drawGravityWaves();
-  
+  if(runtime.gravityWavesEnabled) drawGravityWaves();
+
   // Draw energy ripples
-  drawEnergyRipples();
-  
+  if(runtime.energyRipplesEnabled) drawEnergyRipples();
+
   // Draw pixel displacements
-  drawPixelDisplacements();
-  
+  if(runtime.pixelDisplacementEnabled) drawPixelDisplacements();
+
   // Draw starbursts
-  drawStarbursts();
-  
+  if(runtime.starburstsEnabled) drawStarbursts();
+
   // Draw impact waves
-  drawImpactWaves();
-  
+  if(runtime.impactWavesEnabled) drawImpactWaves();
+
   // Draw lens flares
-  drawLensFlares();
-  
+  if(runtime.lensFlareEnabled) drawLensFlares();
+
   // Draw after images
-  drawAfterImages();
+  if(runtime.afterImagesEnabled) drawAfterImages();
 
   /* ---------- TRAIL EFFECT ---------- */
   if(player.visible && runtime.trailEnabled){
@@ -2238,10 +2250,10 @@ function draw(){
   }
 
   // Apply color bleed effect
-  applyColorBleed();
-  
+  if(runtime.colorBleedEnabled) applyColorBleed();
+
   // Apply radial blur effect
-  applyRadialBlur();
+  if(runtime.radialBlurEnabled) applyRadialBlur();
 
   // player
   if(player.visible){
@@ -2335,7 +2347,7 @@ function openCommandPrompt() {
   const input = prompt("Enter command:");
   if(!input) return;
   const args = input.trim().split(/\s+/);
-  const command = args[0];
+  const command = args[0].toLowerCase();
   const root1 = args[1];
   const root2 = args[2];
   const root3 = args[3];
@@ -2345,7 +2357,14 @@ function openCommandPrompt() {
       player.visible = false;
       createCrashEarly(runtime.effects.dieEffectMul);
       gameRunning = false;
-      if(score>bestScore){ bestScore = Math.floor(score); localStorage.setItem('bestScore', bestScore); }
+      if(score>bestScore){
+        bestScore = Math.floor(score);
+        try {
+          localStorage.setItem('bestScore', bestScore);
+        } catch(e) {
+          console.warn("Failed to save best score:", e);
+        }
+      }
       setTimeout(()=> { document.getElementById('menu').style.display = 'flex'; }, 500);
     }
     return;
@@ -2354,53 +2373,147 @@ function openCommandPrompt() {
   if(command === '/score'){
     if(root1 === 'set' && root2 !== undefined){
       const v = Number(root2);
-      if(!isNaN(v)) score = v; else alert('Invalid value');
+      if(!isNaN(v) && isFinite(v)) {
+        score = Math.max(0, v);
+        alert('Score set to: ' + score);
+      } else {
+        alert('Invalid value for score');
+      }
     } else if(root1 === 'add' && root2 !== undefined){
       const v = Number(root2);
-      if(!isNaN(v)) score += v; else alert('Invalid value');
-    } else alert('Usage: /score set <value>  OR  /score add <value>');
-    return;
-  }
-
-  if(command === '/clear' && root1 === 'bestScore'){
-    bestScore = 0;
-    localStorage.setItem('bestScore', 0);
-    document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
-    alert('Best score cleared.');
-    return;
-  }
-
-  if(command === '/gamerule'){
-    switch(root1){
-      case 'infiniteJump': cheats.infiniteJump = (root2 === 'true'); break;
-      case 'death': cheats.invincible = (root2 === 'false'); break;
-      case 'speed':
-        if(!player.speedMultiplier) player.speedMultiplier = 1;
-        if(root2 === 'reset') player.speedMultiplier = 1;
-        if(root2 === 'add' && !isNaN(parseFloat(root3))) player.speedMultiplier += parseFloat(root3);
-        if(root2 === 'set' && !isNaN(parseFloat(root3))) player.speedMultiplier = parseFloat(root3);
-        break;
-      default: alert('Unknown gamerule');
+      if(!isNaN(v) && isFinite(v)) {
+        score = Math.max(0, score + v);
+        alert('Score increased by: ' + v + ' (new total: ' + score + ')');
+      } else {
+        alert('Invalid value to add to score');
+      }
+    } else {
+      alert('Usage: /score set <value>  OR  /score add <value>');
     }
     return;
   }
 
-  if(command === '/variable'){
+  if(command === '/clear' && root1 === 'bestscore'){
+    bestScore = 0;
+    try {
+      localStorage.setItem('bestScore', 0);
+      document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
+      alert('Best score cleared.');
+    } catch(e) {
+      alert('Failed to clear best score: ' + e.message);
+    }
+    return;
+  }
+
+  if(command === '/gamerule'){
+    if(!root1) {
+      alert('Usage: /gamerule <rule> <value>\nAvailable rules: infiniteJump, death, speed');
+      return;
+    }
+
+    switch(root1.toLowerCase()){
+      case 'infinitejump':
+        if(root2 === 'true' || root2 === 'false') {
+          cheats.infiniteJump = (root2 === 'true');
+          alert('Infinite jump: ' + (cheats.infiniteJump ? 'enabled' : 'disabled'));
+        } else {
+          alert('Usage: /gamerule infiniteJump <true|false>');
+        }
+        break;
+      case 'death':
+        if(root2 === 'true' || root2 === 'false') {
+          cheats.invincible = (root2 === 'false'); // death false = invincible true
+          alert('Invincibility: ' + (cheats.invincible ? 'enabled' : 'disabled'));
+        } else {
+          alert('Usage: /gamerule death <true|false>');
+        }
+        break;
+      case 'speed':
+        if(!player.speedMultiplier) player.speedMultiplier = 1;
+        if(root2 === 'reset') {
+          player.speedMultiplier = 1;
+          alert('Speed multiplier reset to 1.0');
+        } else if(root2 === 'set' && root3 !== undefined) {
+          const v = parseFloat(root3);
+          if(!isNaN(v) && isFinite(v) && v >= 0.1 && v <= 10) {
+            player.speedMultiplier = v;
+            alert('Speed multiplier set to: ' + v);
+          } else {
+            alert('Invalid speed multiplier (must be between 0.1 and 10)');
+          }
+        } else if(root2 === 'add' && root3 !== undefined) {
+          const v = parseFloat(root3);
+          if(!isNaN(v) && isFinite(v)) {
+            player.speedMultiplier = Math.max(0.1, Math.min(10, player.speedMultiplier + v));
+            alert('Speed multiplier adjusted by: ' + v + ' (new value: ' + player.speedMultiplier + ')');
+          } else {
+            alert('Invalid value to add to speed multiplier');
+          }
+        } else {
+          alert('Usage: /gamerule speed <reset|set|add> [value]');
+        }
+        break;
+      default:
+        alert('Unknown gamerule: ' + root1 + '\nAvailable: infiniteJump, death, speed');
+    }
+    return;
+  }
+
+  if(command === '/variable' || command === '/var'){
     if(!root1){
-      let accountLocal = localStorage.getItem('account') || 'player';
-      let isCreator = ['bw55133@pausd.us','ikunbeautiful@gmail.com','benranwu@gmail.com'].includes(accountLocal);
-      alert('test mode: '+testMode+'\n'+'infinite jump: '+cheats.infiniteJump+'\n'+'float: '+cheats.float+'\n'+'death: '+(!cheats.invincible)+'\n'+'score: '+score+'\n'+'best score: '+bestScore+'\n'+'account: '+(isCreator?'creator':'player')+'\n'+'player speed: '+player.speed+'\n'+'jump height: '+(-JUMP_SPEED));
+      try {
+        let accountLocal = 'player';
+        try {
+          accountLocal = localStorage.getItem('account') || 'player';
+        } catch(e) {
+          console.warn("Failed to read account from localStorage:", e);
+        }
+        let isCreator = ['bw55133@pausd.us','ikunbeautiful@gmail.com','benranwu@gmail.com'].includes(accountLocal);
+        alert('Test Mode: ' + testMode +
+              '\nInfinite Jump: ' + cheats.infiniteJump +
+              '\nFloat: ' + cheats.float +
+              '\nInvincible: ' + cheats.invincible +
+              '\nScore: ' + score +
+              '\nBest Score: ' + bestScore +
+              '\nAccount: ' + (isCreator ? 'creator' : 'player') +
+              '\nPlayer Speed: ' + player.speed +
+              '\nSpeed Multiplier: ' + (player.speedMultiplier || 1) +
+              '\nJump Height: ' + (-JUMP_SPEED));
+      } catch(e) {
+        alert('Error reading variables: ' + e.message);
+      }
     }
     return;
   }
 
   if(command === '/code'){
-    if(root1 === '770709'){ testMode = !testMode; alert(testMode ? 'TEST MODE ON' : 'TEST MODE OFF'); }
-    else if(root1 === 'lanseyaoji'){ if(player.speed < 5) player.speed = 5; else player.speed *= 1.5; alert('Player speed: '+player.speed); }
-    else if(root1 === 'jinyumantang'){ gemEveryBlock = !gemEveryBlock; alert('Gem generation: '+gemEveryBlock); }
-    else if(root1 === 'JiMmYiStHeCoOlEsTgUy|2025.letmecheat|L^UP++0U+L0UD'){
-      if(account !== '𐀒𐀒𐀒'){ oldAccount = account; account = '𐀒𐀒𐀒'; } else account = oldAccount || 'player';
-      alert('Account toggled: '+account);
+    if(!root1) {
+      alert('Usage: /code <password>');
+      return;
+    }
+
+    try {
+      if(root1 === '770709'){
+        testMode = !testMode;
+        alert(testMode ? 'TEST MODE ON' : 'TEST MODE OFF');
+      }
+      else if(root1 === 'lanseyaoji'){
+        if(player.speed < 5) player.speed = 5; else player.speed *= 1.5;
+        alert('Player speed: ' + player.speed);
+      }
+      else if(root1 === 'jinyumantang'){
+        gemEveryBlock = !gemEveryBlock;
+        alert('Gem generation: ' + (gemEveryBlock ? 'every block' : 'normal'));
+      }
+      else if(root1 === 'JiMmYiStHeCoOlEsTgUy|2025.letmecheat|L^UP++0U+L0UD'){
+        if(account !== '𐀒𐀒𐀒'){ oldAccount = account; account = '𐀒𐀒𐀒'; } else account = oldAccount || 'player';
+        alert('Account toggled: '+account);
+      }
+      else {
+        alert('Invalid code');
+      }
+    } catch(e) {
+      alert('Error executing code: ' + e.message);
     }
     return;
   }
