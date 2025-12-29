@@ -604,18 +604,20 @@ function drawParallaxLayers(){
 
 /* 2. VELOCITY STREAKS - Speed lines that follow player movement */
 function createVelocityStreaks(){
-  if(!runtime.velocityStreaksEnabled || Math.random() > 0.3 * runtime.advanced.velocityStreaksMul) return;
-  
-  velocityStreaks.push({
-    x: player.x + player.width/2,
-    y: player.y + player.height/2,
-    length: Math.random() * 100 + 50 * runtime.advanced.velocityStreaksMul,
-    angle: Math.atan2(player.vy, player.speed) + (Math.random() - 0.5) * 0.5,
-    width: Math.random() * 3 + 1,
-    life: 30,
-    alpha: Math.random() * 0.3 + 0.1,
-    color: `rgba(0, 255, 255, 0.5)`
-  });
+  if(!runtime.velocityStreaksEnabled || Math.random() > 0.6 * runtime.advanced.velocityStreaksMul) return;
+
+  for(let i = 0; i < 2; i++) {
+    velocityStreaks.push({
+      x: player.x + player.width/2,
+      y: player.y + player.height/2,
+      length: Math.random() * 100 + 50 * runtime.advanced.velocityStreaksMul,
+      angle: Math.atan2(player.vy, player.speed) + (Math.random() - 0.5) * 0.5,
+      width: Math.random() * 3 + 1,
+      life: 30,
+      alpha: Math.random() * 0.3 + 0.1,
+      color: `rgba(0, 255, 255, 0.5)`
+    });
+  }
 }
 
 function updateVelocityStreaks(){
@@ -657,7 +659,7 @@ function drawVelocityStreaks(){
 function createSpeedLines(){
   if(!runtime.speedLinesEnabled || Math.random() > 0.4 * runtime.advanced.speedLinesMul) return;
   
-  for(let i = 0; i < Math.floor(3 * runtime.advanced.speedLinesMul); i++){
+  for(let i = 0; i < Math.floor(6 * runtime.advanced.speedLinesMul); i++){
     speedLines.push({
       x: player.x + player.width/2,
       y: player.y + player.height/2,
@@ -712,7 +714,7 @@ function drawSpeedLines(){
 function createWindParticles(){
   if(!runtime.windParticlesEnabled || Math.random() > 0.5 * runtime.advanced.windParticlesMul) return;
   
-  for(let i = 0; i < Math.floor(5 * runtime.advanced.windParticlesMul); i++){
+  for(let i = 0; i < Math.floor(10 * runtime.advanced.windParticlesMul); i++){
     windParticles.push({
       x: player.x + canvas.width + Math.random() * 100,
       y: Math.random() * canvas.height,
@@ -806,17 +808,19 @@ function drawPlatformPulse(){
 /* 7. IMPACT WAVES - Ripple effects on collisions */
 function createImpactWave(x, y, intensity = 1){
   if(!runtime.impactWavesEnabled) return;
-  
-  impactWaves.push({
-    x: x,
-    y: y,
-    radius: 0,
-    maxRadius: 100 * intensity * runtime.advanced.impactWavesMul,
-    speed: 5 + 5 * runtime.advanced.impactWavesMul,
-    life: 1,
-    color: '#ffffff',
-    width: 2
-  });
+
+  for(let i = 0; i < 2; i++) {
+    impactWaves.push({
+      x: x,
+      y: y,
+      radius: 0,
+      maxRadius: 100 * intensity * runtime.advanced.impactWavesMul,
+      speed: 5 + 5 * runtime.advanced.impactWavesMul,
+      life: 1,
+      color: '#ffffff',
+      width: 2
+    });
+  }
 }
 
 function updateImpactWaves(){
@@ -852,15 +856,17 @@ function drawImpactWaves(){
 /* 8. LENS FLARE - Light effects from bright objects */
 function createLensFlare(x, y, intensity = 1){
   if(!runtime.lensFlareEnabled) return;
-  
-  lensFlares.push({
-    x: x,
-    y: y,
-    size: 30 * intensity * runtime.advanced.lensFlareMul,
-    life: 30,
-    alpha: 0.5,
-    color: '#ffff88'
-  });
+
+  for(let i = 0; i < 2; i++) {
+    lensFlares.push({
+      x: x,
+      y: y,
+      size: 30 * intensity * runtime.advanced.lensFlareMul,
+      life: 30,
+      alpha: 0.5,
+      color: '#ffff88'
+    });
+  }
 }
 
 function updateLensFlares(){
@@ -1037,7 +1043,7 @@ function applyColorBleed(){
 function createStarburst(x, y, intensity = 1){
   if(!runtime.starburstsEnabled) return;
   
-  for(let i = 0; i < Math.floor(10 * intensity * runtime.advanced.starburstsMul); i++){
+  for(let i = 0; i < Math.floor(20 * intensity * runtime.advanced.starburstsMul); i++){
     starbursts.push({
       x: x,
       y: y,
@@ -1083,17 +1089,19 @@ function drawStarbursts(){
 
 /* 14. AFTER IMAGES - Ghost images of fast-moving objects */
 function createAfterImage(){
-  if(!runtime.afterImagesEnabled || Math.random() > 0.3 * runtime.advanced.afterImagesMul) return;
-  
-  afterImages.push({
-    x: player.x,
-    y: player.y,
-    width: player.width,
-    height: player.height,
-    alpha: 0.3,
-    life: 20,
-    color: player.color
-  });
+  if(!runtime.afterImagesEnabled || Math.random() > 0.6 * runtime.advanced.afterImagesMul) return;
+
+  for(let i = 0; i < 2; i++) {
+    afterImages.push({
+      x: player.x,
+      y: player.y,
+      width: player.width,
+      height: player.height,
+      alpha: 0.3,
+      life: 20,
+      color: player.color
+    });
+  }
 }
 
 function updateAfterImages(){
@@ -1125,17 +1133,19 @@ function drawAfterImages(){
 /* 15. GRAVITY WAVES - Ripples in space-time */
 function createGravityWave(x, y, intensity = 1){
   if(!runtime.gravityWavesEnabled) return;
-  
-  gravityWaves.push({
-    x: x,
-    y: y,
-    radius: 0,
-    maxRadius: 150 * intensity * runtime.advanced.gravityWavesMul,
-    speed: 2,
-    life: 1,
-    alpha: 0.2,
-    color: '#00ffff'
-  });
+
+  for(let i = 0; i < 2; i++) {
+    gravityWaves.push({
+      x: x,
+      y: y,
+      radius: 0,
+      maxRadius: 150 * intensity * runtime.advanced.gravityWavesMul,
+      speed: 2,
+      life: 1,
+      alpha: 0.2,
+      color: '#00ffff'
+    });
+  }
 }
 
 function updateGravityWaves(){
@@ -1353,7 +1363,7 @@ function applyAmbientOcclusion(){
 /* ---------- ENHANCED PARTICLE EFFECTS ---------- */
 function spawnParticlesEarly(x, y, type, amountMul = 1) {
   const color = type === "jump" ? "#0ff" : type === "double" ? "#fff" : "#fff";
-  const baseCount = type === "land" ? 10 : 15;
+  const baseCount = type === "land" ? 20 : 30;
   const count = Math.max(0, Math.floor(baseCount * amountMul * runtime.effects.jumpEffectMul));
   
   for(let i = 0; i < count; i++) {
@@ -1424,7 +1434,7 @@ function spawnParticlesEarly(x, y, type, amountMul = 1) {
 
 /* ---------- ENHANCED DEATH ANIMATION ---------- */
 function createCrashEarly(amountMul = 1) {
-  const baseCount = 20;
+  const baseCount = 40;
   const count = Math.max(6, Math.floor(baseCount * amountMul * runtime.effects.dieEffectMul));
   
   for(let i = 0; i < count; i++) {
