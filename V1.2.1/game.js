@@ -69,8 +69,8 @@ try {
 } catch(e) {
   console.warn("Failed to load best score from localStorage:", e);
 }
-let gameRunning = false;
-let cameraX = 0, cameraY = 0;
+let gameRunning = false, gameOver = false;
+let cameraX = 0, cameraY = 0, lastPlayerX = 0;
 
 /* Tick system */
 let tickAccumulator = 0;
@@ -1712,9 +1712,11 @@ function cleanupOffScreenObjects() {
 
 /* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
 function gameTick() {
-  if(!gameRunning || !player.visible) return;
-  
-  player.speed += 0.002;
+  if(!gameRunning) return;
+
+  if(!gameOver) {
+    player.speed += 0.002;
+  }
 
   // color cycling
   colorLerp += 1/25/TICKS_PER_SECOND;
@@ -1726,84 +1728,94 @@ function gameTick() {
   platformColor = lerpColor(baseColors[colorIndex], nextColor, colorLerp);
 
   // FIXED PHYSICS: No delta time scaling - runs at fixed 60 TPS
-  player.y += player.vy * player.vertMultiplier;
-  if(cheats.float && player.vy > 0) player.vy *= 0.5;
-  player.vy += GRAVITY * player.vertMultiplier;
-  player.x += player.speed * player.horizMultiplier;
+  if(!gameOver) {
+    player.y += player.vy * player.vertMultiplier;
+    if(cheats.float && player.vy > 0) player.vy *= 0.5;
+    player.vy += GRAVITY * player.vertMultiplier;
+    player.x += player.speed * player.horizMultiplier;
+  }
 
-  // platform collision
-  player.onGround = false;
-  for(let plat of platforms){
-    if(player.x + player.width > plat.x && player.x < plat.x + plat.width &&
-       player.y + player.height > plat.y && player.y + player.height < plat.y + plat.height + player.vy + 1){
-      if(player.vy >= 0){
-        player.y = plat.y - player.height;
-        player.vy = 0;
-        player.onGround = true;
-        player.jumpsLeft = 2;
-        spawnParticlesEarly(player.x + player.width/2, player.y + player.height, "land", runtime.effects.walkEffectMul);
-        
-        // Create impact wave on landing
-        if(runtime.impactWavesEnabled) {
-          createImpactWave(player.x + player.width/2, player.y + player.height, 0.3);
+  // platform collision (only when game is not over)
+  if(!gameOver) {
+    player.onGround = false;
+    for(let plat of platforms){
+      if(player.x + player.width > plat.x && player.x < plat.x + plat.width &&
+         player.y + player.height > plat.y && player.y + player.height < plat.y + plat.height + player.vy + 1){
+        if(player.vy >= 0){
+          player.y = plat.y - player.height;
+          player.vy = 0;
+          player.onGround = true;
+          player.jumpsLeft = 2;
+          spawnParticlesEarly(player.x + player.width/2, player.y + player.height, "land", runtime.effects.walkEffectMul);
+
+          // Create impact wave on landing
+          if(runtime.impactWavesEnabled) {
+            createImpactWave(player.x + player.width/2, player.y + player.height, 0.3);
+          }
         }
       }
-    }
-    if(!plat.passed && player.x > plat.x + plat.width){
-      score += 1;
-      plat.passed = true;
-      
-      // Pulse platform when passed
-      if(runtime.platformPulseEnabled) {
-        plat.pulsePhase += Math.PI;
+      if(!plat.passed && player.x > plat.x + plat.width){
+        score += 1;
+        plat.passed = true;
+
+        // Pulse platform when passed
+        if(runtime.platformPulseEnabled) {
+          plat.pulsePhase += Math.PI;
+        }
       }
     }
   }
 
-  if(player.y > canvas.height + 300){
+  if(!gameOver && player.y > canvas.height + 300){
     player.jumpsLeft = 1;
     tryDie();
   }
 
-  // spikes
-  for(let s of spikes){
-    if(checkSpikeCollision(s)) tryDie(s);
-    if(!s.passed && player.x > s.x + s.width){
-      score += 1; s.passed = true;
-    }
-  }
-
-  // gems
-  for(let g of gems){
-    if(!g.collected && player.x + player.width > g.x && player.x < g.x + g.size && player.y + player.height > g.y && player.y < g.y + g.size){
-      score += 50; g.collected = true;
-      spawnParticlesEarly(g.x + g.size/2, g.y + g.size/2, "double", runtime.effects.jumpEffectMul);
-
-      // Create lens flare on gem collect
-      if(runtime.lensFlareEnabled) {
-        createLensFlare(g.x + g.size/2, g.y + g.size/2, 0.5);
-      }
-
-      // Create energy ripple on gem collect
-      if(runtime.energyRipplesEnabled) {
-        createEnergyRipple(g.x + g.size/2, g.y + g.size/2, 0.5);
-      }
-
-      // Screen shake on gem collect
-      if(runtime.screenShakeEnabled) {
-        screenShake = 8 * runtime.advanced.screenShakeMul;
+  // spikes (only check when game is not over)
+  if(!gameOver) {
+    for(let s of spikes){
+      if(checkSpikeCollision(s)) tryDie(s);
+      if(!s.passed && player.x > s.x + s.width){
+        score += 1; s.passed = true;
       }
     }
   }
 
-  // generation
-  const lastPlatform = platforms[platforms.length - 1];
-  if(lastPlatform && lastPlatform.x < player.x + canvas.width){
-    const out = generateBlockPlatform(lastPlatform.x, lastPlatform.y);
-    lastPlatformX = out.x; lastPlatformY = out.y;
+  // gems (only collect when game is not over)
+  if(!gameOver) {
+    for(let g of gems){
+      if(!g.collected && player.x + player.width > g.x && player.x < g.x + g.size && player.y + player.height > g.y && player.y < g.y + g.size){
+        score += 50; g.collected = true;
+        spawnParticlesEarly(g.x + g.size/2, g.y + g.size/2, "double", runtime.effects.jumpEffectMul);
+
+        // Create lens flare on gem collect
+        if(runtime.lensFlareEnabled) {
+          createLensFlare(g.x + g.size/2, g.y + g.size/2, 0.5);
+        }
+
+        // Create energy ripple on gem collect
+        if(runtime.energyRipplesEnabled) {
+          createEnergyRipple(g.x + g.size/2, g.y + g.size/2, 0.5);
+        }
+
+        // Screen shake on gem collect
+        if(runtime.screenShakeEnabled) {
+          screenShake = 8 * runtime.advanced.screenShakeMul;
+        }
+      }
+    }
   }
 
-  addLine();
+  // generation (only when game is not over)
+  if(!gameOver) {
+    const lastPlatform = platforms[platforms.length - 1];
+    if(lastPlatform && lastPlatform.x < player.x + canvas.width){
+      const out = generateBlockPlatform(lastPlatform.x, lastPlatform.y);
+      lastPlatformX = out.x; lastPlatformY = out.y;
+    }
+
+    addLine();
+  }
 
   // Update visual effects only when enabled
   if(runtime.parallaxEnabled) updateParallaxLayers();
@@ -1914,13 +1926,13 @@ function gameTick() {
 
 /* ---------- Death / tryDie ---------- */
 function tryDie(spike){
-  if(!player.visible) return;
+  if(!player.visible || gameOver) return;
   if(cheats.invincible) return;
   if(player.onGround || player.vy > 0){
     player.visible = false;
+    gameOver = true; // Game is over but keep running for effects
     if(spike) spike.hit = false;
     createCrashEarly(runtime.effects.dieEffectMul);
-    gameRunning = false;
     if(score > bestScore){
       bestScore = Math.floor(score);
       try {
@@ -1930,6 +1942,7 @@ function tryDie(spike){
       }
     }
     setTimeout(()=> {
+      gameRunning = false; // Now stop the game after effects have played
       document.getElementById('menu').style.display = 'flex';
       document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
     }, 1200);
@@ -2332,8 +2345,19 @@ function mainLoop(now){
   }
 
   // Camera smoothing - use actual delta time for smoothness
-  const targetCamX = player.x - 150;
-  const targetCamY = player.y - canvas.height/2 + player.height*1.5;
+  let targetCamX, targetCamY;
+
+  if(gameOver) {
+    // When game is over, continue moving camera forward at a steady pace
+    targetCamX = lastPlayerX - 150 + (globalTime * 50); // Move camera forward over time
+    targetCamY = canvas.height/2; // Center vertically
+  } else {
+    // Normal camera follow
+    targetCamX = player.x - 150;
+    targetCamY = player.y - canvas.height/2 + player.height*1.5;
+    lastPlayerX = player.x; // Update last known player position
+  }
+
   const smoothingFactor = 0.1 * (cappedDeltaMs / 16.67); // Adjust for frame rate
   cameraX = cameraX * (1 - smoothingFactor) + targetCamX * smoothingFactor;
   cameraY = cameraY * (1 - smoothingFactor) + targetCamY * smoothingFactor;
@@ -2539,6 +2563,7 @@ function startGame(){
   document.getElementById('menu').style.display = 'none';
   resetWorld();
   gameRunning = true;
+  gameOver = false;
   player.visible = true;
   tickAccumulator = 0; // Reset tick accumulator on restart
   lastLoopTime = performance.now(); // Reset time tracking
