@@ -8,6 +8,8 @@
 
 <!-- Pixel font -->
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<!-- Google Sans Code font -->
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
 <style>
   :root {
@@ -67,10 +69,198 @@
     opacity: 0.6;
     background: rgba(0, 255, 255, 0.2);
   }
+  /* Code Editor Modal */
+  #codeEditorModal {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 1500;
+    display: none;
+    flex-direction: column;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  
+  #codeEditorContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border: 4px solid var(--accent);
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+  }
+  
+  #codeEditorHeader {
+    padding: 16px 20px;
+    border-bottom: 2px solid var(--accent);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.5);
+  }
+  
+  #codeEditorHeader h2 {
+    font-size: 14px;
+    color: var(--accent);
+    text-shadow: 0 0 10px var(--accent);
+    margin: 0;
+  }
+  
+  #codeEditorHeader .header-buttons {
+    display: flex;
+    gap: 10px;
+  }
+  
+  #codeEditorHeader .header-buttons .btn {
+    max-width: 120px;
+    font-size: 9px;
+    padding: 8px 16px;
+  }
+  
+  #codeEditorWrapper {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  #findReplacePanel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 300px;
+    background: rgba(0, 0, 0, 0.95);
+    border-left: 2px solid var(--accent);
+    border-bottom: 2px solid var(--accent);
+    padding: 16px;
+    z-index: 10;
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: -5px 5px 15px rgba(0, 255, 255, 0.3);
+  }
+  
+  #findReplacePanel h3 {
+    font-size: 11px;
+    color: var(--accent);
+    margin: 0 0 8px 0;
+    text-shadow: 0 0 5px var(--accent);
+  }
+  
+  #findReplacePanel input[type="text"] {
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid var(--accent);
+    color: #fff;
+    padding: 8px;
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  #findReplacePanel input[type="text"]:focus {
+    outline: none;
+    box-shadow: 0 0 10px var(--accent);
+  }
+  
+  #findReplacePanel .find-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  
+  #findReplacePanel .find-count {
+    font-size: 9px;
+    color: var(--muted);
+    font-family: "Press Start 2P", monospace;
+  }
+  
+  #findReplacePanel .replace-controls {
+    display: flex;
+    gap: 8px;
+  }
+  
+  #findReplacePanel .replace-controls .btn {
+    flex: 1;
+    max-width: none;
+    font-size: 8px;
+    padding: 6px 12px;
+  }
+  
+  #findReplacePanel .checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  #findReplacePanel input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  
+  #findReplacePanel label {
+    font-size: 9px;
+    color: var(--muted);
+    font-family: "Press Start 2P", monospace;
+    cursor: pointer;
+  }
+  
+  #codeEditor {
+    flex: 1;
+    width: 100%;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    border: none;
+    padding: 20px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: none;
+    outline: none;
+    overflow-y: auto;
+    tab-size: 2;
+    white-space: pre;
+    word-wrap: normal;
+  }
+  
+  #codeEditor::-webkit-scrollbar {
+    width: 12px;
+  }
+  
+  #codeEditor::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.5);
+  }
+  
+  #codeEditor::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border: 2px solid #000;
+  }
+  
+  #codeEditor::-webkit-scrollbar-thumb:hover {
+    background: var(--muted);
+  }
+  
   @media (max-width:560px){
     #menu { width: 92vw; padding: 18px; }
     .btn { width: 100%; font-size:11px; padding:10px; }
     #menu h1 { font-size:20px; }
+    #codeEditorModal {
+      padding: 10px;
+    }
+    #findReplacePanel {
+      width: 100%;
+      position: relative;
+      border-left: none;
+      border-bottom: 2px solid var(--accent);
+    }
   }
 </style>
 </head>
@@ -82,7 +272,40 @@
     <div id="bestScore">Best Score: 0</div>
     <button id="startBtn" class="btn">START</button>
     <button id="settingsBtn" class="btn">SETTINGS</button>
+    <button onclick="openCodeEditor()" class="btn">CODE</button>
     <button onclick="window.location.href='../'" class="btn">HOME</button>
+  </div>
+
+  <!-- Code Editor Modal -->
+  <div id="codeEditorModal">
+    <div id="codeEditorContainer">
+      <div id="codeEditorHeader">
+        <h2>CODE EDITOR</h2>
+        <div class="header-buttons">
+          <button id="applyCodeBtn" class="btn">APPLY</button>
+          <button id="closeCodeEditor" class="btn">CLOSE</button>
+        </div>
+      </div>
+      <div id="codeEditorWrapper">
+        <div id="findReplacePanel">
+          <h3>FIND & REPLACE</h3>
+          <input type="text" id="findInput" placeholder="Find...">
+          <div class="find-controls">
+            <span id="findCountLabel" class="find-count">0/0</span>
+          </div>
+          <input type="text" id="replaceInput" placeholder="Replace...">
+          <div class="replace-controls">
+            <button id="replaceBtn" class="btn">REPLACE</button>
+            <button id="replaceAllBtn" class="btn">REPLACE ALL</button>
+          </div>
+          <div class="checkbox-wrapper">
+            <input type="checkbox" id="matchCaseCheckbox">
+            <label for="matchCaseCheckbox">MATCH LETTERS</label>
+          </div>
+        </div>
+        <textarea id="codeEditor" spellcheck="false"></textarea>
+      </div>
+    </div>
   </div>
 
   <div id="scoreHUD">Score: 0</div>
@@ -91,5 +314,6 @@
   <div id="mobileCommandBtn" title="Open Command (Ctrl+Shift+A)"></div>
 
   <script src="game.js"></script>
+  <script src="../editCode.js"></script>
 </body>
 </html>
