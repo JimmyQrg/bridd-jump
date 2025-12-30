@@ -36,8 +36,8 @@
         font-family: 'Press Start 2P', monospace;
         text-align: center;
       ">
-        <div style="font-size: 24px; margin-bottom: 20px; text-shadow: 0 0 20px #0ff;">LOADING GAME CODE...</div>
-        <div style="font-size: 12px; color: #88f7ff; margin-top: 10px;" id="loaderStatus">Preparing...</div>
+        <div style="font-size: 24px; margin-bottom: 20px; text-shadow: 0 0 20px #0ff;">LOADING...</div>
+        <div style="font-size: 12px; color: #88f7ff; margin-top: 10px;" id="loaderStatus">READY...</div>
       </div>
     `;
     document.body.appendChild(loader);
@@ -61,17 +61,14 @@
   }
 
   // Load game.js to sessionStorage on page load
-  async function loadGameCodeToStorage() {
+  async function loadGameCodeToStorage(forceReload = false) {
     if (isLoadingGameCode) return;
     isLoadingGameCode = true;
 
     const storageKey = `briddCode_${getVersionPath()}`;
     
-    // Check if already loaded
-    if (sessionStorage.getItem(storageKey)) {
-      isLoadingGameCode = false;
-      return;
-    }
+    // Always load fresh from file (no cache), but skip if already loading
+    // Don't check sessionStorage - always fetch fresh from file
 
     const loader = createLoadingScreen();
     updateLoaderStatus('Loading game.js...');
@@ -85,7 +82,17 @@
       for (const path of possiblePaths) {
         try {
           updateLoaderStatus(`Trying ${path}...`);
-          const response = await fetch(path, { cache: 'no-cache' });
+          // Add timestamp to prevent caching, use no-store
+          const timestamp = new Date().getTime();
+          const url = path.includes('?') ? `${path}&_t=${timestamp}` : `${path}?_t=${timestamp}`;
+          const response = await fetch(url, { 
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          });
           if (response.ok) {
             const text = await response.text();
             if (text && text.trim().length > 0 && !text.includes('<!DOCTYPE')) {
@@ -235,13 +242,42 @@
     if (storedCode) {
       // Remove old sessionStorage script
       const oldScripts = document.querySelectorAll('script[data-source="sessionStorage"]');
-      oldScripts.forEach(s => s.remove());
+      oldScripts.forEach(s => {
+        try {
+          s.remove();
+        } catch (e) {
+          // Script might be in use, try parent removal
+          if (s.parentNode) {
+            s.parentNode.removeChild(s);
+          }
+        }
+      });
       
-      // Create and execute new script
-      const newScript = document.createElement('script');
-      newScript.textContent = storedCode;
-      newScript.setAttribute('data-source', 'sessionStorage');
-      document.body.appendChild(newScript);
+      // Clear any game state if possible
+      try {
+        // Try to stop any running game loops
+        if (window.cancelAnimationFrame && window.gameAnimationId) {
+          cancelAnimationFrame(window.gameAnimationId);
+        }
+        // Try to reset game state
+        if (typeof window.resetGame === 'function') {
+          window.resetGame();
+        }
+        if (typeof window.gameRunning !== 'undefined') {
+          window.gameRunning = false;
+        }
+      } catch (e) {
+        console.log('Could not reset game state:', e);
+      }
+      
+      // Wait a bit before loading new code
+      setTimeout(() => {
+        // Create and execute new script
+        const newScript = document.createElement('script');
+        newScript.textContent = storedCode;
+        newScript.setAttribute('data-source', 'sessionStorage');
+        document.body.appendChild(newScript);
+      }, 100);
     }
   }
 
@@ -539,19 +575,90 @@
     hideFindReplace();
   }
 
-  // Apply code (save and update running game)
+  // Apply code (save and reload game)
   function applyCode() {
     const code = codeEditor.value;
     const storageKey = `briddCode_${getVersionPath()}`;
     sessionStorage.setItem(storageKey, code);
     
-    // Update the running game immediately
-    updateRunningGame();
+    // Show loading screen while reloading game
+    const loader = createLoadingScreen();
+    updateLoaderStatus('Applying code...');
     
-    const reload = confirm('Code saved to sessionStorage and applied!\n\nReload page for clean state? (Recommended)');
-    if (reload) {
-      location.reload();
+    // Remove old game script and state
+    try {
+      // Stop game loops
+      if (window.cancelAnimationFrame) {
+        // Try to find and cancel any animation frames
+        for (let i = 1; i < 10000; i++) {
+          try {
+            cancelAnimationFrame(i);
+          } catch (e) {}
+        }
+      }
+      
+      // Clear intervals
+      for (let i = 1; i < 10000; i++) {
+        try {
+          clearInterval(i);
+        } catch (e) {}
+      }
+      
+      // Remove old scripts
+      const oldScripts = document.querySelectorAll('script[data-source="sessionStorage"]');
+      oldScripts.forEach(s => {
+        try {
+          if (s.parentNode) {
+            s.parentNode.removeChild(s);
+          }
+        } catch (e) {}
+      });
+      
+      // Reset game state variables if they exist
+      if (typeof window.gameRunning !== 'undefined') window.gameRunning = false;
+      if (typeof window.gameStarted !== 'undefined') window.gameStarted = false;
+      if (typeof window.animationId !== 'undefined') window.animationId = null;
+      
+      // Hide menu if it exists
+      const menu = document.getElementById('menu');
+      if (menu) menu.style.display = 'flex';
+      
+    } catch (e) {
+      console.log('Error cleaning up:', e);
     }
+    
+      // Wait a moment for cleanup
+    setTimeout(() => {
+      updateLoaderStatus('Loading new code...');
+      
+      // Clear canvas if it exists
+      const canvas = document.getElementById('gameCanvas');
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      
+      // Load new code
+      const newScript = document.createElement('script');
+      newScript.textContent = code;
+      newScript.setAttribute('data-source', 'sessionStorage');
+      
+      // Add error handler
+      newScript.onerror = function(e) {
+        console.error('Error loading new code:', e);
+        updateLoaderStatus('Error loading code');
+        setTimeout(() => removeLoadingScreen(), 2000);
+      };
+      
+      document.body.appendChild(newScript);
+      
+      updateLoaderStatus('Done!');
+      setTimeout(() => {
+        removeLoadingScreen();
+      }, 500);
+    }, 300);
   }
 
   // Intercept game.js loading to use sessionStorage code if available
@@ -598,25 +705,13 @@
   // Initialize on page load
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      // First, try to load game code to sessionStorage
-      const storageKey = `briddCode_${getVersionPath()}`;
-      if (!sessionStorage.getItem(storageKey)) {
-        // No code in storage, load it
-        loadGameCodeToStorage();
-      } else {
-        // Code already in storage, load game from it
-        interceptGameJs();
-      }
+      // Always load fresh code from file on page load (no cache)
+      loadGameCodeToStorage();
       initCodeEditor();
     });
   } else {
     // Page already loaded
-    const storageKey = `briddCode_${getVersionPath()}`;
-    if (!sessionStorage.getItem(storageKey)) {
-      loadGameCodeToStorage();
-    } else {
-      interceptGameJs();
-    }
+    loadGameCodeToStorage();
     initCodeEditor();
   }
 })();
