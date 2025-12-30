@@ -3,7 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <title>Settings | BRIDD JUMP</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0,user-scalable=no">
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#00ffff" />
+  <meta name="description" content="Bridd Jump Game Settings" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Bridd Jump" />
+  
+  <!-- Apple Touch Icons -->
+  <link rel="apple-touch-icon" href="/game-images/games/bridd-jump.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/game-images/games/bridd-jump.png" />
+  
+  <!-- Manifest -->
+  <link rel="manifest" href="/manifest.json" />
   <script>
 (function() {
   // Check hide variable (can be set via localStorage, URL param, or window variable)
@@ -1122,6 +1137,19 @@
         }
       }
     });
+    
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('Service Worker registered:', registration);
+          })
+          .catch((error) => {
+            console.log('Service Worker registration failed:', error);
+          });
+      });
+    }
   </script>
 </body>
 </html>
