@@ -2249,10 +2249,13 @@ function cleanupOffScreenObjects() {
 
 /* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
 function gameTick() {
-  if(!gameRunning) return;
+  // Continue running effects even when gameRunning is false (for death animations)
+  // Only skip if game hasn't started yet
+  if(!gameRunning && crashPieces.length === 0 && deathImplosions.length === 0 && 
+     deathGlitches.length === 0 && deathVapors.length === 0) return;
   
   // Continue running effects even when player is dead, but skip player physics
-  if(player.visible) {
+  if(player.visible && gameRunning) {
     player.speed += 0.002;
 
     // color cycling
