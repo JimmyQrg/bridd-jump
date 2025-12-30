@@ -55,15 +55,10 @@ let parallaxLayers = [], velocityStreaks = [], impactWaves = [], platformPulses 
 let windParticles = [], speedLines = [], lensFlares = [], screenTears = [];
 let dynamicFog = [], heatDistortions = [], starbursts = [], afterImages = [];
 let gravityWaves = [], energyRipples = [], pixelDisplacements = [];
-// NEW 20 UNIQUE EFFECTS
-let cosmicRays = [], plasmaOrbs = [], crystalShards = [], voidPortals = [], quantumFields = [];
-let chronoSpheres = [], nebulaClouds = [], fractalVines = [], prismBeams = [], shadowEchoes = [];
-let auroraWaves = [], singularityCores = [], matrixRain = [], bioLuminescence = [], dataStreams = [];
-let electroFields = [], dimensionalRifts = [], sonicBooms = [], realityFractures = [], temporalEchoes = [];
 
 /* gameplay */
 let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
-let gameRunning = false, gameOver = false;
+let gameRunning = false;
 let cameraX = 0, cameraY = 0;
 
 /* Tick system */
@@ -201,11 +196,7 @@ const qualityPresets = {
     parallaxLayers:150, velocityStreaks:125, impactWaves:125, platformPulse:125, colorBleed:100,
     depthOfField:125, windParticles:150, speedLines:150, timeDilation:100, lensFlare:100,
     screenTear:75, dynamicFog:100, heatDistortion:100, starbursts:100, afterImages:100,
-    gravityWaves:75, energyRipples:75, pixelDisplacement:75, ambientOcclusion:100, radialBlur:100,
-    cosmicRays:50, plasmaOrbs:50, crystalShards:50, voidPortals:25, quantumFields:50,
-    chronoSpheres:50, nebulaClouds:50, fractalVines:50, prismBeams:50, shadowEchoes:50,
-    auroraWaves:50, singularityCores:25, matrixRain:50, bioLuminescence:50, dataStreams:50,
-    electroFields:50, dimensionalRifts:25, sonicBooms:50, realityFractures:50, temporalEchoes:50
+    gravityWaves:75, energyRipples:75, pixelDisplacement:75, ambientOcclusion:100, radialBlur:100
   },
   "Ultra": {
     blockTexture:1, jumpEffect:100, walkEffect:100, dieEffect:100, horizontalLines:100, trail:0, glow:1, lines:true,
@@ -340,28 +331,7 @@ let runtime = {
   energyRipplesEnabled: true,
   pixelDisplacementEnabled: true,
   ambientOcclusionEnabled: true,
-  radialBlurEnabled: true,
-  // NEW 20 UNIQUE EFFECTS
-  cosmicRaysEnabled: true,
-  plasmaOrbsEnabled: true,
-  crystalShardsEnabled: true,
-  voidPortalsEnabled: true,
-  quantumFieldsEnabled: true,
-  chronoSpheresEnabled: true,
-  nebulaCloudsEnabled: true,
-  fractalVinesEnabled: true,
-  prismBeamsEnabled: true,
-  shadowEchoesEnabled: true,
-  auroraWavesEnabled: true,
-  singularityCoresEnabled: true,
-  matrixRainEnabled: true,
-  bioLuminescenceEnabled: true,
-  dataStreamsEnabled: true,
-  electroFieldsEnabled: true,
-  dimensionalRiftsEnabled: true,
-  sonicBoomsEnabled: true,
-  realityFracturesEnabled: true,
-  temporalEchoesEnabled: true
+  radialBlurEnabled: true
 };
 
 function applySettings(s){
@@ -378,7 +348,7 @@ function applySettings(s){
   const pct = (v) => (Number(v) || 0) / 100;
 
   // Basic effects
-  runtime.effects.blockTextureEnabled = (settings.quality && settings.quality.blockTexture !== undefined) ? (settings.quality.blockTexture > 0) : (preset.blockTexture >= 1);
+  runtime.effects.blockTextureMul = pct(settings.quality.blockTexture) || (preset.blockTexture >= 1 ? 1 : 0);
   runtime.effects.jumpEffectMul = pct(settings.quality.jumpEffect) || (preset.jumpEffect ? preset.jumpEffect/100 : 0);
   runtime.effects.walkEffectMul = pct(settings.quality.walkEffect) || (preset.walkEffect ? preset.walkEffect/100 : 0);
   runtime.effects.dieEffectMul = pct(settings.quality.dieEffect) || (preset.dieEffect ? preset.dieEffect/100 : 0);
@@ -416,27 +386,6 @@ function applySettings(s){
   runtime.advanced.pixelDisplacementMul = pct(settings.advanced.pixelDisplacement) || (preset.pixelDisplacement ? preset.pixelDisplacement/100 : 0);
   runtime.advanced.ambientOcclusionMul = pct(settings.advanced.ambientOcclusion) || (preset.ambientOcclusion ? preset.ambientOcclusion/100 : 0);
   runtime.advanced.radialBlurMul = pct(settings.advanced.radialBlur) || (preset.radialBlur ? preset.radialBlur/100 : 0);
-  // NEW 20 UNIQUE EFFECTS
-  runtime.advanced.cosmicRaysMul = pct(settings.advanced.cosmicRays) || (preset.cosmicRays ? preset.cosmicRays/100 : 0);
-  runtime.advanced.plasmaOrbsMul = pct(settings.advanced.plasmaOrbs) || (preset.plasmaOrbs ? preset.plasmaOrbs/100 : 0);
-  runtime.advanced.crystalShardsMul = pct(settings.advanced.crystalShards) || (preset.crystalShards ? preset.crystalShards/100 : 0);
-  runtime.advanced.voidPortalsMul = pct(settings.advanced.voidPortals) || (preset.voidPortals ? preset.voidPortals/100 : 0);
-  runtime.advanced.quantumFieldsMul = pct(settings.advanced.quantumFields) || (preset.quantumFields ? preset.quantumFields/100 : 0);
-  runtime.advanced.chronoSpheresMul = pct(settings.advanced.chronoSpheres) || (preset.chronoSpheres ? preset.chronoSpheres/100 : 0);
-  runtime.advanced.nebulaCloudsMul = pct(settings.advanced.nebulaClouds) || (preset.nebulaClouds ? preset.nebulaClouds/100 : 0);
-  runtime.advanced.fractalVinesMul = pct(settings.advanced.fractalVines) || (preset.fractalVines ? preset.fractalVines/100 : 0);
-  runtime.advanced.prismBeamsMul = pct(settings.advanced.prismBeams) || (preset.prismBeams ? preset.prismBeams/100 : 0);
-  runtime.advanced.shadowEchoesMul = pct(settings.advanced.shadowEchoes) || (preset.shadowEchoes ? preset.shadowEchoes/100 : 0);
-  runtime.advanced.auroraWavesMul = pct(settings.advanced.auroraWaves) || (preset.auroraWaves ? preset.auroraWaves/100 : 0);
-  runtime.advanced.singularityCoresMul = pct(settings.advanced.singularityCores) || (preset.singularityCores ? preset.singularityCores/100 : 0);
-  runtime.advanced.matrixRainMul = pct(settings.advanced.matrixRain) || (preset.matrixRain ? preset.matrixRain/100 : 0);
-  runtime.advanced.bioLuminescenceMul = pct(settings.advanced.bioLuminescence) || (preset.bioLuminescence ? preset.bioLuminescence/100 : 0);
-  runtime.advanced.dataStreamsMul = pct(settings.advanced.dataStreams) || (preset.dataStreams ? preset.dataStreams/100 : 0);
-  runtime.advanced.electroFieldsMul = pct(settings.advanced.electroFields) || (preset.electroFields ? preset.electroFields/100 : 0);
-  runtime.advanced.dimensionalRiftsMul = pct(settings.advanced.dimensionalRifts) || (preset.dimensionalRifts ? preset.dimensionalRifts/100 : 0);
-  runtime.advanced.sonicBoomsMul = pct(settings.advanced.sonicBooms) || (preset.sonicBooms ? preset.sonicBooms/100 : 0);
-  runtime.advanced.realityFracturesMul = pct(settings.advanced.realityFractures) || (preset.realityFractures ? preset.realityFractures/100 : 0);
-  runtime.advanced.temporalEchoesMul = pct(settings.advanced.temporalEchoes) || (preset.temporalEchoes ? preset.temporalEchoes/100 : 0);
 
   // Enable/disable based on settings
   runtime.glowEnabled = (settings.quality && settings.quality.glow !== undefined) ? (settings.quality.glow > 0) : (preset.glow !== undefined ? preset.glow > 0 : true);
@@ -472,27 +421,6 @@ function applySettings(s){
   runtime.pixelDisplacementEnabled = runtime.advanced.pixelDisplacementMul > 0;
   runtime.ambientOcclusionEnabled = runtime.advanced.ambientOcclusionMul > 0;
   runtime.radialBlurEnabled = runtime.advanced.radialBlurMul > 0;
-  // NEW 20 UNIQUE EFFECTS
-  runtime.cosmicRaysEnabled = runtime.advanced.cosmicRaysMul > 0;
-  runtime.plasmaOrbsEnabled = runtime.advanced.plasmaOrbsMul > 0;
-  runtime.crystalShardsEnabled = runtime.advanced.crystalShardsMul > 0;
-  runtime.voidPortalsEnabled = runtime.advanced.voidPortalsMul > 0;
-  runtime.quantumFieldsEnabled = runtime.advanced.quantumFieldsMul > 0;
-  runtime.chronoSpheresEnabled = runtime.advanced.chronoSpheresMul > 0;
-  runtime.nebulaCloudsEnabled = runtime.advanced.nebulaCloudsMul > 0;
-  runtime.fractalVinesEnabled = runtime.advanced.fractalVinesMul > 0;
-  runtime.prismBeamsEnabled = runtime.advanced.prismBeamsMul > 0;
-  runtime.shadowEchoesEnabled = runtime.advanced.shadowEchoesMul > 0;
-  runtime.auroraWavesEnabled = runtime.advanced.auroraWavesMul > 0;
-  runtime.singularityCoresEnabled = runtime.advanced.singularityCoresMul > 0;
-  runtime.matrixRainEnabled = runtime.advanced.matrixRainMul > 0;
-  runtime.bioLuminescenceEnabled = runtime.advanced.bioLuminescenceMul > 0;
-  runtime.dataStreamsEnabled = runtime.advanced.dataStreamsMul > 0;
-  runtime.electroFieldsEnabled = runtime.advanced.electroFieldsMul > 0;
-  runtime.dimensionalRiftsEnabled = runtime.advanced.dimensionalRiftsMul > 0;
-  runtime.sonicBoomsEnabled = runtime.advanced.sonicBoomsMul > 0;
-  runtime.realityFracturesEnabled = runtime.advanced.realityFracturesMul > 0;
-  runtime.temporalEchoesEnabled = runtime.advanced.temporalEchoesMul > 0;
 
   // save canonical
   writeSettings(settings);
@@ -512,11 +440,6 @@ function resetWorld(){
   windParticles = []; speedLines = []; lensFlares = []; screenTears = []; dynamicFog = [];
   heatDistortions = []; starbursts = []; afterImages = []; gravityWaves = []; energyRipples = [];
   pixelDisplacements = [];
-  // NEW 20 UNIQUE EFFECTS
-  cosmicRays = []; plasmaOrbs = []; crystalShards = []; voidPortals = []; quantumFields = [];
-  chronoSpheres = []; nebulaClouds = []; fractalVines = []; prismBeams = []; shadowEchoes = [];
-  auroraWaves = []; singularityCores = []; matrixRain = []; bioLuminescence = []; dataStreams = [];
-  electroFields = []; dimensionalRifts = []; sonicBooms = []; realityFractures = []; temporalEchoes = [];
   
   screenShake = 0;
   screenFlash = 0;
@@ -531,10 +454,6 @@ function resetWorld(){
   player.onGround = false;
   player.visible = true;
   player.horizMultiplier = 1; player.vertMultiplier = 1;
-
-  // reset game states
-  gameRunning = false;
-  gameOver = false;
 
   // reset score and color cycling
   score = 0; colorLerp = 0; globalTime = 0;
@@ -1599,687 +1518,6 @@ function addLine(){
   });
 }
 
-/* ========== NEW 20 UNIQUE EFFECTS ========== */
-
-// 21. COSMIC RAYS - Energetic particle beams from above
-function createCosmicRays(){
-  if(!runtime.cosmicRaysEnabled || cosmicRays.length > 15) return;
-
-  cosmicRays.push({
-    x: Math.random() * canvas.width + cameraX,
-    y: -50,
-    length: 100 + Math.random() * 200,
-    angle: Math.PI/2 + (Math.random() - 0.5) * 0.5,
-    life: 60,
-    maxLife: 60,
-    color: `hsl(${Math.random()*60 + 180}, 100%, 80%)`
-  });
-}
-
-function drawCosmicRays(){
-  if(!runtime.cosmicRaysEnabled || cosmicRays.length === 0) return;
-
-  for(let i = cosmicRays.length - 1; i >= 0; i--){
-    const ray = cosmicRays[i];
-    ctx.save();
-    ctx.strokeStyle = ray.color;
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = ray.life / ray.maxLife;
-    ctx.beginPath();
-    ctx.moveTo(ray.x - cameraX, ray.y - cameraY);
-    const endX = ray.x + Math.cos(ray.angle) * ray.length - cameraX;
-    const endY = ray.y + Math.sin(ray.angle) * ray.length - cameraY;
-    ctx.lineTo(endX, endY);
-    ctx.stroke();
-    ctx.restore();
-
-    ray.life--;
-    if(ray.life <= 0){
-      cosmicRays.splice(i, 1);
-    }
-  }
-}
-
-// 22. PLASMA ORBS - Floating energy spheres
-function createPlasmaOrbs(){
-  if(!runtime.plasmaOrbsEnabled || plasmaOrbs.length > 10) return;
-
-  plasmaOrbs.push({
-    x: player.x + (Math.random() - 0.5) * 200,
-    y: player.y + (Math.random() - 0.5) * 200,
-    vx: (Math.random() - 0.5) * 4,
-    vy: (Math.random() - 0.5) * 4,
-    size: 5 + Math.random() * 15,
-    life: 120,
-    maxLife: 120,
-    hue: Math.random() * 360
-  });
-}
-
-function drawPlasmaOrbs(){
-  if(!runtime.plasmaOrbsEnabled || plasmaOrbs.length === 0) return;
-
-  for(let i = plasmaOrbs.length - 1; i >= 0; i--){
-    const orb = plasmaOrbs[i];
-    const alpha = orb.life / orb.maxLife;
-
-    // Outer glow
-    ctx.save();
-    const gradient = ctx.createRadialGradient(
-      orb.x - cameraX, orb.y - cameraY, 0,
-      orb.x - cameraX, orb.y - cameraY, orb.size * 2
-    );
-    gradient.addColorStop(0, `hsla(${orb.hue}, 100%, 70%, ${alpha})`);
-    gradient.addColorStop(1, `hsla(${orb.hue}, 100%, 50%, 0)`);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(orb.x - cameraX - orb.size * 2, orb.y - cameraY - orb.size * 2, orb.size * 4, orb.size * 4);
-    ctx.restore();
-
-    // Inner core
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = `hsl(${orb.hue}, 100%, 80%)`;
-    ctx.beginPath();
-    ctx.arc(orb.x - cameraX, orb.y - cameraY, orb.size * 0.3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    orb.x += orb.vx;
-    orb.y += orb.vy;
-    orb.vx *= 0.98;
-    orb.vy *= 0.98;
-    orb.life--;
-    if(orb.life <= 0){
-      plasmaOrbs.splice(i, 1);
-    }
-  }
-}
-
-// 23. CRYSTAL SHARDS - Geometric crystal fragments
-function createCrystalShards(x, y, count = 5){
-  if(!runtime.crystalShardsEnabled) return;
-
-  for(let i = 0; i < count; i++){
-    crystalShards.push({
-      x: x,
-      y: y,
-      vx: (Math.random() - 0.5) * 8,
-      vy: -Math.random() * 6 - 2,
-      rotation: 0,
-      rotationSpeed: (Math.random() - 0.5) * 0.3,
-      size: 3 + Math.random() * 5,
-      life: 90,
-      maxLife: 90,
-      sides: 3 + Math.floor(Math.random() * 4), // 3-6 sides
-      color: `hsl(${Math.random()*60 + 120}, 70%, 60%)`
-    });
-  }
-}
-
-function drawCrystalShards(){
-  if(!runtime.crystalShardsEnabled || crystalShards.length === 0) return;
-
-  for(let i = crystalShards.length - 1; i >= 0; i--){
-    const shard = crystalShards[i];
-    ctx.save();
-    ctx.globalAlpha = shard.life / shard.maxLife;
-    ctx.translate(shard.x - cameraX, shard.y - cameraY);
-    ctx.rotate(shard.rotation);
-
-    ctx.fillStyle = shard.color;
-    ctx.strokeStyle = `hsl(${shard.color.match(/\d+/)[0]}, 70%, 40%)`;
-    ctx.lineWidth = 1;
-
-    ctx.beginPath();
-    const angleStep = Math.PI * 2 / shard.sides;
-    for(let j = 0; j < shard.sides; j++){
-      const angle = j * angleStep;
-      const radius = shard.size * (0.8 + Math.sin(angle * 2) * 0.2);
-      const x = Math.cos(angle) * radius;
-      const y = Math.sin(angle) * radius;
-      if(j === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-
-    shard.x += shard.vx;
-    shard.y += shard.vy;
-    shard.vy += 0.3; // gravity
-    shard.rotation += shard.rotationSpeed;
-    shard.life--;
-    if(shard.life <= 0){
-      crystalShards.splice(i, 1);
-    }
-  }
-}
-
-// 24. VOID PORTALS - Dark energy vortexes
-function createVoidPortals(){
-  if(!runtime.voidPortalsEnabled || voidPortals.length > 3) return;
-
-  voidPortals.push({
-    x: Math.random() * canvas.width + cameraX,
-    y: Math.random() * canvas.height * 0.6 + cameraY,
-    size: 20 + Math.random() * 30,
-    rotation: 0,
-    life: 180,
-    maxLife: 180,
-    pulse: 0
-  });
-}
-
-function drawVoidPortals(){
-  if(!runtime.voidPortalsEnabled || voidPortals.length === 0) return;
-
-  for(let i = voidPortals.length - 1; i >= 0; i--){
-    const portal = voidPortals[i];
-    const alpha = portal.life / portal.maxLife;
-    const pulseSize = portal.size * (1 + Math.sin(portal.pulse) * 0.3);
-
-    ctx.save();
-    ctx.globalAlpha = alpha * 0.7;
-    ctx.translate(portal.x - cameraX, portal.y - cameraY);
-    ctx.rotate(portal.rotation);
-
-    // Outer dark ring
-    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, pulseSize);
-    gradient.addColorStop(0, 'rgba(0,0,0,0)');
-    gradient.addColorStop(0.7, 'rgba(100,0,150,0.3)');
-    gradient.addColorStop(1, 'rgba(0,0,0,0.8)');
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(0, 0, pulseSize, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Inner swirling pattern
-    ctx.strokeStyle = 'rgba(150,0,200,0.5)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    for(let j = 0; j < 8; j++){
-      const angle = (j / 8) * Math.PI * 2 + portal.rotation;
-      const innerRadius = pulseSize * 0.3;
-      const outerRadius = pulseSize * 0.8;
-      ctx.moveTo(Math.cos(angle) * innerRadius, Math.sin(angle) * innerRadius);
-      ctx.lineTo(Math.cos(angle) * outerRadius, Math.sin(angle) * outerRadius);
-    }
-    ctx.stroke();
-    ctx.restore();
-
-    portal.rotation += 0.05;
-    portal.pulse += 0.1;
-    portal.life--;
-    if(portal.life <= 0){
-      voidPortals.splice(i, 1);
-    }
-  }
-}
-
-// 25. QUANTUM FIELDS - Probabilistic particle clouds
-function createQuantumFields(){
-  if(!runtime.quantumFieldsEnabled || quantumFields.length > 5) return;
-
-  quantumFields.push({
-    x: player.x + (Math.random() - 0.5) * 300,
-    y: player.y + (Math.random() - 0.5) * 200,
-    width: 50 + Math.random() * 100,
-    height: 50 + Math.random() * 100,
-    particles: [],
-    life: 150,
-    maxLife: 150
-  });
-
-  // Initialize particles
-  const field = quantumFields[quantumFields.length - 1];
-  for(let i = 0; i < 20; i++){
-    field.particles.push({
-      x: Math.random() * field.width,
-      y: Math.random() * field.height,
-      vx: (Math.random() - 0.5) * 2,
-      vy: (Math.random() - 0.5) * 2,
-      size: 1 + Math.random() * 2
-    });
-  }
-}
-
-function drawQuantumFields(){
-  if(!runtime.quantumFieldsEnabled || quantumFields.length === 0) return;
-
-  for(let i = quantumFields.length - 1; i >= 0; i--){
-    const field = quantumFields[i];
-    const alpha = field.life / field.maxLife;
-
-    ctx.save();
-    ctx.globalAlpha = alpha * 0.3;
-    ctx.fillStyle = 'rgba(0,200,255,0.1)';
-    ctx.fillRect(field.x - cameraX, field.y - cameraY, field.width, field.height);
-
-    // Draw particles
-    ctx.fillStyle = 'rgba(0,200,255,0.8)';
-    for(let particle of field.particles){
-      particle.x += particle.vx;
-      particle.y += particle.vy;
-
-      // Wrap around field boundaries
-      if(particle.x < 0) particle.x = field.width;
-      if(particle.x > field.width) particle.x = 0;
-      if(particle.y < 0) particle.y = field.height;
-      if(particle.y > field.height) particle.y = 0;
-
-      ctx.beginPath();
-      ctx.arc(field.x - cameraX + particle.x, field.y - cameraY + particle.y, particle.size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-
-    field.life--;
-    if(field.life <= 0){
-      quantumFields.splice(i, 1);
-    }
-  }
-}
-
-// 26. CHRONO SPHERES - Time-manipulating orbs
-function createChronoSpheres(){
-  if(!runtime.chronoSpheresEnabled || chronoSpheres.length > 8) return;
-
-  chronoSpheres.push({
-    x: player.x + (Math.random() - 0.5) * 400,
-    y: player.y - 100 - Math.random() * 200,
-    vx: (Math.random() - 0.5) * 3,
-    vy: 1 + Math.random() * 2,
-    size: 8 + Math.random() * 12,
-    life: 200,
-    maxLife: 200,
-    hue: 240 + Math.random() * 120
-  });
-}
-
-function drawChronoSpheres(){
-  if(!runtime.chronoSpheresEnabled || chronoSpheres.length === 0) return;
-
-  for(let i = chronoSpheres.length - 1; i >= 0; i--){
-    const sphere = chronoSpheres[i];
-    const alpha = sphere.life / sphere.maxLife;
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-
-    // Outer distortion ring
-    const gradient = ctx.createRadialGradient(
-      sphere.x - cameraX, sphere.y - cameraY, 0,
-      sphere.x - cameraX, sphere.y - cameraY, sphere.size * 1.5
-    );
-    gradient.addColorStop(0, `hsla(${sphere.hue}, 80%, 60%, 0.8)`);
-    gradient.addColorStop(0.7, `hsla(${sphere.hue}, 60%, 40%, 0.4)`);
-    gradient.addColorStop(1, `hsla(${sphere.hue}, 40%, 20%, 0)`);
-
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(sphere.x - cameraX, sphere.y - cameraY, sphere.size * 1.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Inner core with clock-like markings
-    ctx.strokeStyle = `hsl(${sphere.hue}, 90%, 80%)`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(sphere.x - cameraX, sphere.y - cameraY, sphere.size * 0.5, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Clock hands
-    const time = Date.now() * 0.001;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(sphere.x - cameraX, sphere.y - cameraY);
-    ctx.lineTo(
-      sphere.x - cameraX + Math.cos(time) * sphere.size * 0.3,
-      sphere.y - cameraY + Math.sin(time) * sphere.size * 0.3
-    );
-    ctx.moveTo(sphere.x - cameraX, sphere.y - cameraY);
-    ctx.lineTo(
-      sphere.x - cameraX + Math.cos(time * 12) * sphere.size * 0.2,
-      sphere.y - cameraY + Math.sin(time * 12) * sphere.size * 0.2
-    );
-    ctx.stroke();
-
-    ctx.restore();
-
-    sphere.x += sphere.vx;
-    sphere.y += sphere.vy;
-    sphere.vy += 0.1; // slight gravity
-    sphere.life--;
-    if(sphere.life <= 0){
-      chronoSpheres.splice(i, 1);
-    }
-  }
-}
-
-// 27. NEBULA CLOUDS - Cosmic gas formations
-function createNebulaClouds(){
-  if(!runtime.nebulaCloudsEnabled || nebulaClouds.length > 4) return;
-
-  nebulaClouds.push({
-    x: Math.random() * canvas.width + cameraX,
-    y: Math.random() * canvas.height * 0.5 + cameraY,
-    width: 100 + Math.random() * 200,
-    height: 60 + Math.random() * 100,
-    density: 30 + Math.random() * 20,
-    hue: Math.random() * 360,
-    life: 300,
-    maxLife: 300,
-    drift: (Math.random() - 0.5) * 0.5
-  });
-}
-
-function drawNebulaClouds(){
-  if(!runtime.nebulaCloudsEnabled || nebulaClouds.length === 0) return;
-
-  for(let i = nebulaClouds.length - 1; i >= 0; i--){
-    const cloud = nebulaClouds[i];
-    const alpha = cloud.life / cloud.maxLife;
-
-    ctx.save();
-    ctx.globalAlpha = alpha * 0.4;
-
-    // Draw nebula as soft, blended particles
-    for(let j = 0; j < cloud.density; j++){
-      const px = cloud.x + Math.random() * cloud.width;
-      const py = cloud.y + Math.random() * cloud.height;
-      const size = 2 + Math.random() * 8;
-
-      const gradient = ctx.createRadialGradient(px - cameraX, py - cameraY, 0, px - cameraX, py - cameraY, size);
-      gradient.addColorStop(0, `hsla(${cloud.hue + Math.random()*60}, 70%, 60%, ${0.3 + Math.random()*0.4})`);
-      gradient.addColorStop(1, `hsla(${cloud.hue}, 50%, 30%, 0)`);
-
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(px - cameraX, py - cameraY, size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.restore();
-
-    cloud.x += cloud.drift;
-    cloud.life--;
-    if(cloud.life <= 0){
-      nebulaClouds.splice(i, 1);
-    }
-  }
-}
-
-// 28. FRACTAL VINES - Recursive growth patterns
-function createFractalVines(x, y, intensity = 1){
-  if(!runtime.fractalVinesEnabled) return;
-
-  function createVineSegment(startX, startY, angle, length, depth, maxDepth = 4){
-    if(depth >= maxDepth || length < 5) return;
-
-    const endX = startX + Math.cos(angle) * length;
-    const endY = startY + Math.sin(angle) * length;
-
-    fractalVines.push({
-      x1: startX, y1: startY,
-      x2: endX, y2: endY,
-      life: 120 - depth * 20,
-      maxLife: 120 - depth * 20,
-      thickness: Math.max(1, 3 - depth),
-      hue: 120 + depth * 30
-    });
-
-    // Branch out
-    if(depth < maxDepth - 1){
-      const branchAngle1 = angle + (Math.random() - 0.5) * 0.8;
-      const branchAngle2 = angle - (Math.random() - 0.5) * 0.8;
-      const newLength = length * (0.6 + Math.random() * 0.3);
-
-      setTimeout(() => createVineSegment(endX, endY, branchAngle1, newLength, depth + 1, maxDepth), 50);
-      if(Math.random() < 0.7){
-        setTimeout(() => createVineSegment(endX, endY, branchAngle2, newLength, depth + 1, maxDepth), 50);
-      }
-    }
-  }
-
-  // Start with main stem
-  createVineSegment(x, y, -Math.PI/2, 20 + intensity * 30, 0);
-}
-
-function drawFractalVines(){
-  if(!runtime.fractalVinesEnabled || fractalVines.length === 0) return;
-
-  for(let i = fractalVines.length - 1; i >= 0; i--){
-    const vine = fractalVines[i];
-    const alpha = vine.life / vine.maxLife;
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = `hsl(${vine.hue}, 70%, 50%)`;
-    ctx.lineWidth = vine.thickness;
-    ctx.lineCap = 'round';
-
-    ctx.beginPath();
-    ctx.moveTo(vine.x1 - cameraX, vine.y1 - cameraY);
-    ctx.lineTo(vine.x2 - cameraX, vine.y2 - cameraY);
-    ctx.stroke();
-    ctx.restore();
-
-    vine.life--;
-    if(vine.life <= 0){
-      fractalVines.splice(i, 1);
-    }
-  }
-}
-
-// 29. PRISM BEAMS - Light refraction effects
-function createPrismBeams(x, y, intensity = 1){
-  if(!runtime.prismBeamsEnabled) return;
-
-  const beamCount = 3 + Math.floor(intensity * 3);
-  for(let i = 0; i < beamCount; i++){
-    prismBeams.push({
-      x: x,
-      y: y,
-      angle: (i / beamCount) * Math.PI * 2,
-      length: 50 + intensity * 100,
-      width: 3 + intensity * 5,
-      life: 45,
-      maxLife: 45,
-      hue: i * 60, // Different colors for each beam
-      speed: 8 + intensity * 4
-    });
-  }
-}
-
-function drawPrismBeams(){
-  if(!runtime.prismBeamsEnabled || prismBeams.length === 0) return;
-
-  for(let i = prismBeams.length - 1; i >= 0; i--){
-    const beam = prismBeams[i];
-    const alpha = beam.life / beam.maxLife;
-    const currentLength = beam.length * (beam.life / beam.maxLife);
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-
-    // Create beam gradient
-    const gradient = ctx.createLinearGradient(
-      beam.x - cameraX, beam.y - cameraY,
-      beam.x - cameraX + Math.cos(beam.angle) * currentLength,
-      beam.y - cameraY + Math.sin(beam.angle) * currentLength
-    );
-    gradient.addColorStop(0, `hsla(${beam.hue}, 100%, 80%, 0.8)`);
-    gradient.addColorStop(1, `hsla(${beam.hue}, 100%, 60%, 0)`);
-
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = beam.width;
-    ctx.lineCap = 'round';
-
-    ctx.beginPath();
-    ctx.moveTo(beam.x - cameraX, beam.y - cameraY);
-    ctx.lineTo(
-      beam.x - cameraX + Math.cos(beam.angle) * currentLength,
-      beam.y - cameraY + Math.sin(beam.angle) * currentLength
-    );
-    ctx.stroke();
-    ctx.restore();
-
-    beam.life--;
-    if(beam.life <= 0){
-      prismBeams.splice(i, 1);
-    }
-  }
-}
-
-// 30. SHADOW ECHOES - Delayed shadow duplicates
-function createShadowEchoes(x, y, intensity = 1){
-  if(!runtime.shadowEchoesEnabled) return;
-
-  for(let i = 0; i < 3 + intensity * 2; i++){
-    shadowEchoes.push({
-      x: x,
-      y: y,
-      delay: i * 8,
-      life: 60,
-      maxLife: 60,
-      alpha: 0.6 - i * 0.15,
-      scale: 1 - i * 0.1
-    });
-  }
-}
-
-function drawShadowEchoes(){
-  if(!runtime.shadowEchoesEnabled || shadowEchoes.length === 0) return;
-
-  for(let i = shadowEchoes.length - 1; i >= 0; i--){
-    const echo = shadowEchoes[i];
-
-    if(echo.delay > 0){
-      echo.delay--;
-      continue;
-    }
-
-    const alpha = echo.alpha * (echo.life / echo.maxLife);
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-
-    // Draw player shadow
-    ctx.save();
-    ctx.scale(echo.scale, echo.scale);
-    ctx.fillRect(
-      (echo.x - player.width/2 * echo.scale) - cameraX,
-      (echo.y - player.height/2 * echo.scale) - cameraY,
-      player.width * echo.scale,
-      player.height * echo.scale
-    );
-    ctx.restore();
-    ctx.restore();
-
-    echo.life--;
-    if(echo.life <= 0){
-      shadowEchoes.splice(i, 1);
-    }
-  }
-}
-
-// 31-40: Additional effects (simplified implementations)
-function createAuroraWaves(){ if(!runtime.auroraWavesEnabled || auroraWaves.length > 3) return;
-  auroraWaves.push({x: player.x, y: player.y - 100, width: 200, height: 20, life: 120, hue: Math.random()*60+180}); }
-function drawAuroraWaves(){
-  if(!runtime.auroraWavesEnabled || auroraWaves.length === 0) return;
-  for(let i = auroraWaves.length - 1; i >= 0; i--){ const wave = auroraWaves[i];
-    ctx.save(); ctx.globalAlpha = wave.life/120; ctx.fillStyle = `hsl(${wave.hue}, 70%, 60%)`;
-    ctx.fillRect(wave.x - cameraX, wave.y - cameraY, wave.width, wave.height); ctx.restore();
-    wave.life--; if(wave.life <= 0) auroraWaves.splice(i, 1); }}
-
-function createSingularityCores(){ if(!runtime.singularityCoresEnabled || singularityCores.length > 2) return;
-  singularityCores.push({x: player.x, y: player.y, size: 15, life: 180, rotation: 0}); }
-function drawSingularityCores(){
-  if(!runtime.singularityCoresEnabled || singularityCores.length === 0) return;
-  for(let i = singularityCores.length - 1; i >= 0; i--){ const core = singularityCores[i];
-    ctx.save(); ctx.translate(core.x - cameraX, core.y - cameraY); ctx.rotate(core.rotation);
-    ctx.globalAlpha = core.life/180; ctx.fillStyle = '#000'; ctx.fillRect(-core.size, -core.size, core.size*2, core.size*2);
-    ctx.fillStyle = '#fff'; ctx.fillRect(-2, -2, 4, 4); ctx.restore();
-    core.rotation += 0.1; core.life--; if(core.life <= 0) singularityCores.splice(i, 1); }}
-
-function createMatrixRain(){ if(!runtime.matrixRainEnabled || matrixRain.length > 50) return;
-  matrixRain.push({x: Math.random()*canvas.width + cameraX, y: -10, speed: 2+Math.random()*3, life: 200}); }
-function drawMatrixRain(){
-  if(!runtime.matrixRainEnabled || matrixRain.length === 0) return;
-  for(let i = matrixRain.length - 1; i >= 0; i--){ const drop = matrixRain[i];
-    ctx.save(); ctx.fillStyle = '#0f0'; ctx.font = '12px monospace'; ctx.fillText('0', drop.x - cameraX, drop.y - cameraY); ctx.restore();
-    drop.y += drop.speed; drop.life--; if(drop.life <= 0) matrixRain.splice(i, 1); }}
-
-function createBioLuminescence(){ if(!runtime.bioLuminescenceEnabled || bioLuminescence.length > 15) return;
-  bioLuminescence.push({x: player.x + (Math.random()-0.5)*300, y: player.y + (Math.random()-0.5)*200, size: 5+Math.random()*10, life: 100, hue: Math.random()*120+60}); }
-function drawBioLuminescence(){
-  if(!runtime.bioLuminescenceEnabled || bioLuminescence.length === 0) return;
-  for(let i = bioLuminescence.length - 1; i >= 0; i--){ const blob = bioLuminescence[i];
-    ctx.save(); ctx.globalAlpha = blob.life/100; ctx.fillStyle = `hsl(${blob.hue}, 80%, 50%)`; ctx.beginPath();
-    ctx.arc(blob.x - cameraX, blob.y - cameraY, blob.size, 0, Math.PI*2); ctx.fill(); ctx.restore();
-    blob.life--; if(blob.life <= 0) bioLuminescence.splice(i, 1); }}
-
-function createDataStreams(){ if(!runtime.dataStreamsEnabled || dataStreams.length > 8) return;
-  dataStreams.push({x: player.x, y: player.y - 50, length: 100, life: 150, data: Math.random().toString(36).substring(2,8)}); }
-function drawDataStreams(){
-  if(!runtime.dataStreamsEnabled || dataStreams.length === 0) return;
-  for(let i = dataStreams.length - 1; i >= 0; i--){ const stream = dataStreams[i];
-    ctx.save(); ctx.fillStyle = '#0ff'; ctx.font = '10px monospace'; ctx.fillText(stream.data, stream.x - cameraX, stream.y - cameraY); ctx.restore();
-    stream.y -= 1; stream.life--; if(stream.life <= 0) dataStreams.splice(i, 1); }}
-
-function createElectroFields(){ if(!runtime.electroFieldsEnabled || electroFields.length > 6) return;
-  electroFields.push({x: player.x, y: player.y, radius: 30+Math.random()*40, life: 80, arcs: []});
-  for(let j = 0; j < 5; j++){ electroFields[electroFields.length-1].arcs.push({angle: Math.random()*Math.PI*2, length: Math.random()*0.8+0.2}); }}
-function drawElectroFields(){
-  if(!runtime.electroFieldsEnabled || electroFields.length === 0) return;
-  for(let i = electroFields.length - 1; i >= 0; i--){ const field = electroFields[i];
-    ctx.save(); ctx.strokeStyle = '#0ff'; ctx.lineWidth = 2; ctx.globalAlpha = field.life/80;
-    for(let arc of field.arcs){ ctx.beginPath(); ctx.arc(field.x - cameraX, field.y - cameraY, field.radius * arc.length, arc.angle, arc.angle + 0.5); ctx.stroke(); }
-    ctx.restore(); field.life--; if(field.life <= 0) electroFields.splice(i, 1); }}
-
-function createDimensionalRifts(){ if(!runtime.dimensionalRiftsEnabled || dimensionalRifts.length > 3) return;
-  dimensionalRifts.push({x: player.x + (Math.random()-0.5)*400, y: player.y + (Math.random()-0.5)*300, width: 20+Math.random()*30, height: 60+Math.random()*40, life: 120}); }
-function drawDimensionalRifts(){
-  if(!runtime.dimensionalRiftsEnabled || dimensionalRifts.length === 0) return;
-  for(let i = dimensionalRifts.length - 1; i >= 0; i--){ const rift = dimensionalRifts[i];
-    ctx.save(); ctx.globalAlpha = rift.life/120; ctx.fillStyle = '#800080'; ctx.fillRect(rift.x - cameraX, rift.y - cameraY, rift.width, rift.height);
-    ctx.strokeStyle = '#ff00ff'; ctx.lineWidth = 2; ctx.strokeRect(rift.x - cameraX, rift.y - cameraY, rift.width, rift.height); ctx.restore();
-    rift.life--; if(rift.life <= 0) dimensionalRifts.splice(i, 1); }}
-
-function createSonicBooms(){ if(!runtime.sonicBoomsEnabled || sonicBooms.length > 4) return;
-  sonicBooms.push({x: player.x, y: player.y, radius: 0, maxRadius: 100+Math.random()*100, life: 60}); }
-function drawSonicBooms(){
-  if(!runtime.sonicBoomsEnabled || sonicBooms.length === 0) return;
-  for(let i = sonicBooms.length - 1; i >= 0; i--){ const boom = sonicBooms[i]; boom.radius = boom.maxRadius * (1 - boom.life/60);
-    ctx.save(); ctx.strokeStyle = `rgba(255,255,0,${boom.life/60})`; ctx.lineWidth = 3; ctx.beginPath();
-    ctx.arc(boom.x - cameraX, boom.y - cameraY, boom.radius, 0, Math.PI*2); ctx.stroke(); ctx.restore();
-    boom.life--; if(boom.life <= 0) sonicBooms.splice(i, 1); }}
-
-function createRealityFractures(){ if(!runtime.realityFracturesEnabled || realityFractures.length > 5) return;
-  realityFractures.push({x: player.x + (Math.random()-0.5)*200, y: player.y + (Math.random()-0.5)*200, cracks: [], life: 100});
-  for(let j = 0; j < 3+Math.random()*3; j++){ realityFractures[realityFractures.length-1].cracks.push({
-    startX: Math.random()*50-25, startY: Math.random()*50-25, endX: Math.random()*50-25, endY: Math.random()*50-25}); }}
-function drawRealityFractures(){
-  if(!runtime.realityFracturesEnabled || realityFractures.length === 0) return;
-  for(let i = realityFractures.length - 1; i >= 0; i--){ const fracture = realityFractures[i];
-    ctx.save(); ctx.strokeStyle = `rgba(255,0,255,${fracture.life/100})`; ctx.lineWidth = 2;
-    for(let crack of fracture.cracks){ ctx.beginPath(); ctx.moveTo(fracture.x + crack.startX - cameraX, fracture.y + crack.startY - cameraY);
-    ctx.lineTo(fracture.x + crack.endX - cameraX, fracture.y + crack.endY - cameraY); ctx.stroke(); } ctx.restore();
-    fracture.life--; if(fracture.life <= 0) realityFractures.splice(i, 1); }}
-
-function createTemporalEchoes(){ if(!runtime.temporalEchoesEnabled || temporalEchoes.length > 6) return;
-  temporalEchoes.push({x: player.x, y: player.y, delay: 0, life: 90, echoes: []});
-  for(let j = 0; j < 4; j++){ temporalEchoes[temporalEchoes.length-1].echoes.push({x: player.x, y: player.y, life: 60 - j*10}); }}
-function drawTemporalEchoes(){
-  if(!runtime.temporalEchoesEnabled || temporalEchoes.length === 0) return;
-  for(let i = temporalEchoes.length - 1; i >= 0; i--){ const echo = temporalEchoes[i];
-    ctx.save(); ctx.globalAlpha = 0.3; ctx.fillStyle = '#0080ff';
-    for(let j = echo.echoes.length - 1; j >= 0; j--){ const e = echo.echoes[j];
-      if(e.life > 0){ ctx.globalAlpha = e.life/60 * 0.4; ctx.fillRect(e.x - cameraX - 25, e.y - cameraY - 25, 50, 50); e.life--; }}
-    ctx.restore(); echo.life--; if(echo.life <= 0) temporalEchoes.splice(i, 1); }}
-
 /* ---------- Input handling ---------- */
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
@@ -2293,83 +1531,37 @@ function jump(){
   if(!player.visible) return;
   if(cheats.infiniteJump || player.jumpsLeft > 0){
     player.vy = JUMP_SPEED;
-    spawnParticlesEarly(player.x + player.width/2, player.y + player.height,
-                       player.jumpsLeft === 2 ? "jump" : "double",
+    spawnParticlesEarly(player.x + player.width/2, player.y + player.height, 
+                       player.jumpsLeft === 2 ? "jump" : "double", 
                        runtime.effects.jumpEffectMul);
     if(!cheats.infiniteJump) player.jumpsLeft--;
-
+    
     // Create velocity streaks
     createVelocityStreaks();
-
+    
     // Create speed lines
     createSpeedLines();
-
+    
     // Create wind particles
     createWindParticles();
-
-    // Create some new effects on jump
-    if(Math.random() < 0.3) createCosmicRays();
-    if(Math.random() < 0.2) createPlasmaOrbs();
-    if(Math.random() < 0.4) createCrystalShards(player.x + player.width/2, player.y + player.height/2, 2);
-    if(Math.random() < 0.1) createVoidPortals();
-    if(Math.random() < 0.15) createQuantumFields();
-    if(Math.random() < 0.25) createChronoSpheres();
-    if(Math.random() < 0.2) createNebulaClouds();
-    if(Math.random() < 0.3) createFractalVines(player.x, player.y + player.height, 1);
-    if(Math.random() < 0.2) createPrismBeams(player.x + player.width/2, player.y + player.height/2, 1);
-    createShadowEchoes(player.x, player.y, 1);
-
+    
     // Small screen shake on jump for high quality
     if(runtime.screenShakeEnabled && runtime.advanced.screenShakeMul > 0.5) {
       screenShake = 3 * runtime.advanced.screenShakeMul;
-    }
-
-    // UNIQUE SECOND JUMP EFFECTS (only trigger when jumpsLeft was 1 before decrement)
-    if(player.jumpsLeft === 1) { // This means it was a second jump (was 2, now 1)
-      // Energy ripples around player
-      if(runtime.energyRipplesEnabled) {
-        createEnergyRipples(player.x + player.width/2, player.y + player.height/2, 1);
-      }
-
-      // Pixel displacement effect
-      if(runtime.pixelDisplacementEnabled) {
-        pixelDisplacements.push({
-          x: player.x + player.width/2,
-          y: player.y + player.height/2,
-          intensity: 2,
-          life: 30,
-          maxLife: 30
-        });
-      }
-
-      // Screen tear effect
-      if(runtime.screenTearEnabled) {
-        createScreenTear();
-      }
-
-      // Starburst effect
-      if(runtime.starburstsEnabled) {
-        createStarbursts(player.x + player.width/2, player.y + player.height/2, 1);
-      }
-
-      // After image trail
-      if(runtime.afterImagesEnabled) {
-        createAfterImage();
-      }
     }
   }
 }
 
 /* ---------- OPTIMIZED MEMORY MANAGEMENT ---------- */
 function cleanupOffScreenObjects() {
-  // Keep first 25 blocks (index 0-24) regardless of position, and NEVER delete the spawning ground (index 0)
+  // Keep first 25 blocks (index 0-24) regardless of position
   const MIN_KEEP_BLOCKS = 25;
-
-  // Clean up platforms that are 6 blocks off-screen to the left, but keep first 25 and NEVER delete spawning ground
+  
+  // Clean up platforms that are 6 blocks off-screen to the left, but keep first 25
   const deleteThreshold = cameraX - DELETE_OFFSET;
-
+  
   for(let i = platforms.length - 1; i >= MIN_KEEP_BLOCKS; i--) { // Start from MIN_KEEP_BLOCKS
-    if(platforms[i].x + platforms[i].width < deleteThreshold && i > 0) { // Never delete spawning ground (index 0)
+    if(platforms[i].x + platforms[i].width < deleteThreshold) {
       platforms.splice(i, 1);
     }
   }
@@ -2511,15 +1703,18 @@ function cleanupOffScreenObjects() {
 
 /* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
 function gameTick() {
-  if(!gameRunning) return; // Only stop completely when gameRunning is false
+  if(!gameRunning || !player.visible) return;
+  
+  player.speed += 0.002;
 
-  // Allow some updates to continue during death for animations
-  if(!gameOver) {
-    player.speed += 0.002;
+  // color cycling
+  colorLerp += 1/25/TICKS_PER_SECOND;
+  if(colorLerp >= 1){
+    colorIndex = (colorIndex + 1) % baseColors.length;
+    nextColor = baseColors[(colorIndex+1) % baseColors.length];
+    colorLerp = 0;
   }
-
-  // Fixed platform color (no rainbow cycling)
-  platformColor = {...baseColors[0]};
+  platformColor = lerpColor(baseColors[colorIndex], nextColor, colorLerp);
 
   // FIXED PHYSICS: No delta time scaling - runs at fixed 60 TPS
   player.y += player.vy * player.vertMultiplier;
@@ -2620,18 +1815,6 @@ function gameTick() {
   updatePixelDisplacements();
   applyTimeDilation();
 
-  // Create ambient new effects
-  if(Math.random() < 0.005) createAuroraWaves();
-  if(Math.random() < 0.003) createSingularityCores();
-  if(Math.random() < 0.01) createMatrixRain();
-  if(Math.random() < 0.008) createBioLuminescence();
-  if(Math.random() < 0.006) createDataStreams();
-  if(Math.random() < 0.004) createElectroFields();
-  if(Math.random() < 0.002) createDimensionalRifts();
-  if(Math.random() < 0.007) createSonicBooms();
-  if(Math.random() < 0.009) createRealityFractures();
-  if(Math.random() < 0.005) createTemporalEchoes();
-
   // update crash pieces with enhanced physics
   for(let i=crashPieces.length-1;i>=0;i--){
     const p = crashPieces[i];
@@ -2731,17 +1914,15 @@ function tryDie(spike){
     player.visible = false;
     if(spike) spike.hit = false;
     createCrashEarly(runtime.effects.dieEffectMul);
-    gameOver = true; // Set game over but keep gameRunning = true for death animations
+    gameRunning = false;
     if(score > bestScore){
       bestScore = Math.floor(score);
       localStorage.setItem('bestScore', bestScore);
     }
-    // Keep game running for 1.5 seconds to allow death animations to play
     setTimeout(()=> {
-      gameRunning = false;
       document.getElementById('menu').style.display = 'flex';
       document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
-    }, 1500);
+    }, 1200);
   }
 }
 
@@ -2828,28 +2009,6 @@ function draw(){
   // Draw wind particles
   drawWindParticles();
 
-  // Draw new effects
-  if(runtime.cosmicRaysEnabled) drawCosmicRays();
-  if(runtime.plasmaOrbsEnabled) drawPlasmaOrbs();
-  if(runtime.crystalShardsEnabled) drawCrystalShards();
-  if(runtime.voidPortalsEnabled) drawVoidPortals();
-  if(runtime.quantumFieldsEnabled) drawQuantumFields();
-  if(runtime.chronoSpheresEnabled) drawChronoSpheres();
-  if(runtime.nebulaCloudsEnabled) drawNebulaClouds();
-  if(runtime.fractalVinesEnabled) drawFractalVines();
-  if(runtime.prismBeamsEnabled) drawPrismBeams();
-  if(runtime.shadowEchoesEnabled) drawShadowEchoes();
-  if(runtime.auroraWavesEnabled) drawAuroraWaves();
-  if(runtime.singularityCoresEnabled) drawSingularityCores();
-  if(runtime.matrixRainEnabled) drawMatrixRain();
-  if(runtime.bioLuminescenceEnabled) drawBioLuminescence();
-  if(runtime.dataStreamsEnabled) drawDataStreams();
-  if(runtime.electroFieldsEnabled) drawElectroFields();
-  if(runtime.dimensionalRiftsEnabled) drawDimensionalRifts();
-  if(runtime.sonicBoomsEnabled) drawSonicBooms();
-  if(runtime.realityFracturesEnabled) drawRealityFractures();
-  if(runtime.temporalEchoesEnabled) drawTemporalEchoes();
-
   // Draw ambient occlusion first (shadows)
   applyAmbientOcclusion();
 
@@ -2858,8 +2017,8 @@ function draw(){
 
   // platforms
   for(let plat of platforms){
-    // Block texture: true = gradient texture (left-top color, right-bottom black), false = solid color only
-    const useTexture = runtime.effects.blockTextureEnabled;
+    // FIXED: Texture should be ON when blockTextureMul > 0, OFF when = 0
+    const useTexture = runtime.effects.blockTextureMul > 0;
     if(useTexture){
       for(let y = plat.y; y < canvas.height; y += BLOCK_SIZE){
         let dark = (y === plat.y) ? 1 : 0.3;
@@ -3161,16 +2320,8 @@ function mainLoop(now){
   }
 
   // Camera smoothing - use actual delta time for smoothness
-  let targetCamX, targetCamY;
-  if(gameOver) {
-    // When game is over, keep camera at current position (don't move forward)
-    targetCamX = cameraX;
-    targetCamY = cameraY;
-  } else {
-    // Normal camera follow
-    targetCamX = player.x - 150;
-    targetCamY = player.y - canvas.height/2 + player.height*1.5;
-  }
+  const targetCamX = player.x - 150;
+  const targetCamY = player.y - canvas.height/2 + player.height*1.5;
   const smoothingFactor = 0.1 * (cappedDeltaMs / 16.67); // Adjust for frame rate
   cameraX = cameraX * (1 - smoothingFactor) + targetCamX * smoothingFactor;
   cameraY = cameraY * (1 - smoothingFactor) + targetCamY * smoothingFactor;
