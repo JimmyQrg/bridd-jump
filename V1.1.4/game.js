@@ -80,7 +80,7 @@ let colorIndex = 0, nextColor = baseColors[1], platformColor = {...baseColors[0]
 
 /* misc */
 let testMode = false, gemEveryBlock = false, account = "player", oldAccount = null;
-let cheats = { float:false, invincible:false, infiniteJump:false };
+let cheats = { float:false, invincible:false, infiniteJump:false, dropThrough:false };
 
 /* ---------- Settings loading from localStorage ---------- */
 const LS_KEY = "briddSettings";
@@ -1717,7 +1717,7 @@ function applyAmbientOcclusion(){
 
 /* ---------- ENHANCED PARTICLE EFFECTS ---------- */
 function spawnParticlesEarly(x, y, type, amountMul = 1) {
-  const color = type === "jump" ? "#0ff" : type === "double" ? "#ff0" : "#fff";
+  const color = type === "jump" ? "#0ff" : type === "double" ? "#ff0" : type === "gem" ? "#fff" : "#fff";
   const baseCount = type === "land" ? 10 : 15;
   const count = Math.max(0, Math.floor(baseCount * amountMul * runtime.effects.jumpEffectMul * ANIMATION_INTENSITY_BOOST));
   
@@ -2340,8 +2340,9 @@ function gameTick() {
     for(let plat of platforms){
       if(player.x + player.width > plat.x && player.x < plat.x + plat.width &&
          player.y + player.height > plat.y && player.y + player.height < plat.y + plat.height + player.vy + 1){
-        // Allow dropping through platforms when actively dropping (only if moving down fast)
-        if(player.vy >= 0 && !(player.isDropping && player.vy > GRAVITY * 2)){
+        // Allow dropping through platforms when actively dropping (only if moving down fast and dropThrough is enabled)
+        const canDropThrough = cheats.dropThrough && player.isDropping && player.vy > GRAVITY * 2;
+        if(player.vy >= 0 && !canDropThrough){
           player.y = plat.y - player.height;
           player.vy = 0;
           player.onGround = true;
@@ -2383,7 +2384,7 @@ function gameTick() {
     for(let g of gems){
       if(!g.collected && player.x + player.width > g.x && player.x < g.x + g.size && player.y + player.height > g.y && player.y < g.y + g.size){
         score += 50; g.collected = true;
-        spawnParticlesEarly(g.x + g.size/2, g.y + g.size/2, "double", runtime.effects.jumpEffectMul);
+        spawnParticlesEarly(g.x + g.size/2, g.y + g.size/2, "gem", runtime.effects.jumpEffectMul);
         
         // Add rotation to gem
         g.rotation += g.rotationSpeed || 0;
@@ -3056,6 +3057,7 @@ function openCommandPrompt() {
     switch(root1){
       case 'infiniteJump': cheats.infiniteJump = (root2 === 'true'); break;
       case 'death': cheats.invincible = (root2 === 'false'); break;
+      case 'dropThrough': cheats.dropThrough = (root2 === 'true'); break;
       case 'speed':
         if(!player.speedMultiplier) player.speedMultiplier = 1;
         if(root2 === 'reset') player.speedMultiplier = 1;
