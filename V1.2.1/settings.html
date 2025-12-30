@@ -6,134 +6,324 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
-    body {
+    :root {
+      --bg: #000;
+      --accent: #0ff;
+      --accent-glow: rgba(0, 255, 255, 0.8);
+      --panel: rgba(0, 0, 0, 0.95);
+      --muted: #88f7ff;
+      --text: #fff;
+    }
+    
+    * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
-      background: black;
-      color: #0ff;
-      font-family: 'Press Start 2P', cursive;
+    }
+    
+    body {
+      margin: 0;
+      padding: 20px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Press Start 2P', monospace;
       display: flex;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
       min-height: 100vh;
+      -webkit-font-smoothing: none;
+      -moz-osx-font-smoothing: grayscale;
     }
+    
     .container {
-      background: rgba(0,0,0,0.9);
-      border: 3px solid #0ff;
-      border-radius: 20px;
+      background: var(--panel);
+      border: 4px solid var(--accent);
+      border-radius: 0;
       padding: 30px;
-      width: 640px;
+      width: 680px;
       max-width: 95%;
       text-align: center;
       max-height: 90vh;
       overflow-y: auto;
+      box-shadow: 
+        0 0 30px var(--accent-glow),
+        inset 0 0 30px rgba(0, 255, 255, 0.1);
+      animation: containerFadeIn 0.4s ease-out;
     }
+    
+    @keyframes containerFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .container::-webkit-scrollbar {
+      width: 12px;
+    }
+    
+    .container::-webkit-scrollbar-track {
+      background: rgba(0, 255, 255, 0.1);
+    }
+    
+    .container::-webkit-scrollbar-thumb {
+      background: var(--accent);
+      border: 2px solid #000;
+    }
+    
     h1 {
       font-size: 24px;
       margin-bottom: 20px;
-      text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+      color: var(--accent);
+      text-shadow: 
+        0 0 10px var(--accent-glow),
+        0 0 20px var(--accent-glow);
     }
+    
     label {
       display: block;
-      margin: 15px 0 5px;
-      font-size: 12px;
+      margin: 16px 0 6px;
+      font-size: 11px;
+      color: var(--accent);
+      text-align: left;
     }
-    select, input[type=range], input[type=checkbox] {
-      margin-bottom: 10px;
-      background: black;
-      color: #0ff;
-      border: 2px solid #0ff;
-      font-family: 'Press Start 2P', cursive;
-      font-size: 12px;
-      padding: 5px;
-    }
+    
     select, input[type=range] {
       width: 100%;
+      margin-bottom: 4px;
     }
-    .range-value {
+    
+    select {
+      background: #000;
+      color: var(--accent);
+      border: 2px solid var(--accent);
+      font-family: 'Press Start 2P', monospace;
       font-size: 10px;
-      margin-top: -5px;
-      margin-bottom: 10px;
-      color: #fff;
-    }
-    button {
-      margin: 15px;
-      padding: 12px 30px;
-      font-size: 12px;
-      cursor: pointer;
-      color: #0ff;
-      background: black;
-      border: 3px solid #0ff;
-      border-radius: 10px;
-      font-family: 'Press Start 2P', cursive;
-      transition: 0.3s;
-    }
-    button:hover {
-      background: #0ff;
-      color: black;
-    }
-    #advancedSettings, #effectsSettings, #motionEffects, #visualEnhancement {
-      display: none;
-      margin-top: 10px;
-      border-top: 1px solid #0ff;
-      padding-top: 10px;
-    }
-    #toggleAdvanced, #toggleEffects, #toggleMotion, #toggleVisual {
-      font-size: 12px;
-      background: transparent;
-      border: 2px solid #0ff;
       padding: 8px 12px;
       cursor: pointer;
-      margin-bottom: 10px;
+      transition: all 0.2s ease;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%2300ffff' d='M4 6L1 3h6z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
     }
-    #toggleAdvanced:hover, #toggleEffects:hover, #toggleMotion:hover, #toggleVisual:hover {
-      background: #0ff;
-      color: black;
+    
+    select:hover {
+      background: rgba(0, 255, 255, 0.1);
+      box-shadow: 0 0 10px var(--accent-glow);
     }
-    .checkbox-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    
+    select:focus {
+      outline: none;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+    
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      background: rgba(0, 255, 255, 0.2);
+      border: 1px solid var(--accent);
+      outline: none;
       margin: 10px 0;
     }
-    .checkbox-container label {
-      margin: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
+    
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--accent);
+      border: 2px solid #000;
       cursor: pointer;
-      font-size: 10px;
+      box-shadow: 0 0 10px var(--accent-glow);
+      transition: all 0.2s ease;
     }
-    .checkbox-container input[type="checkbox"] {
+    
+    input[type=range]::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 15px var(--accent-glow);
+      transform: scale(1.1);
+    }
+    
+    input[type=range]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: var(--accent);
+      border: 2px solid #000;
+      cursor: pointer;
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+    
+    input[type=checkbox] {
       width: 20px;
       height: 20px;
       margin: 0;
       cursor: pointer;
+      accent-color: var(--accent);
     }
+    
+    .range-value {
+      font-size: 9px;
+      margin-top: -2px;
+      margin-bottom: 12px;
+      color: var(--muted);
+      text-align: right;
+    }
+    
+    button {
+      margin: 12px 8px;
+      padding: 12px 24px;
+      font-size: 11px;
+      cursor: pointer;
+      color: var(--accent);
+      background: transparent;
+      border: 3px solid var(--accent);
+      border-radius: 0;
+      font-family: 'Press Start 2P', monospace;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+      position: relative;
+      overflow: hidden;
+      text-transform: uppercase;
+    }
+    
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0;
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.3s ease;
+      z-index: -1;
+    }
+    
+    button:hover {
+      color: #000;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+    
+    button:hover::before {
+      width: 100%;
+    }
+    
+    button:active {
+      transform: scale(0.98);
+    }
+    
+    #saveBtn {
+      border-color: var(--accent);
+    }
+    
+    #cancelBtn {
+      border-color: var(--muted);
+      color: var(--muted);
+    }
+    
+    #cancelBtn:hover {
+      color: #000;
+      background: var(--muted);
+    }
+    
+    #advancedSettings, #effectsSettings, #motionEffects, #visualEnhancement {
+      display: none;
+      margin-top: 16px;
+      border-top: 2px solid var(--accent);
+      padding-top: 16px;
+      animation: slideDown 0.3s ease-out;
+    }
+    
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    #toggleAdvanced, #toggleEffects, #toggleMotion, #toggleVisual {
+      font-size: 10px;
+      background: transparent;
+      border: 2px solid var(--accent);
+      color: var(--accent);
+      padding: 10px 16px;
+      cursor: pointer;
+      margin-bottom: 12px;
+      transition: all 0.2s ease;
+      width: 100%;
+      font-family: 'Press Start 2P', monospace;
+    }
+    
+    #toggleAdvanced:hover, #toggleEffects:hover, #toggleMotion:hover, #toggleVisual:hover {
+      background: var(--accent);
+      color: #000;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+    
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      margin: 12px 0;
+      padding: 10px;
+      background: rgba(0, 255, 255, 0.05);
+      border: 1px solid rgba(0, 255, 255, 0.2);
+    }
+    
+    .checkbox-container label {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      font-size: 9px;
+      color: var(--accent);
+    }
+    
     .settings-section {
       margin: 20px 0;
-      border: 1px dashed #0ff;
-      padding: 10px;
-      border-radius: 10px;
+      border: 2px dashed var(--accent);
+      padding: 16px;
+      background: rgba(0, 255, 255, 0.05);
     }
+    
     .section-title {
-      font-size: 14px;
-      margin-bottom: 15px;
-      color: #0ff;
+      font-size: 12px;
+      margin-bottom: 16px;
+      color: var(--accent);
       text-decoration: underline;
+      text-align: left;
+      text-shadow: 0 0 5px var(--accent-glow);
     }
+    
     .preset-info {
-      font-size: 9px;
-      color: #888;
-      margin-top: -10px;
-      margin-bottom: 15px;
+      font-size: 8px;
+      color: var(--muted);
+      margin-top: -12px;
+      margin-bottom: 16px;
+      padding: 6px 10px;
+      background: rgba(255, 0, 0, 0.1);
+      border: 1px solid rgba(255, 0, 0, 0.3);
+      text-align: left;
     }
+    
     .warning {
       color: #ff0000;
-      font-size: 10px;
-      margin: 5px 0;
+      font-size: 9px;
+      margin: 6px 0;
       text-shadow: 0 0 5px #ff0000;
+      padding: 6px 10px;
+      background: rgba(255, 0, 0, 0.1);
+      border-left: 3px solid #ff0000;
     }
   </style>
 </head>
@@ -202,27 +392,27 @@
           </label>
         </div>
 
-        <label>Jump Effects</label>
+        <label>Jump Particles</label>
         <input type="range" id="jumpEffect" min="0" max="200" value="100">
         <div class="range-value" id="jumpEffectVal">100%</div>
 
-        <label>Walk Effects</label>
+        <label>Walk Particles</label>
         <input type="range" id="walkEffect" min="0" max="200" value="100">
         <div class="range-value" id="walkEffectVal">100%</div>
 
-        <label>Die Effects</label>
+        <label>Death Particles</label>
         <input type="range" id="dieEffect" min="0" max="200" value="100">
         <div class="range-value" id="dieEffectVal">100%</div>
 
-        <label>Horizontal Line Effects</label>
+        <label>Horizontal Lines</label>
         <input type="range" id="horizontalLines" min="0" max="200" value="100">
         <div class="range-value" id="horizontalLinesVal">100%</div>
 
-        <label>Trail Effects</label>
-        <input type="range" id="trail" min="0" max="200" value="100">
+        <label>Player Trail</label>
+        <input type="range" id="trail" min="0" max="100" value="100">
         <div class="range-value" id="trailVal">100%</div>
 
-        <label>Glow Intensity</label>
+        <label>Glow</label>
         <input type="range" id="glow" min="0" max="200" value="100">
         <div class="range-value" id="glowVal">100%</div>
       </div>
@@ -233,15 +423,15 @@
         <div class="settings-section">
           <div class="section-title">Advanced Effects (High Performance Impact)</div>
           
-          <label>Shockwave Effects</label>
+          <label>Expanding Rings</label>
           <input type="range" id="shockwaves" min="0" max="200" value="100">
           <div class="range-value" id="shockwavesVal">100%</div>
 
-          <label>Screen Shake Intensity</label>
+          <label>Screen Shake</label>
           <input type="range" id="screenShake" min="0" max="200" value="100">
           <div class="range-value" id="screenShakeVal">100%</div>
 
-          <label>Bloom Particles</label>
+          <label>Glow Particles</label>
           <input type="range" id="bloomParticles" min="0" max="200" value="100">
           <div class="range-value" id="bloomParticlesVal">100%</div>
 
@@ -253,7 +443,7 @@
           <input type="range" id="screenDistortion" min="0" max="200" value="100">
           <div class="range-value" id="screenDistortionVal">100%</div>
           
-          <label>Particle Count Multiplier</label>
+          <label>Particle Count</label>
           <input type="range" id="particleCount" min="0" max="200" value="100">
           <div class="range-value" id="particleCountVal">100%</div>
           
@@ -280,7 +470,7 @@
           <div class="settings-section">
             <div class="section-title">Forward Motion Effects (Speed Perception)</div>
             
-            <label>Background Parallax Layers</label>
+            <label>Moving Layers</label>
             <input type="range" id="parallaxLayers" min="0" max="200" value="100">
             <div class="range-value" id="parallaxLayersVal">100%</div>
 
@@ -308,11 +498,11 @@
             <input type="range" id="nebulaDust" min="0" max="250" value="100">
             <div class="range-value" id="nebulaDustVal">100%</div>
 
-            <label>Warp Tunnel Rings</label>
+            <label>Tunnel Rings</label>
             <input type="range" id="warpTunnel" min="0" max="250" value="100">
             <div class="range-value" id="warpTunnelVal">100%</div>
 
-            <label>Boost Flare</label>
+            <label>Bright Flashes</label>
             <input type="range" id="boostFlash" min="0" max="250" value="100">
             <div class="range-value" id="boostFlashVal">100%</div>
 
@@ -401,15 +591,15 @@
         <div class="settings-section">
           <div class="section-title">Death Animations</div>
 
-          <label>Implosion</label>
+          <label>Death Explode</label>
           <input type="range" id="deathImplode" min="0" max="250" value="100">
           <div class="range-value" id="deathImplodeVal">100%</div>
 
-          <label>Glitch Out</label>
+          <label>Death Glitch</label>
           <input type="range" id="deathGlitch" min="0" max="250" value="100">
           <div class="range-value" id="deathGlitchVal">100%</div>
 
-          <label>Vaporize</label>
+          <label>Death Vaporize</label>
           <input type="range" id="deathVaporize" min="0" max="250" value="100">
           <div class="range-value" id="deathVaporizeVal">100%</div>
         </div>
@@ -834,7 +1024,7 @@
       "motionBlur", "lightRays",
       
       // Forward motion effects
-      "parallaxLayers", "velocityStreaks", "windParticles", "speedLines",
+        "parallaxLayers", "velocityStreaks", "windParticles", "speedLines",
         "radialBlur", "starRush", "nebulaDust", "warpTunnel", "boostFlash",
         "contrailJets", "edgeLightning", "compressionRings",
       

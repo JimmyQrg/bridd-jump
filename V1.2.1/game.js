@@ -2079,11 +2079,11 @@ window.addEventListener('mouseup', () => {
 window.addEventListener('touchstart', (e) => {
   if(!touchPressed) {
     touchPressed = true;
-  touchStartY = e.touches[0].clientY;
-  touchStartTime = Date.now();
-  isDraggingDown = false;
-  // Allow tap to jump
-  jump();
+    touchStartY = e.touches[0].clientY;
+    touchStartTime = Date.now();
+    isDraggingDown = false;
+    // Allow tap to jump
+    jump();
   }
 });
 window.addEventListener('touchmove', (e) => {

@@ -3,6 +3,5 @@
 
 <p>Updates:</p>
 <ol>
-    <li>Update UI</li>
-    <li>Fix Bugs</li>
+    <li>Settings readability</li>
 </ol>

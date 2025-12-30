@@ -33,6 +33,7 @@
     font-family: "Press Start 2P", monospace;
     -webkit-font-smoothing: none;
     -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
   }
   
   canvas { 
@@ -44,13 +45,6 @@
     height: 100%; 
     z-index: 1; 
     background: #000; 
-  }
-  
-  hr { 
-    border: 2px solid var(--accent); 
-    width: 90%;
-    margin: 16px 0;
-    box-shadow: 0 0 10px var(--accent-glow);
   }
   
   /* Menu overlay - Retro pixel style */
@@ -99,14 +93,6 @@
     text-align: center;
     line-height: 1.4;
     letter-spacing: 2px;
-  }
-  
-  #menu h3 {
-    font-size: 14px;
-    color: var(--muted);
-    margin: 8px 0;
-    text-shadow: 0 0 5px rgba(136, 247, 255, 0.5);
-    text-align: center;
   }
   
   #bestScore { 
@@ -223,6 +209,114 @@
     }
   }
   
+  /* Mobile command button - invisible but clickable */
+  #mobileCommandBtn {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 56px;
+    height: 56px;
+    background: transparent;
+    border: none;
+    z-index: 1000;
+    cursor: pointer;
+    opacity: 0;
+  }
+  
+  /* How to Play Modal */
+  #howToPlayModal {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    max-width: 90vw;
+    max-height: 80vh;
+    padding: 32px;
+    background: var(--panel);
+    border: 4px solid var(--accent);
+    border-radius: 0;
+    box-shadow: 
+      0 0 30px var(--accent-glow),
+      inset 0 0 30px rgba(0, 255, 255, 0.1);
+    z-index: 1400;
+    display: none;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+    animation: menuFadeIn 0.4s ease-out;
+  }
+  
+  #howToPlayModal.show {
+    display: flex;
+  }
+  
+  #howToPlayModal h2 {
+    font-size: 18px;
+    color: var(--accent);
+    text-shadow: 
+      0 0 10px var(--accent-glow),
+      0 0 20px var(--accent-glow);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  
+  #howToPlayModal .section {
+    margin-bottom: 16px;
+  }
+  
+  #howToPlayModal .section-title {
+    font-size: 12px;
+    color: var(--accent);
+    text-shadow: 0 0 5px var(--accent-glow);
+    margin-bottom: 8px;
+    text-decoration: underline;
+  }
+  
+  #howToPlayModal .section-content {
+    font-size: 9px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-left: 8px;
+  }
+  
+  #howToPlayModal .section-content ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 4px 0;
+  }
+  
+  #howToPlayModal .section-content li {
+    margin: 4px 0;
+    padding-left: 16px;
+    position: relative;
+  }
+  
+  #howToPlayModal .section-content li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+  }
+  
+  #howToPlayModal .closeBtn {
+    margin-top: 8px;
+    align-self: center;
+  }
+  
+  #howToPlayModal::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  #howToPlayModal::-webkit-scrollbar-track {
+    background: rgba(0, 255, 255, 0.1);
+  }
+  
+  #howToPlayModal::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border: 2px solid #000;
+  }
+  
   @media (max-width: 560px) {
     #menu { 
       width: 92vw; 
@@ -236,9 +330,6 @@
     }
     #menu h1 { 
       font-size: 22px; 
-    }
-    #menu h3 {
-      font-size: 12px;
     }
     #scoreHUD, #fpsLabel {
       left: 12px;
@@ -255,17 +346,58 @@
   <canvas id="gameCanvas"></canvas>
 
   <div id="menu" role="dialog" aria-label="start menu">
-    <h1>SELECT VERSION</h1>
-
-    <button onclick="window.location.href='V1.2.1/'" class="btn">V1.2.1 (ON TESTING)</button>
-    <button onclick="window.location.href='V1.2.0/'" class="btn">V1.2.0 Release</button>
-    <button onclick="window.location.href='V1.1.4/'" class="btn">V1.1.4</button>
-    <button onclick="window.location.href='V1.1.3/'" class="btn">V1.1.3</button>
-    <button onclick="window.location.href='V1.1.2/'" class="btn">V1.1.2</button>
-    <button onclick="window.location.href='V1.1.1/'" class="btn">V1.1.1</button>
-    <button onclick="window.location.href='V1.1.0/'" class="btn">V1.1.0 Release</button>
-    <hr>
-    <h3>Early Snapshots</h3>
-    <button onclick="window.location.href='V1.0.0/'" class="btn">V1.0.0</button>
-    <button onclick="window.location.href='V0.0.0/'" class="btn">V0.0.0</button>
+    <h1>BRIDD JUMP</h1>
+    <div id="bestScore">Best Score: 0</div>
+    <button id="startBtn" class="btn">START</button>
+    <button id="settingsBtn" class="btn">SETTINGS</button>
+    <button id="howToPlayBtn" class="btn">HOW TO PLAY</button>
+    <button onclick="window.location.href='../'" class="btn">HOME</button>
   </div>
+
+  <!-- How to Play Modal -->
+  <div id="howToPlayModal">
+    <h2>HOW TO PLAY</h2>
+    
+    <div class="section">
+      <div class="section-title">OBJECTIVE</div>
+      <div class="section-content">
+        Jump from platform to platform and travel as far as possible! Collect gems to increase your score. Avoid spikes and falling into the void.
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">CONTROLS</div>
+      <div class="section-content">
+        <ul>
+          <li><strong>Jump:</strong> Press W, Arrow Up, Space, or click/tap anywhere</li>
+          <li><strong>Double Jump:</strong> Jump again while in the air (2 jumps total)</li>
+          <li><strong>Drop:</strong> Press S or Arrow Down to drop quickly through platforms</li>
+          <li><strong>Mobile Drop:</strong> Tap and drag down to drop</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">GAME MECHANICS</div>
+      <div class="section-content">
+        <ul>
+          <li>You start with 2 jumps - use them wisely!</li>
+          <li>Landing on a platform restores your jumps</li>
+          <li>The game speeds up as you climb higher</li>
+          <li>Platforms become more spaced out at furthur distance</li>
+          <li>Gems give you points - collect as many as you can!</li>
+        </ul>
+      </div>
+    </div>
+    
+    <button class="btn closeBtn" onclick="document.getElementById('howToPlayModal').classList.remove('show')">CLOSE</button>
+  </div>
+
+  <div id="scoreHUD">Score: 0</div>
+  <div id="fpsLabel">FPS: -- / --</div>
+  <div id="debugToast"></div>
+  <div id="mobileCommandBtn" title="Open Command (Ctrl+Shift+A)"></div>
+
+  <script src="game.js"></script>
+</body>
+</html>
