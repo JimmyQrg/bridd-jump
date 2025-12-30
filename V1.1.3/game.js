@@ -63,7 +63,7 @@ let electroFields = [], dimensionalRifts = [], sonicBooms = [], realityFractures
 
 /* gameplay */
 let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
-let gameRunning = false;
+let gameRunning = false, gameOver = false;
 let cameraX = 0, cameraY = 0;
 
 /* Tick system */
@@ -531,6 +531,10 @@ function resetWorld(){
   player.onGround = false;
   player.visible = true;
   player.horizMultiplier = 1; player.vertMultiplier = 1;
+
+  // reset game states
+  gameRunning = false;
+  gameOver = false;
 
   // reset score and color cycling
   score = 0; colorLerp = 0; globalTime = 0;
@@ -2507,18 +2511,15 @@ function cleanupOffScreenObjects() {
 
 /* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
 function gameTick() {
-  if(!gameRunning || !player.visible) return;
-  
-  player.speed += 0.002;
+  if(!gameRunning) return; // Only stop completely when gameRunning is false
 
-  // color cycling
-  colorLerp += 1/25/TICKS_PER_SECOND;
-  if(colorLerp >= 1){
-    colorIndex = (colorIndex + 1) % baseColors.length;
-    nextColor = baseColors[(colorIndex+1) % baseColors.length];
-    colorLerp = 0;
+  // Allow some updates to continue during death for animations
+  if(!gameOver) {
+    player.speed += 0.002;
   }
-  platformColor = lerpColor(baseColors[colorIndex], nextColor, colorLerp);
+
+  // Fixed platform color (no rainbow cycling)
+  platformColor = {...baseColors[0]};
 
   // FIXED PHYSICS: No delta time scaling - runs at fixed 60 TPS
   player.y += player.vy * player.vertMultiplier;
@@ -2730,15 +2731,17 @@ function tryDie(spike){
     player.visible = false;
     if(spike) spike.hit = false;
     createCrashEarly(runtime.effects.dieEffectMul);
-    gameRunning = false;
+    gameOver = true; // Set game over but keep gameRunning = true for death animations
     if(score > bestScore){
       bestScore = Math.floor(score);
       localStorage.setItem('bestScore', bestScore);
     }
+    // Keep game running for 1.5 seconds to allow death animations to play
     setTimeout(()=> {
+      gameRunning = false;
       document.getElementById('menu').style.display = 'flex';
       document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
-    }, 1200);
+    }, 1500);
   }
 }
 
@@ -3158,8 +3161,16 @@ function mainLoop(now){
   }
 
   // Camera smoothing - use actual delta time for smoothness
-  const targetCamX = player.x - 150;
-  const targetCamY = player.y - canvas.height/2 + player.height*1.5;
+  let targetCamX, targetCamY;
+  if(gameOver) {
+    // When game is over, keep camera at current position (don't move forward)
+    targetCamX = cameraX;
+    targetCamY = cameraY;
+  } else {
+    // Normal camera follow
+    targetCamX = player.x - 150;
+    targetCamY = player.y - canvas.height/2 + player.height*1.5;
+  }
   const smoothingFactor = 0.1 * (cappedDeltaMs / 16.67); // Adjust for frame rate
   cameraX = cameraX * (1 - smoothingFactor) + targetCamX * smoothingFactor;
   cameraY = cameraY * (1 - smoothingFactor) + targetCamY * smoothingFactor;
