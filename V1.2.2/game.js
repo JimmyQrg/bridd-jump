@@ -36,7 +36,7 @@ resize();
 const BLOCK_SIZE = 50;
 const JUMP_SPEED = -15;
 const GRAVITY = 0.7;
-const DROP_SPEED = 30; // Downward velocity when dropping
+// DROP_SPEED is now calculated dynamically as (player.speed/2)*5
 let TICKS_PER_SECOND = 60;
 let TICK_INTERVAL = 1000 / TICKS_PER_SECOND;
 
@@ -517,6 +517,7 @@ applySettings(settings);
 
 /* ---------- World initialization & reset ---------- */
 let lastPlatformX = 0, lastPlatformY = 0;
+let recentPlatformSizes = []; // Track last few platform sizes for consecutive one-block rule
 
 function resetWorld(){
   // clear ALL arrays
@@ -557,6 +558,7 @@ function resetWorld(){
   // reset score and color cycling
   score = 0; colorLerp = 0; globalTime = 0;
   colorIndex = 0; platformColor = {...baseColors[0]}; nextColor = baseColors[1];
+  recentPlatformSizes = []; // Reset recent platform sizes tracking
 
   // Create a guaranteed ground platform
   const groundHeight = BLOCK_SIZE;
@@ -593,6 +595,29 @@ function generateBlockPlatform(lastX, lastY){
   let y = lastY + (Math.floor(Math.random()*3)-1) * BLOCK_SIZE;
   y = Math.max(BLOCK_SIZE, Math.min(canvas.height - 3*BLOCK_SIZE, y));
 
+  // Track recent platform sizes for consecutive one-block rule
+  // Keep only last 2 platforms (to check if current is third in sequence)
+  const isOneBlock = blockCount === 1;
+  let canHaveStrikes = true;
+  
+  if(isOneBlock && recentPlatformSizes.length >= 2) {
+    // Check if previous 2 platforms were also one-block
+    const prevTwoAreOneBlock = recentPlatformSizes[recentPlatformSizes.length - 1] === 1 && 
+                               recentPlatformSizes[recentPlatformSizes.length - 2] === 1;
+    if(prevTwoAreOneBlock) {
+      // This is the third one-block platform in a row
+      // Only allow strikes on one of the three - randomly choose
+      canHaveStrikes = Math.random() < 0.33; // 33% chance (only one of three gets strikes)
+    }
+  }
+  
+  // Update recent platform sizes
+  if(recentPlatformSizes.length >= 2) {
+    recentPlatformSizes.shift();
+  }
+  recentPlatformSizes.push(blockCount);
+
+  // Generate platform blocks
   for(let i=0;i<blockCount;i++){
     platforms.push({ 
       x: x + i*BLOCK_SIZE, 
@@ -603,16 +628,61 @@ function generateBlockPlatform(lastX, lastY){
       passed:false,
       pulsePhase: Math.random() * Math.PI * 2 // For platform pulse effect
     });
-    if(Math.random() < 0.2){
-      spikes.push({ 
-        x: x + i*BLOCK_SIZE + BLOCK_SIZE*0.2, 
-        y: y - BLOCK_SIZE + BLOCK_SIZE*0.2, 
-        width: BLOCK_SIZE*0.6, 
-        height: BLOCK_SIZE*0.6, 
-        baseY: y - BLOCK_SIZE + BLOCK_SIZE*0.2, 
-        hit:true, 
-        passed:false 
-      });
+  }
+
+  // Generate spikes with new logic
+  if(canHaveStrikes && blockCount > 0) {
+    const maxGroups = blockCount >= 7 ? 2 : 1; // At most 2 groups for 7+ blocks, 1 group for 1-6 blocks
+    const spikeGroups = [];
+    let hasThreeStrikeGroup = false; // Track if we already have a group with 3 strikes
+    
+    // Generate spike groups
+    for(let group = 0; group < maxGroups; group++) {
+      const groupSize = hasThreeStrikeGroup ? 
+        Math.floor(Math.random() * 2) + 1 : // 1-2 strikes if we already have a 3-strike group
+        Math.floor(Math.random() * 3) + 1;  // 1-3 strikes otherwise
+      
+      if(groupSize === 3) hasThreeStrikeGroup = true;
+      
+      // Find a valid position for this group (adjacent blocks)
+      let attempts = 0;
+      let groupStart = -1;
+      while(attempts < 50 && groupStart === -1) {
+        const candidateStart = Math.floor(Math.random() * (blockCount - groupSize + 1));
+        // Check if this position overlaps with existing groups
+        let overlaps = false;
+        for(let existingGroup of spikeGroups) {
+          if(candidateStart < existingGroup.start + existingGroup.size && 
+             candidateStart + groupSize > existingGroup.start) {
+            overlaps = true;
+            break;
+          }
+        }
+        if(!overlaps) {
+          groupStart = candidateStart;
+        }
+        attempts++;
+      }
+      
+      if(groupStart !== -1) {
+        spikeGroups.push({ start: groupStart, size: groupSize });
+      }
+    }
+    
+    // Create spikes for each group
+    for(let group of spikeGroups) {
+      for(let offset = 0; offset < group.size; offset++) {
+        const blockIndex = group.start + offset;
+        spikes.push({ 
+          x: x + blockIndex*BLOCK_SIZE + BLOCK_SIZE*0.2, 
+          y: y - BLOCK_SIZE + BLOCK_SIZE*0.2, 
+          width: BLOCK_SIZE*0.6, 
+          height: BLOCK_SIZE*0.6, 
+          baseY: y - BLOCK_SIZE + BLOCK_SIZE*0.2, 
+          hit:true, 
+          passed:false 
+        });
+      }
     }
   }
 
@@ -2140,7 +2210,8 @@ function jump(){
 function drop(){
   if(!player.visible) return;
   player.isDropping = true;
-  // Set downward velocity for fast drop
+  // Set downward velocity for fast drop (calculated as (player.speed/2)*5)
+  const DROP_SPEED = (player.speed / 2) * 5;
   if(player.vy < DROP_SPEED) {
     player.vy = DROP_SPEED;
   }
@@ -2375,7 +2446,8 @@ function gameTick() {
     player.y += player.vy * player.vertMultiplier;
     if(cheats.float && player.vy > 0) player.vy *= 0.5;
     
-    // Apply drop speed if actively dropping
+    // Apply drop speed if actively dropping (calculated as (player.speed/2)*5)
+    const DROP_SPEED = (player.speed / 2) * 5;
     if(player.isDropping && player.vy < DROP_SPEED) {
       player.vy = Math.min(player.vy + GRAVITY * 3, DROP_SPEED); // Accelerate faster when dropping
     } else {
@@ -2455,9 +2527,9 @@ function gameTick() {
       }
     }
 
-    // generation
+    // generation - generate 20 blocks ahead of screen
     const lastPlatform = platforms[platforms.length - 1];
-    if(lastPlatform && lastPlatform.x < player.x + canvas.width){
+    if(lastPlatform && lastPlatform.x < player.x + canvas.width + (20 * BLOCK_SIZE)){
       const out = generateBlockPlatform(lastPlatform.x, lastPlatform.y);
       lastPlatformX = out.x; lastPlatformY = out.y;
     }
