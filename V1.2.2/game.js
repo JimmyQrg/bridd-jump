@@ -799,7 +799,7 @@ function updateParallaxLayers(){
     layer.x -= layer.speed;
     // Apply parallax movement based on camera movement
     if(layer.moveY !== undefined) {
-      layer.y += cameraYDelta / layer.moveY;
+      layer.y += cameraYDelta / (layer.moveY * 2);
     }
     if(layer.x + layer.width < 0){
       layer.x = canvas.width + Math.random() * canvas.width;
@@ -966,7 +966,7 @@ function updateWindParticles(){
     particle.y += particle.vy;
     // Apply parallax movement based on camera movement
     if(particle.moveY !== undefined) {
-      particle.y += cameraYDelta / particle.moveY;
+      particle.y += cameraYDelta / (particle.moveY * 2);
     }
     particle.life--;
     
@@ -1041,7 +1041,7 @@ function updateStarRush(){
     s.x += s.vx * runtime.advanced.starRushMul * ANIMATION_INTENSITY_BOOST;
     // Apply parallax movement based on camera movement
     if(s.moveY !== undefined) {
-      s.y += cameraYDelta / s.moveY;
+      s.y += cameraYDelta / (s.moveY * 2);
     }
     s.life--;
     if(s.life <= 0 || s.x < player.x - canvas.width){
@@ -1094,7 +1094,7 @@ function updateNebulaDust(){
     d.y += d.vy;
     // Apply parallax movement based on camera movement
     if(d.moveY !== undefined) {
-      d.y += cameraYDelta / d.moveY;
+      d.y += cameraYDelta / (d.moveY * 2);
     }
     d.life--;
     if(d.life <= 0 || d.x < player.x - canvas.width * 0.5){
@@ -2750,7 +2750,7 @@ function gameTick() {
     l.x -= l.speed; // Use the speed stored in the line object
     // Apply parallax movement based on camera movement
     if(l.moveY !== undefined) {
-      l.y += cameraYDelta / l.moveY;
+      l.y += cameraYDelta / (l.moveY * 2);
     }
   }
   
