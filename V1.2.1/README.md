@@ -4,4 +4,5 @@
 <p>Updates:</p>
 <ol>
     <li>Settings readability</li>
+    <li>Add keys overlay</li>
 </ol>

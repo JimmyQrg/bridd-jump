@@ -414,7 +414,12 @@ function applySettings(s){
   const pct = (v) => (Number(v) || 0) / 100;
 
   // Basic effects
-  runtime.effects.blockTextureMul = pct(settings.quality.blockTexture) || (preset.blockTexture >= 1 ? 1 : 0);
+  // Block texture: 0 = OFF, >0 = ON (convert to 0 or 1)
+  if (settings.quality.blockTexture !== undefined && settings.quality.blockTexture !== null) {
+    runtime.effects.blockTextureMul = settings.quality.blockTexture > 0 ? 1 : 0;
+  } else {
+    runtime.effects.blockTextureMul = (preset.blockTexture >= 1 ? 1 : 0);
+  }
   runtime.effects.jumpEffectMul = pct(settings.quality.jumpEffect) || (preset.jumpEffect ? preset.jumpEffect/100 : 0);
   runtime.effects.walkEffectMul = pct(settings.quality.walkEffect) || (preset.walkEffect ? preset.walkEffect/100 : 0);
   runtime.effects.dieEffectMul = pct(settings.quality.dieEffect) || (preset.dieEffect ? preset.dieEffect/100 : 0);

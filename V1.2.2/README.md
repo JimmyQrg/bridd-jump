@@ -5,4 +5,6 @@
 <ol>
     <li>Better generation logic</li>
     <li>Drop speed increase with the horizonal player speed</i>
+    <li>Fix block texture</li>
+    <li>Add keys overlay</li>
 </ol>
