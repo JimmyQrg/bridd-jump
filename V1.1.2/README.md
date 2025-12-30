@@ -1,4 +1,4 @@
-<h1>V1.0.2</h1>
+<h1>V1.1.2</h1>
 <h2>Type: Release</h2>
 
 <p>Updates:</p>

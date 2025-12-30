@@ -113,7 +113,7 @@ const defaultSettings = {
     particleCount: 100,
     trailLength: 100,
     screenReflections: 100,
-    motionBlur: 100,
+    motionBlur: 0, // Default 0%, not affected by presets
     lightRays: 100,
     parallaxLayers: 100,
     velocityStreaks: 100,
@@ -439,7 +439,8 @@ function applySettings(s){
   runtime.advanced.particleCountMul = pct(settings.advanced.particleCount) || (preset.particleCount ? preset.particleCount/100 : 0);
   runtime.advanced.trailLengthMul = pct(settings.advanced.trailLength) || (preset.trailLength ? preset.trailLength/100 : 0);
   runtime.advanced.screenReflectionsMul = pct(settings.advanced.screenReflections) || (preset.screenReflections ? preset.screenReflections/100 : 0);
-  runtime.advanced.motionBlurMul = pct(settings.advanced.motionBlur) || (preset.motionBlur ? preset.motionBlur/100 : 0);
+  // Motion blur: default 0%, not affected by presets
+  runtime.advanced.motionBlurMul = pct(settings.advanced.motionBlur !== undefined ? settings.advanced.motionBlur : 0);
   runtime.advanced.lightRaysMul = pct(settings.advanced.lightRays) || (preset.lightRays ? preset.lightRays/100 : 0);
   runtime.advanced.parallaxLayersMul = pct(settings.advanced.parallaxLayers) || (preset.parallaxLayers ? preset.parallaxLayers/100 : 0);
   runtime.advanced.velocityStreaksMul = pct(settings.advanced.velocityStreaks) || (preset.velocityStreaks ? preset.velocityStreaks/100 : 0);
