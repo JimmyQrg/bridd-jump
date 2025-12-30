@@ -291,6 +291,7 @@ function readSettings(){
     const merged = JSON.parse(JSON.stringify(defaultSettings));
     if(parsed.maxFPS !== undefined) merged.maxFPS = parsed.maxFPS;
     if(parsed.qualityPreset) merged.qualityPreset = parsed.qualityPreset;
+    if(parsed.showKeyboard !== undefined) merged.showKeyboard = parsed.showKeyboard;
     if(parsed.quality) merged.quality = {...merged.quality, ...parsed.quality};
     if(parsed.advanced) merged.advanced = {...merged.advanced, ...parsed.advanced};
     return merged;
@@ -771,14 +772,16 @@ function initializeParallaxLayers(){
   if(!runtime.parallaxEnabled) return;
   
   for(let i = 0; i < Math.floor(5 * runtime.advanced.parallaxLayersMul); i++){
+    const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
     parallaxLayers.push({
-      y: Math.random() * canvas.height,
+      y: cameraY + (Math.random() - 0.5) * canvas.height * 3, // Expanded 3x height, centered on cameraY
       width: Math.random() * 300 + 100,
       height: Math.random() * 3 + 1,
       speed: (Math.random() * 0.5 + 0.1) * player.speed * (i + 1) * 0.2,
       x: Math.random() * canvas.width * 2,
       color: `rgba(100, 100, 255, ${Math.random() * 0.1 + 0.05})`,
-      depth: i + 1
+      depth: i + 1,
+      moveY: moveY // Store the parallax movement value
     });
   }
 }
@@ -786,11 +789,20 @@ function initializeParallaxLayers(){
 function updateParallaxLayers(){
   if(!runtime.parallaxEnabled) return;
   
+  const cameraYDelta = cameraY - (parallaxLayers.lastCameraY || cameraY);
+  parallaxLayers.lastCameraY = cameraY;
+  
   for(let layer of parallaxLayers){
     layer.x -= layer.speed;
+    // Apply parallax movement based on camera movement
+    if(layer.moveY !== undefined) {
+      layer.y += cameraYDelta / layer.moveY;
+    }
     if(layer.x + layer.width < 0){
       layer.x = canvas.width + Math.random() * canvas.width;
-      layer.y = Math.random() * canvas.height;
+      const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
+      layer.y = cameraY + (Math.random() - 0.5) * canvas.height * 3; // Expanded 3x height, centered on cameraY
+      layer.moveY = moveY; // Update the parallax movement value
     }
   }
 }
@@ -917,14 +929,16 @@ function createWindParticles(){
   if(!runtime.windParticlesEnabled || Math.random() > 0.5 * runtime.advanced.windParticlesMul / ANIMATION_INTENSITY_BOOST) return;
   
   for(let i = 0; i < Math.floor(5 * runtime.advanced.windParticlesMul * ANIMATION_INTENSITY_BOOST); i++){
+    const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
     windParticles.push({
       x: player.x + canvas.width + Math.random() * 100,
-      y: Math.random() * canvas.height,
+      y: cameraY + (Math.random() - 0.5) * canvas.height * 3, // Expanded 3x height, centered on cameraY
       vx: -(Math.random() * 15 + 10) * player.speed * 0.12 * ANIMATION_INTENSITY_BOOST,
       vy: (Math.random() - 0.5) * 4,
       size: Math.random() * 4 + 1,
       life: Math.random() * 100 + 50,
-      color: `rgba(200, 220, 255, ${Math.random() * 0.3 + 0.1})`
+      color: `rgba(200, 220, 255, ${Math.random() * 0.3 + 0.1})`,
+      moveY: moveY // Store the parallax movement value
     });
   }
 }
@@ -932,10 +946,17 @@ function createWindParticles(){
 function updateWindParticles(){
   if(!runtime.windParticlesEnabled) return;
   
+  const cameraYDelta = cameraY - (windParticles.lastCameraY || cameraY);
+  windParticles.lastCameraY = cameraY;
+  
   for(let i = windParticles.length - 1; i >= 0; i--){
     const particle = windParticles[i];
     particle.x += particle.vx;
     particle.y += particle.vy;
+    // Apply parallax movement based on camera movement
+    if(particle.moveY !== undefined) {
+      particle.y += cameraYDelta / particle.moveY;
+    }
     particle.life--;
     
     if(particle.life <= 0 || particle.x < player.x - 100){
@@ -986,19 +1007,28 @@ function updateStarRush(){
   if(!runtime.starRushEnabled) return;
   // Spawn new stars streaming past the player
   if(Math.random() < 0.75 * runtime.advanced.starRushMul * ANIMATION_INTENSITY_BOOST){
+    const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
     starRush.push({
       x: player.x + canvas.width + Math.random() * 300,
-      y: Math.random() * canvas.height,
+      y: cameraY + (Math.random() - 0.5) * canvas.height * 3, // Expanded 3x height, centered on cameraY
       vx: -(player.speed * 0.8 + Math.random() * 18) * 0.6,
       size: Math.random() * 3 + 1,
       life: 120,
-      color: Math.random() > 0.5 ? "#aef" : "#6ff"
+      color: Math.random() > 0.5 ? "#aef" : "#6ff",
+      moveY: moveY // Store the parallax movement value
     });
   }
+  
+  const cameraYDelta = cameraY - (starRush.lastCameraY || cameraY);
+  starRush.lastCameraY = cameraY;
   
   for(let i = starRush.length - 1; i >= 0; i--){
     const s = starRush[i];
     s.x += s.vx * runtime.advanced.starRushMul * ANIMATION_INTENSITY_BOOST;
+    // Apply parallax movement based on camera movement
+    if(s.moveY !== undefined) {
+      s.y += cameraYDelta / s.moveY;
+    }
     s.life--;
     if(s.life <= 0 || s.x < player.x - canvas.width){
       starRush.splice(i, 1);
@@ -1024,22 +1054,31 @@ function drawStarRush(){
 function updateNebulaDust(){
   if(!runtime.nebulaDustEnabled) return;
   if(Math.random() < 0.35 * runtime.advanced.nebulaDustMul * ANIMATION_INTENSITY_BOOST){
+    const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
     nebulaDust.push({
       x: player.x + canvas.width + Math.random() * 200,
-      y: Math.random() * canvas.height,
+      y: cameraY + (Math.random() - 0.5) * canvas.height * 3, // Expanded 3x height, centered on cameraY
       vx: -(Math.random() * 6 + 4),
       vy: (Math.random() - 0.5) * 0.8,
       size: Math.random() * 70 + 30,
       life: 260,
       alpha: Math.random() * 0.25 + 0.1,
-      hue: Math.random() * 60 + 190
+      hue: Math.random() * 60 + 190,
+      moveY: moveY // Store the parallax movement value
     });
   }
+  
+  const cameraYDelta = cameraY - (nebulaDust.lastCameraY || cameraY);
+  nebulaDust.lastCameraY = cameraY;
   
   for(let i = nebulaDust.length - 1; i >= 0; i--){
     const d = nebulaDust[i];
     d.x += d.vx * runtime.advanced.nebulaDustMul * 0.5;
     d.y += d.vy;
+    // Apply parallax movement based on camera movement
+    if(d.moveY !== undefined) {
+      d.y += cameraYDelta / d.moveY;
+    }
     d.life--;
     if(d.life <= 0 || d.x < player.x - canvas.width * 0.5){
       nebulaDust.splice(i, 1);
@@ -1068,6 +1107,7 @@ function drawNebulaDust(){
 
 function spawnWarpTunnel(){
   if(!runtime.warpTunnelEnabled) return;
+  if(!player.isDropping) return; // Only spawn tunnel rings when player is using DIG
   if(warpTunnels.length > 10) return;
   warpTunnels.push({
     radius: player.width,
@@ -2137,12 +2177,14 @@ function addLine(){
   const playerRightEdge = player.x + player.width;
   const lineStartX = playerRightEdge + (BLOCK_SIZE * 20) + Math.random() * BLOCK_SIZE * 4;
   
+  const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
   lines.push({ 
     x: lineStartX, 
-    y: Math.random() * canvas.height, 
+    y: cameraY + (Math.random() - 0.5) * canvas.height * 3, // Expanded 3x height, centered on cameraY
     width: Math.random() * 150 + 50, // Wider lines
     speed: player.speed * 2.5, // Faster movement
-    passed: false 
+    passed: false,
+    moveY: moveY // Store the parallax movement value
   });
 }
 
@@ -2679,10 +2721,17 @@ function gameTick() {
   }
   
   // update lines array movement
+  const cameraYDelta = cameraY - (lines.lastCameraY || cameraY);
+  lines.lastCameraY = cameraY;
+  
   for(let i=lines.length-1;i>=0;i--){
     const l = lines[i];
     // Lines move left very fast (relative to player speed)
     l.x -= l.speed; // Use the speed stored in the line object
+    // Apply parallax movement based on camera movement
+    if(l.moveY !== undefined) {
+      l.y += cameraYDelta / l.moveY;
+    }
   }
   
   // update shockwaves
@@ -3395,17 +3444,7 @@ function hasKeyboard() {
 
 // Initialize keyboard visualization
 function initKeyboardVisualization() {
-  const keyboardViz = document.getElementById('keyboardVisualization');
-  if (!keyboardViz) return;
-  
-  const hasKb = hasKeyboard();
-  const showKeyboard = settings.showKeyboard !== undefined ? settings.showKeyboard : true;
-  
-  if (hasKb && showKeyboard) {
-    keyboardViz.style.display = 'flex';
-  } else {
-    keyboardViz.style.display = 'none';
-  }
+  updateKeyboardVisualization();
 }
 
 // Update keyboard visualization visibility when settings change
