@@ -412,40 +412,67 @@
     hideFindReplace();
   }
 
-  // Apply code (reload game.js)
+  // Apply code (save and reload)
   function applyCode() {
     const code = codeEditor.value;
     const storageKey = `briddCode_${getVersionPath()}`;
     sessionStorage.setItem(storageKey, code);
     
-    // Try to reload the script
-    const scripts = document.querySelectorAll('script[src="game.js"]');
-    if (scripts.length > 0) {
-      // Create a blob URL and replace the script
-      const blob = new Blob([code], { type: 'application/javascript' });
-      const url = URL.createObjectURL(blob);
-      
-      scripts.forEach(script => {
-        const newScript = document.createElement('script');
-        newScript.src = url;
-        script.parentNode.replaceChild(newScript, script);
-      });
-      
-      // Show message
-      alert('Code applied! The game will reload with the new code.');
+    // Reload the page - the interceptGameJs function will load from sessionStorage
+    const reload = confirm('Code saved to sessionStorage!\n\nReload page to apply changes?');
+    if (reload) {
       location.reload();
     } else {
-      alert('Code saved to sessionStorage. Refresh the page to see changes.');
+      alert('Code saved. Please refresh the page to see changes.');
+    }
+  }
+
+  // Intercept game.js loading to use sessionStorage code if available
+  function interceptGameJs() {
+    const storageKey = `briddCode_${getVersionPath()}`;
+    const storedCode = sessionStorage.getItem(storageKey);
+    
+    if (storedCode) {
+      // Replace script tags synchronously before they execute
+      const replaceScripts = () => {
+        const scripts = document.querySelectorAll('script[src*="game.js"]:not([data-source])');
+        scripts.forEach(script => {
+          const newScript = document.createElement('script');
+          newScript.textContent = storedCode;
+          newScript.setAttribute('data-source', 'sessionStorage');
+          script.parentNode.insertBefore(newScript, script);
+          script.remove();
+        });
+      };
+      
+      // Replace immediately if scripts exist
+      replaceScripts();
+      
+      // Also watch for scripts added later
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', replaceScripts);
+      }
+      
+      // Use MutationObserver as backup
+      const observer = new MutationObserver(replaceScripts);
+      observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true
+      });
     }
   }
 
   // Expose open function globally
   window.openCodeEditor = openCodeEditor;
 
-  // Initialize when DOM is ready
+  // Intercept game.js on page load
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initCodeEditor);
+    document.addEventListener('DOMContentLoaded', () => {
+      interceptGameJs();
+      initCodeEditor();
+    });
   } else {
+    interceptGameJs();
     initCodeEditor();
   }
 })();
