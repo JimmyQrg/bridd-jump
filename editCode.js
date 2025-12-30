@@ -154,7 +154,15 @@
     });
 
     // Find input events
-    findInput.addEventListener('input', performFind);
+    findInput.addEventListener('input', () => {
+      performFind();
+      // Keep focus on find input - prevent jumping to editor
+      setTimeout(() => {
+        if (document.activeElement !== findInput && findInput) {
+          findInput.focus();
+        }
+      }, 0);
+    });
     findInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -163,6 +171,8 @@
         } else {
           findNext();
         }
+        // Return focus to find input after navigation
+        setTimeout(() => findInput.focus(), 0);
       } else if (e.key === 'Escape') {
         hideFindReplace();
       }
@@ -171,6 +181,12 @@
     // Replace buttons
     document.getElementById('replaceBtn').addEventListener('click', replaceCurrent);
     document.getElementById('replaceAllBtn').addEventListener('click', replaceAll);
+
+    // Close find & replace button
+    const closeFindBtn = document.getElementById('closeFindReplace');
+    if (closeFindBtn) {
+      closeFindBtn.addEventListener('click', hideFindReplace);
+    }
 
     // Close button
     document.getElementById('closeCodeEditor').addEventListener('click', closeCodeEditor);
@@ -192,6 +208,7 @@
   // Show Find & Replace panel
   function showFindReplace() {
     findReplacePanel.style.display = 'block';
+    findInput.focus();
     performFind();
   }
 
@@ -227,7 +244,9 @@
 
     currentFindIndex = 0;
     updateFindCount();
-    highlightCurrentMatch();
+    // Preserve focus if user is typing in find input
+    const preserveFocus = document.activeElement === findInput;
+    highlightCurrentMatch(preserveFocus);
   }
 
   // Escape special regex characters
@@ -245,17 +264,42 @@
   }
 
   // Highlight current match
-  function highlightCurrentMatch() {
+  function highlightCurrentMatch(preserveFindFocus = false) {
     if (findMatches.length === 0) return;
 
     const match = findMatches[currentFindIndex];
-    codeEditor.focus();
-    codeEditor.setSelectionRange(match.index, match.index + match.length);
     
-    // Scroll into view
-    const lineHeight = 20;
-    const linesBefore = codeEditor.value.substring(0, match.index).split('\n').length - 1;
-    codeEditor.scrollTop = (linesBefore - 5) * lineHeight;
+    // If user is typing in find input, don't steal focus
+    if (preserveFindFocus && document.activeElement === findInput) {
+      // Set selection without focusing editor - use a different approach
+      const scrollPos = codeEditor.scrollTop;
+      const selectionStart = codeEditor.selectionStart;
+      const selectionEnd = codeEditor.selectionEnd;
+      
+      // Set selection range (this might briefly focus, but we'll restore)
+      codeEditor.setSelectionRange(match.index, match.index + match.length);
+      
+      // Scroll into view
+      const lineHeight = 20;
+      const linesBefore = codeEditor.value.substring(0, match.index).split('\n').length - 1;
+      codeEditor.scrollTop = (linesBefore - 5) * lineHeight;
+      
+      // Immediately return focus to find input
+      requestAnimationFrame(() => {
+        if (findInput && document.activeElement !== findInput) {
+          findInput.focus();
+        }
+      });
+    } else {
+      // Normal behavior - focus editor to show selection
+      codeEditor.focus();
+      codeEditor.setSelectionRange(match.index, match.index + match.length);
+      
+      // Scroll into view
+      const lineHeight = 20;
+      const linesBefore = codeEditor.value.substring(0, match.index).split('\n').length - 1;
+      codeEditor.scrollTop = (linesBefore - 5) * lineHeight;
+    }
   }
 
   // Find next match
@@ -266,7 +310,8 @@
     }
     currentFindIndex = (currentFindIndex + 1) % findMatches.length;
     updateFindCount();
-    highlightCurrentMatch();
+    // When navigating with Enter, don't preserve focus (user wants to see match)
+    highlightCurrentMatch(false);
   }
 
   // Find previous match
@@ -277,7 +322,8 @@
     }
     currentFindIndex = (currentFindIndex - 1 + findMatches.length) % findMatches.length;
     updateFindCount();
-    highlightCurrentMatch();
+    // When navigating with Enter, don't preserve focus (user wants to see match)
+    highlightCurrentMatch(false);
   }
 
   // Replace current match
