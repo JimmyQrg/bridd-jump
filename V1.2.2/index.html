@@ -629,6 +629,7 @@
     <button id="fullscreenBtn" class="btn">FULLSCREEN</button>
     <button id="howToPlayBtn" class="btn">HOW TO PLAY</button>
     <button onclick="openCodeEditor()" class="btn">CODE</button>
+    <button id="downloadBtn" class="btn">DOWNLOAD</button>
     <button onclick="window.location.href='../'" class="btn">HOME</button>
   </div>
 
@@ -722,7 +723,85 @@
     </div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="../editCode.js"></script>
   <script src="game.js"></script>
+  <script>
+    // Download game files as ZIP
+    async function downloadGame() {
+      try {
+        showToast('Preparing download...');
+        const zip = new JSZip();
+        
+        // List of files to include with their types
+        const files = [
+          { name: 'index.html', binary: false },
+          { name: 'game.js', binary: false },
+          { name: 'settings.html', binary: false },
+          { name: 'infinite-campus.ico', binary: true },
+          { name: 'README.md', binary: false }
+        ];
+        
+        // Fetch and add each file to the zip
+        for (const file of files) {
+          try {
+            const response = await fetch(file.name);
+            if (response.ok) {
+              if (file.binary) {
+                const blob = await response.blob();
+                zip.file(file.name, blob);
+              } else {
+                const content = await response.text();
+                zip.file(file.name, content);
+              }
+            } else {
+              console.warn(`Could not fetch ${file.name}`);
+            }
+          } catch (error) {
+            console.warn(`Error fetching ${file.name}:`, error);
+          }
+        }
+        
+        // Generate ZIP file
+        const blob = await zip.generateAsync({ type: 'blob' });
+        
+        // Create download link
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'bridd-jump-v1.2.2.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Show success message
+        showToast('Game downloaded successfully!');
+      } catch (error) {
+        console.error('Error creating download:', error);
+        showToast('Error downloading game. Please try again.');
+      }
+    }
+    
+    // Show toast message
+    function showToast(message) {
+      const toast = document.getElementById('debugToast');
+      if (toast) {
+        toast.textContent = message;
+        toast.style.display = 'block';
+        setTimeout(() => {
+          toast.style.display = 'none';
+        }, 3000);
+      }
+    }
+    
+    // Add event listener to download button
+    document.addEventListener('DOMContentLoaded', function() {
+      const downloadBtn = document.getElementById('downloadBtn');
+      if (downloadBtn) {
+        downloadBtn.addEventListener('click', downloadGame);
+      }
+    });
+  </script>
 </body>
 </html>
