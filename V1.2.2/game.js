@@ -518,6 +518,7 @@ applySettings(settings);
 /* ---------- World initialization & reset ---------- */
 let lastPlatformX = 0, lastPlatformY = 0;
 let recentPlatformSizes = []; // Track last few platform sizes for consecutive one-block rule
+let lastPlatformHadStrikes = false; // Track if previous platform had strikes
 
 function resetWorld(){
   // clear ALL arrays
@@ -559,6 +560,7 @@ function resetWorld(){
   score = 0; colorLerp = 0; globalTime = 0;
   colorIndex = 0; platformColor = {...baseColors[0]}; nextColor = baseColors[1];
   recentPlatformSizes = []; // Reset recent platform sizes tracking
+  lastPlatformHadStrikes = false; // Reset strike tracking
 
   // Create a guaranteed ground platform
   const groundHeight = BLOCK_SIZE;
@@ -600,6 +602,11 @@ function generateBlockPlatform(lastX, lastY){
   const isOneBlock = blockCount === 1;
   let canHaveStrikes = true;
   
+  // Rule: Two platforms with strikes cannot be in a row
+  if(lastPlatformHadStrikes) {
+    canHaveStrikes = false;
+  }
+  
   if(isOneBlock && recentPlatformSizes.length >= 2) {
     // Check if previous 2 platforms were also one-block
     const prevTwoAreOneBlock = recentPlatformSizes[recentPlatformSizes.length - 1] === 1 && 
@@ -607,7 +614,7 @@ function generateBlockPlatform(lastX, lastY){
     if(prevTwoAreOneBlock) {
       // This is the third one-block platform in a row
       // Only allow strikes on one of the three - randomly choose
-      canHaveStrikes = Math.random() < 0.33; // 33% chance (only one of three gets strikes)
+      canHaveStrikes = canHaveStrikes && Math.random() < 0.33; // 33% chance (only one of three gets strikes)
     }
   }
   
@@ -616,6 +623,9 @@ function generateBlockPlatform(lastX, lastY){
     recentPlatformSizes.shift();
   }
   recentPlatformSizes.push(blockCount);
+  
+  // Track if this platform will have strikes (set after generation)
+  let thisPlatformHasStrikes = false;
 
   // Generate platform blocks
   for(let i=0;i<blockCount;i++){
@@ -673,18 +683,44 @@ function generateBlockPlatform(lastX, lastY){
     for(let group of spikeGroups) {
       for(let offset = 0; offset < group.size; offset++) {
         const blockIndex = group.start + offset;
-        spikes.push({ 
-          x: x + blockIndex*BLOCK_SIZE + BLOCK_SIZE*0.2, 
-          y: y - BLOCK_SIZE + BLOCK_SIZE*0.2, 
-          width: BLOCK_SIZE*0.6, 
-          height: BLOCK_SIZE*0.6, 
-          baseY: y - BLOCK_SIZE + BLOCK_SIZE*0.2, 
-          hit:true, 
-          passed:false 
-        });
+        
+        // Check if there's a platform block under this spike position
+        // Spike is at y - BLOCK_SIZE + BLOCK_SIZE*0.2, platform block is at y
+        // So we need to check if blockIndex is within the platform (0 to blockCount-1)
+        const spikeBlockX = x + blockIndex*BLOCK_SIZE;
+        const spikeBlockY = y; // Platform block Y position
+        
+        // Verify this block is part of the platform (should always be true, but double-check)
+        let hasPlatformBelow = false;
+        for(let i = 0; i < blockCount; i++) {
+          const platX = x + i*BLOCK_SIZE;
+          const platY = y;
+          // Check if spike is on top of this platform block
+          if(Math.abs(spikeBlockX - platX) < BLOCK_SIZE && Math.abs(spikeBlockY - platY) < 1) {
+            hasPlatformBelow = true;
+            break;
+          }
+        }
+        
+        // Only create spike if there's a platform block directly below it
+        if(hasPlatformBelow && blockIndex >= 0 && blockIndex < blockCount) {
+          spikes.push({ 
+            x: x + blockIndex*BLOCK_SIZE + BLOCK_SIZE*0.2, 
+            y: y - BLOCK_SIZE + BLOCK_SIZE*0.2, 
+            width: BLOCK_SIZE*0.6, 
+            height: BLOCK_SIZE*0.6, 
+            baseY: y - BLOCK_SIZE + BLOCK_SIZE*0.2, 
+            hit:true, 
+            passed:false 
+          });
+          thisPlatformHasStrikes = true;
+        }
       }
     }
   }
+  
+  // Update tracking for next platform
+  lastPlatformHadStrikes = thisPlatformHasStrikes;
 
   // gems
   for(let i=0;i<blockCount;i++){
@@ -1936,8 +1972,8 @@ function createCrashEarly(amountMul = 1) {
     createStarburst(player.x + player.width/2, player.y + player.height/2, 2);
   }
   
-  // Add gravity waves
-  if(runtime.gravityWavesEnabled) {
+  // Add gravity waves - only when player is dropping
+  if(runtime.gravityWavesEnabled && player.isDropping) {
     createGravityWave(player.x + player.width/2, player.y + player.height/2, 1.5);
   }
   

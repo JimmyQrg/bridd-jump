@@ -587,9 +587,15 @@
     
     // Remove old game script and state
     try {
-      // Stop game loops
+      // Stop game loops - find and cancel the actual animation frame ID
       if (window.cancelAnimationFrame) {
-        // Try to find and cancel any animation frames
+        // Try to cancel any stored animation frame IDs
+        if (window.animationId) {
+          try {
+            cancelAnimationFrame(window.animationId);
+          } catch (e) {}
+        }
+        // Also try to find and cancel any animation frames (less efficient but thorough)
         for (let i = 1; i < 10000; i++) {
           try {
             cancelAnimationFrame(i);
@@ -598,15 +604,17 @@
       }
       
       // Clear intervals
-      for (let i = 1; i < 10000; i++) {
+      const highestIntervalId = setTimeout(() => {}, 0);
+      for (let i = 1; i < highestIntervalId; i++) {
         try {
           clearInterval(i);
+          clearTimeout(i);
         } catch (e) {}
       }
       
-      // Remove old scripts
-      const oldScripts = document.querySelectorAll('script[data-source="sessionStorage"]');
-      oldScripts.forEach(s => {
+      // Remove ALL old scripts (both sessionStorage and original game.js)
+      const allOldScripts = document.querySelectorAll('script[data-source="sessionStorage"], script[src*="game.js"]');
+      allOldScripts.forEach(s => {
         try {
           if (s.parentNode) {
             s.parentNode.removeChild(s);
@@ -617,11 +625,41 @@
       // Reset game state variables if they exist
       if (typeof window.gameRunning !== 'undefined') window.gameRunning = false;
       if (typeof window.gameStarted !== 'undefined') window.gameStarted = false;
-      if (typeof window.animationId !== 'undefined') window.animationId = null;
+      if (typeof window.animationId !== 'undefined') {
+        if (window.animationId) {
+          try {
+            cancelAnimationFrame(window.animationId);
+          } catch (e) {}
+        }
+        window.animationId = null;
+      }
       
-      // Hide menu if it exists
+      // Clear all game-related global variables
+      try {
+        if (window.platforms) window.platforms = [];
+        if (window.spikes) window.spikes = [];
+        if (window.gems) window.gems = [];
+        if (window.particles) window.particles = [];
+        if (window.player) {
+          window.player.visible = false;
+          window.player.x = 100;
+          window.player.y = canvas ? canvas.height/2 - 50 : 0;
+        }
+      } catch (e) {
+        console.log('Error resetting game state:', e);
+      }
+      
+      // Show menu if it exists
       const menu = document.getElementById('menu');
-      if (menu) menu.style.display = 'flex';
+      if (menu) {
+        menu.style.display = 'flex';
+        // Re-enable start button by removing any disabled state
+        const startBtn = document.getElementById('startBtn');
+        if (startBtn) {
+          startBtn.disabled = false;
+          startBtn.style.pointerEvents = 'auto';
+        }
+      }
       
     } catch (e) {
       console.log('Error cleaning up:', e);
@@ -637,27 +675,101 @@
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
       }
       
-      // Load new code
-      const newScript = document.createElement('script');
-      newScript.textContent = code;
-      newScript.setAttribute('data-source', 'sessionStorage');
+      // Remove ALL old game scripts (both sessionStorage and original game.js)
+      const allOldScripts = document.querySelectorAll('script[data-source="sessionStorage"], script[src*="game.js"]');
+      allOldScripts.forEach(s => {
+        try {
+          if (s.parentNode) {
+            s.parentNode.removeChild(s);
+          }
+        } catch (e) {}
+      });
       
-      // Add error handler
-      newScript.onerror = function(e) {
-        console.error('Error loading new code:', e);
-        updateLoaderStatus('Error loading code');
-        setTimeout(() => removeLoadingScreen(), 2000);
-      };
-      
-      document.body.appendChild(newScript);
-      
-      updateLoaderStatus('Done!');
+      // Wait a bit more to ensure old script is fully removed
       setTimeout(() => {
-        removeLoadingScreen();
-      }, 500);
+        // Remove event listeners from buttons BEFORE loading new script
+        // This ensures the new script can attach fresh listeners
+        const startBtn = document.getElementById('startBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const howToPlayBtn = document.getElementById('howToPlayBtn');
+        
+        // Clone and replace buttons to remove all old event listeners
+        if (startBtn) {
+          const newStartBtn = startBtn.cloneNode(true);
+          startBtn.parentNode.replaceChild(newStartBtn, startBtn);
+        }
+        if (settingsBtn) {
+          const newSettingsBtn = settingsBtn.cloneNode(true);
+          settingsBtn.parentNode.replaceChild(newSettingsBtn, settingsBtn);
+        }
+        if (howToPlayBtn) {
+          const newHowToPlayBtn = howToPlayBtn.cloneNode(true);
+          howToPlayBtn.parentNode.replaceChild(newHowToPlayBtn, howToPlayBtn);
+        }
+        
+        // Wait one frame for DOM to settle
+        requestAnimationFrame(() => {
+          // Load new code
+          const newScript = document.createElement('script');
+          newScript.textContent = code;
+          newScript.setAttribute('data-source', 'sessionStorage');
+          
+          // Add error handler
+          newScript.onerror = function(e) {
+            console.error('Error loading new code:', e);
+            updateLoaderStatus('Error loading code');
+            setTimeout(() => removeLoadingScreen(), 2000);
+          };
+          
+          // Execute the script
+          try {
+            document.body.appendChild(newScript);
+            
+            // Wait for script to execute and initialize
+            setTimeout(() => {
+              updateLoaderStatus('Verifying...');
+              
+              // Verify game functions exist (check both window and global scope)
+              let gameReady = false;
+              const startGameFunc = window.startGame || (typeof startGame !== 'undefined' ? startGame : null);
+              if (startGameFunc && typeof startGameFunc === 'function') {
+                gameReady = true;
+                console.log('Game code loaded successfully - startGame function available');
+              } else {
+                console.warn('Game code may not have loaded properly - startGame function missing');
+                // Try to find it in the script's scope
+                console.log('Available functions:', Object.keys(window).filter(k => k.includes('start') || k.includes('game')));
+              }
+              
+              updateLoaderStatus(gameReady ? 'Done!' : 'Warning: Check console');
+              setTimeout(() => {
+                removeLoadingScreen();
+                // Ensure menu is visible
+                const menu = document.getElementById('menu');
+                if (menu) {
+                  menu.style.display = 'flex';
+                }
+                
+                if (!gameReady) {
+                  console.error('Game initialization failed. Check console for errors.');
+                  alert('Warning: Game code may not have loaded properly.\n\nCheck the browser console (F12) for errors.\n\nYou may need to refresh the page.');
+                } else {
+                  console.log('Game code applied successfully. You can now click START.');
+                }
+              }, 500);
+            }, 600);
+          } catch (error) {
+            console.error('Error executing script:', error);
+            updateLoaderStatus('Error executing code');
+            setTimeout(() => removeLoadingScreen(), 2000);
+          }
+        });
+      }, 200);
     }, 300);
   }
 
@@ -715,4 +827,5 @@
     initCodeEditor();
   }
 })();
+
 
