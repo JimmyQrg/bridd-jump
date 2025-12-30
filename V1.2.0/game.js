@@ -37,8 +37,14 @@ const BLOCK_SIZE = 50;
 const JUMP_SPEED = -15;
 const GRAVITY = 0.7;
 const DROP_SPEED = 30; // Downward velocity when dropping
-const TICKS_PER_SECOND = 60;
-const TICK_INTERVAL = 1000 / TICKS_PER_SECOND;
+let TICKS_PER_SECOND = 60;
+let TICK_INTERVAL = 1000 / TICKS_PER_SECOND;
+
+// Function to update tick rate
+function setTickRate(rate) {
+  TICKS_PER_SECOND = 3 * rate;
+  TICK_INTERVAL = 1000 / TICKS_PER_SECOND;
+}
 const DELETE_OFFSET = BLOCK_SIZE * 6;
 const ANIMATION_INTENSITY_BOOST = 1.2;
 
@@ -3065,6 +3071,21 @@ function openCommandPrompt() {
         if(root2 === 'set' && !isNaN(parseFloat(root3))) player.speedMultiplier = parseFloat(root3);
         break;
       default: alert('Unknown gamerule');
+    }
+    return;
+  }
+
+  if(command === '/tick'){
+    if(root1 === 'rate' && root2 !== undefined){
+      const rate = Number(root2);
+      if(!isNaN(rate) && rate > 0){
+        setTickRate(rate);
+        alert(`Tick rate set to ${TICKS_PER_SECOND} TPS (3 × ${rate})`);
+      } else {
+        alert('Invalid tick rate. Must be a positive number.');
+      }
+    } else {
+      alert('Usage: /tick rate <number>\nDefault: 20 (gives 60 TPS)');
     }
     return;
   }
