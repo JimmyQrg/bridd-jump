@@ -414,7 +414,16 @@
     
     <div id="effectsSettings">
       <div class="settings-section">
-        <div class="section-title">Basic Effects</div>
+        <div class="section-title">General</div>
+        
+        <div class="checkbox-container" id="showKeyboardContainer" style="display: none;">
+          <label>
+            <input type="checkbox" id="showKeyboard" checked>
+            Show Keyboard
+          </label>
+        </div>
+        
+        <div class="section-title" style="margin-top: 20px;">Basic Effects</div>
         
         <div class="checkbox-container">
           <label>
@@ -657,6 +666,24 @@
         
         // Set quality preset
         document.getElementById("quality").value = settings.qualityPreset || "Extreme+";
+        
+        // Show keyboard checkbox (only show if device has keyboard)
+        function hasKeyboard() {
+          if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
+            return true;
+          }
+          return !('ontouchstart' in window) || window.navigator.maxTouchPoints === 0;
+        }
+        
+        const showKeyboardContainer = document.getElementById("showKeyboardContainer");
+        if (showKeyboardContainer) {
+          if (hasKeyboard()) {
+            showKeyboardContainer.style.display = "block";
+            document.getElementById("showKeyboard").checked = settings.showKeyboard !== undefined ? settings.showKeyboard : true;
+          } else {
+            showKeyboardContainer.style.display = "none";
+          }
+        }
         
         // Set basic effects if they exist
         if (settings.quality) {
@@ -1088,6 +1115,16 @@
       }
     });
 
+    // When show keyboard checkbox changes, switch to custom mode
+    const showKeyboardCheckbox = document.getElementById("showKeyboard");
+    if (showKeyboardCheckbox) {
+      showKeyboardCheckbox.addEventListener("change", () => {
+        if (document.getElementById("quality").value !== "Custom") {
+          document.getElementById("quality").value = "Custom";
+        }
+      });
+    }
+    
     // When block texture checkbox changes, switch to custom mode
     document.getElementById("blockTexture").addEventListener("change", () => {
       document.getElementById("quality").value = "Custom";
@@ -1192,6 +1229,7 @@
       const settings = {
         maxFPS: parseInt(document.getElementById("fps").value) || 0,
         qualityPreset: document.getElementById("quality").value === "Custom" ? "Extreme+" : document.getElementById("quality").value,
+        showKeyboard: document.getElementById("showKeyboard") ? document.getElementById("showKeyboard").checked : true,
         quality: {
           blockTexture: document.getElementById("blockTexture").checked ? 100 : 0,
           jumpEffect: parseInt(document.getElementById("jumpEffect").value) || 0,

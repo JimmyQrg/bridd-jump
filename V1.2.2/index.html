@@ -251,6 +251,40 @@
     opacity: 0;
   }
   
+  /* Keyboard visualization blocks */
+  #keyboardVisualization {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    z-index: 1100;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+  }
+  
+  .keyboardKey {
+    width: 48px;
+    height: 48px;
+    background: #000;
+    border: 2px solid #fff;
+    opacity: 0.5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.1s ease;
+  }
+  
+  .keyboardKey.active {
+    opacity: 1;
+  }
+  
+  .keyboardKey svg {
+    width: 24px;
+    height: 24px;
+    fill: #fff;
+  }
+  
   /* How to Play Modal */
   #howToPlayModal {
     position: fixed;
@@ -673,6 +707,20 @@
   <div id="fpsLabel">FPS: -- / --</div>
   <div id="debugToast"></div>
   <div id="mobileCommandBtn" title="Open Command (Ctrl+Shift+A)"></div>
+  
+  <!-- Keyboard Visualization -->
+  <div id="keyboardVisualization">
+    <div id="keyboardKeyUp" class="keyboardKey">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
+      </svg>
+    </div>
+    <div id="keyboardKeyDown" class="keyboardKey">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
+      </svg>
+    </div>
+  </div>
 
   <script src="../editCode.js"></script>
   <script src="game.js"></script>

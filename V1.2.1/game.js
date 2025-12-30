@@ -94,6 +94,7 @@ const LS_KEY = "briddSettings";
 const defaultSettings = {
   maxFPS: 0,
   qualityPreset: "Extreme+",
+  showKeyboard: true, // Show keyboard visualization (only if device has keyboard)
   quality: {
     jumpEffect: 64,
     walkEffect: 64,
@@ -402,6 +403,9 @@ let runtime = {
 
 function applySettings(s){
   settings = s || settings;
+  
+  // Update keyboard visualization visibility
+  updateKeyboardVisualization();
   // FPS
   if(!settings.maxFPS || settings.maxFPS === 0 || settings.maxFPS === "Unlimited"){
     runtime.minFrameTime = 0;
@@ -2049,22 +2053,34 @@ window.addEventListener('keydown', e => {
       jumpKeyPressed = true;
       jump();
     }
+    // Update keyboard visualization
+    const upKey = document.getElementById('keyboardKeyUp');
+    if(upKey) upKey.classList.add('active');
   }
   if(["ArrowDown","KeyS"].includes(e.code)) {
     if(!dropKeyPressed) {
       dropKeyPressed = true;
       drop();
     }
+    // Update keyboard visualization
+    const downKey = document.getElementById('keyboardKeyDown');
+    if(downKey) downKey.classList.add('active');
   }
 });
 window.addEventListener('keyup', e => { 
   keys[e.code] = false;
   if(["KeyW","ArrowUp","Space"].includes(e.code)) {
     jumpKeyPressed = false;
+    // Update keyboard visualization
+    const upKey = document.getElementById('keyboardKeyUp');
+    if(upKey) upKey.classList.remove('active');
   }
   if(["ArrowDown","KeyS"].includes(e.code)) {
     dropKeyPressed = false;
     stopDrop();
+    // Update keyboard visualization
+    const downKey = document.getElementById('keyboardKeyDown');
+    if(downKey) downKey.classList.remove('active');
   }
 });
 window.addEventListener('mousedown', () => {
@@ -3206,6 +3222,47 @@ document.getElementById('settingsBtn').addEventListener('click', () => {
   });
 });
 
+// Detect if device has keyboard
+function hasKeyboard() {
+  // Check if device has keyboard by testing if it's not a touch-only device
+  // or by checking if media query matches
+  if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
+    return true;
+  }
+  // Fallback: check if we can detect keyboard events reliably
+  return !('ontouchstart' in window) || window.navigator.maxTouchPoints === 0;
+}
+
+// Initialize keyboard visualization
+function initKeyboardVisualization() {
+  const keyboardViz = document.getElementById('keyboardVisualization');
+  if (!keyboardViz) return;
+  
+  const hasKb = hasKeyboard();
+  const showKeyboard = settings.showKeyboard !== undefined ? settings.showKeyboard : true;
+  
+  if (hasKb && showKeyboard) {
+    keyboardViz.style.display = 'flex';
+  } else {
+    keyboardViz.style.display = 'none';
+  }
+}
+
+// Update keyboard visualization visibility when settings change
+function updateKeyboardVisualization() {
+  const keyboardViz = document.getElementById('keyboardVisualization');
+  if (!keyboardViz) return;
+  
+  const hasKb = hasKeyboard();
+  const showKeyboard = settings.showKeyboard !== undefined ? settings.showKeyboard : true;
+  
+  if (hasKb && showKeyboard) {
+    keyboardViz.style.display = 'flex';
+  } else {
+    keyboardViz.style.display = 'none';
+  }
+}
+
 /* ---------- Game initialization ---------- */
 if(!localStorage.getItem(LS_KEY)){
   writeSettings(defaultSettings);
@@ -3220,6 +3277,9 @@ if(!localStorage.getItem(LS_KEY)){
 resetWorld();
 document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
 document.getElementById('menu').style.display = 'flex';
+
+// Initialize keyboard visualization
+initKeyboardVisualization();
 
 // start the RAF loop
 requestAnimationFrame(mainLoop);
