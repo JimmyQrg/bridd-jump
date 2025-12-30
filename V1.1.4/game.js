@@ -36,6 +36,7 @@ resize();
 const BLOCK_SIZE = 50;
 const JUMP_SPEED = -15;
 const GRAVITY = 0.7;
+const DROP_SPEED = 30; // Downward velocity when dropping
 const TICKS_PER_SECOND = 60;
 const TICK_INTERVAL = 1000 / TICKS_PER_SECOND;
 const DELETE_OFFSET = BLOCK_SIZE * 6;
@@ -45,7 +46,8 @@ const ANIMATION_INTENSITY_BOOST = 1.2;
 let player = {
   x: 100, y: 0, width: 50, height: 50, vy: 0, speed: 11,
   color: "#0ff", hitboxScale: 0.6, jumpsLeft: 2, onGround:false, visible:true,
-  horizMultiplier:1, vertMultiplier:1, accountEmail: "player@example.com"
+  horizMultiplier:1, vertMultiplier:1, accountEmail: "player@example.com",
+  isDropping: false // Track if player is actively dropping
 };
 
 /* world arrays - EXPANDED WITH 20+ NEW EFFECTS */
@@ -534,6 +536,7 @@ function resetWorld(){
   player.onGround = false;
   player.visible = true;
   player.horizMultiplier = 1; player.vertMultiplier = 1;
+  player.isDropping = false; // Reset drop state
   playerDeathY = null; // Reset death position
 
   // reset score and color cycling
@@ -2013,18 +2016,57 @@ function addLine(){
 }
 
 /* ---------- Input handling ---------- */
+// Track touch position for drag detection
+let touchStartY = null;
+let touchStartTime = null;
+let isDraggingDown = false;
+
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
   if(["KeyW","ArrowUp","Space"].includes(e.code)) jump();
+  if(["ArrowDown","KeyS"].includes(e.code)) drop();
 });
-window.addEventListener('keyup', e => { keys[e.code] = false; });
+window.addEventListener('keyup', e => { 
+  keys[e.code] = false;
+  if(["ArrowDown","KeyS"].includes(e.code)) stopDrop();
+});
 window.addEventListener('mousedown', () => jump());
-window.addEventListener('touchstart', () => jump());
+window.addEventListener('touchstart', (e) => {
+  touchStartY = e.touches[0].clientY;
+  touchStartTime = Date.now();
+  isDraggingDown = false;
+  // Allow tap to jump
+  jump();
+});
+window.addEventListener('touchmove', (e) => {
+  if(touchStartY !== null) {
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - touchStartY;
+    
+    // If dragging down more than 30px, activate drop
+    if(deltaY > 30 && !isDraggingDown) {
+      isDraggingDown = true;
+      drop();
+    }
+    // If dragging up, cancel drop
+    else if(deltaY < -10 && isDraggingDown) {
+      isDraggingDown = false;
+      stopDrop();
+    }
+  }
+});
+window.addEventListener('touchend', () => {
+  touchStartY = null;
+  touchStartTime = null;
+  isDraggingDown = false;
+  stopDrop();
+});
 
 function jump(){
   if(!player.visible) return;
   if(cheats.infiniteJump || player.jumpsLeft > 0){
     player.vy = JUMP_SPEED;
+    player.isDropping = false; // Stop dropping when jumping
     spawnParticlesEarly(player.x + player.width/2, player.y + player.height, 
                        player.jumpsLeft === 2 ? "jump" : "double", 
                        runtime.effects.jumpEffectMul);
@@ -2044,6 +2086,19 @@ function jump(){
       screenShake = 3 * runtime.advanced.screenShakeMul;
     }
   }
+}
+
+function drop(){
+  if(!player.visible) return;
+  player.isDropping = true;
+  // Set downward velocity for fast drop
+  if(player.vy < DROP_SPEED) {
+    player.vy = DROP_SPEED;
+  }
+}
+
+function stopDrop(){
+  player.isDropping = false;
 }
 
 /* ---------- OPTIMIZED MEMORY MANAGEMENT ---------- */
@@ -2270,7 +2325,14 @@ function gameTick() {
     // FIXED PHYSICS: No delta time scaling - runs at fixed 60 TPS
     player.y += player.vy * player.vertMultiplier;
     if(cheats.float && player.vy > 0) player.vy *= 0.5;
-    player.vy += GRAVITY * player.vertMultiplier;
+    
+    // Apply drop speed if actively dropping
+    if(player.isDropping && player.vy < DROP_SPEED) {
+      player.vy = Math.min(player.vy + GRAVITY * 3, DROP_SPEED); // Accelerate faster when dropping
+    } else {
+      player.vy += GRAVITY * player.vertMultiplier;
+    }
+    
     player.x += player.speed * player.horizMultiplier;
 
     // platform collision
@@ -2278,11 +2340,13 @@ function gameTick() {
     for(let plat of platforms){
       if(player.x + player.width > plat.x && player.x < plat.x + plat.width &&
          player.y + player.height > plat.y && player.y + player.height < plat.y + plat.height + player.vy + 1){
-        if(player.vy >= 0){
+        // Allow dropping through platforms when actively dropping (only if moving down fast)
+        if(player.vy >= 0 && !(player.isDropping && player.vy > GRAVITY * 2)){
           player.y = plat.y - player.height;
           player.vy = 0;
           player.onGround = true;
           player.jumpsLeft = 2;
+          player.isDropping = false; // Stop dropping when landing
           spawnParticlesEarly(player.x + player.width/2, player.y + player.height, "land", runtime.effects.walkEffectMul);
           
           // Create impact wave on landing
