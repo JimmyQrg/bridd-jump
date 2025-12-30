@@ -585,6 +585,15 @@
     const loader = createLoadingScreen();
     updateLoaderStatus('Applying code...');
     
+    // Verify code was saved to sessionStorage
+    const savedCode = sessionStorage.getItem(storageKey);
+    if (!savedCode || savedCode !== code) {
+      console.error('Failed to save code to sessionStorage');
+      updateLoaderStatus('Error: Failed to save code');
+      setTimeout(() => removeLoadingScreen(), 2000);
+      return;
+    }
+    
     // Remove old game script and state
     try {
       // Stop game loops - find and cancel the actual animation frame ID
@@ -714,9 +723,20 @@
         
         // Wait one frame for DOM to settle
         requestAnimationFrame(() => {
-          // Load new code
+          // Load new code FROM SESSIONSTORAGE (not from editor variable)
+          const storageKey = `briddCode_${getVersionPath()}`;
+          const codeFromStorage = sessionStorage.getItem(storageKey);
+          
+          if (!codeFromStorage) {
+            console.error('Code not found in sessionStorage after save');
+            updateLoaderStatus('Error: Code not in sessionStorage');
+            setTimeout(() => removeLoadingScreen(), 2000);
+            return;
+          }
+          
+          // Load new code from sessionStorage
           const newScript = document.createElement('script');
-          newScript.textContent = code;
+          newScript.textContent = codeFromStorage;
           newScript.setAttribute('data-source', 'sessionStorage');
           
           // Add error handler
@@ -760,6 +780,8 @@
                   alert('Warning: Game code may not have loaded properly.\n\nCheck the browser console (F12) for errors.\n\nYou may need to refresh the page.');
                 } else {
                   console.log('Game code applied successfully. You can now click START.');
+                  // Re-initialize intercept to ensure future script loads use sessionStorage
+                  interceptGameJs();
                 }
               }, 500);
             }, 600);
