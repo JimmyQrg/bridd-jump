@@ -2843,20 +2843,23 @@ function draw(){
 
   // platforms
   for(let plat of platforms){
-    // FIXED: Texture should be ON when blockTextureMul > 0, OFF when = 0
+    // Texture should be ON when blockTextureMul > 0, OFF when = 0
     const useTexture = runtime.effects.blockTextureMul > 0;
     if(useTexture){
-      for(let y = plat.y; y < canvas.height; y += BLOCK_SIZE){
-        let dark = (y === plat.y) ? 1 : 0.3;
-        const grd = ctx.createLinearGradient(plat.x - cameraX, y - cameraY, plat.x + plat.width - cameraX, y + BLOCK_SIZE - cameraY);
-        grd.addColorStop(0, `rgba(${Math.floor(plat.color.r*dark)},${Math.floor(plat.color.g*dark)},${Math.floor(plat.color.b*dark)},1)`);
-        grd.addColorStop(1, "rgba(0,0,0,1)");
+      // When texture is ON: horizontal gradient from left (color) to right (black)
+      for(let y = plat.y; y < plat.y + plat.height; y += BLOCK_SIZE){
+        const blockHeight = Math.min(BLOCK_SIZE, plat.y + plat.height - y);
+        // Horizontal gradient: left (color) to right (black)
+        const grd = ctx.createLinearGradient(plat.x - cameraX, y - cameraY, plat.x + plat.width - cameraX, y - cameraY);
+        grd.addColorStop(0, `rgb(${plat.color.r},${plat.color.g},${plat.color.b})`);
+        grd.addColorStop(1, "rgb(0,0,0)");
         ctx.fillStyle = grd;
         if(runtime.glowEnabled){ ctx.shadowColor = `rgba(${plat.color.r},${plat.color.g},${plat.color.b},0.9)`; ctx.shadowBlur = plat === platforms[0] ? 12 : 0; }
-        ctx.fillRect(plat.x - cameraX, y - cameraY, plat.width, BLOCK_SIZE);
+        ctx.fillRect(plat.x - cameraX, y - cameraY, plat.width, blockHeight);
         ctx.shadowBlur = 0;
       }
     } else {
+      // When texture is OFF: full block is solid color (no gradient, no black)
       // Use platform pulse effect if enabled
       if(runtime.platformPulseEnabled) {
         const pulse = Math.sin(plat.pulsePhase) * 0.2 + 0.8;
@@ -2867,7 +2870,9 @@ function draw(){
       } else {
         ctx.fillStyle = `rgb(${plat.color.r},${plat.color.g},${plat.color.b})`;
       }
+      if(runtime.glowEnabled){ ctx.shadowColor = `rgba(${plat.color.r},${plat.color.g},${plat.color.b},0.9)`; ctx.shadowBlur = plat === platforms[0] ? 12 : 0; }
       ctx.fillRect(plat.x - cameraX, plat.y - cameraY, plat.width, plat.height);
+      ctx.shadowBlur = 0;
     }
   }
 
@@ -3300,6 +3305,45 @@ function startGame(){
 }
 
 document.getElementById('startBtn').addEventListener('click', startGame);
+
+/* ---------- Fullscreen button ---------- */
+document.getElementById('fullscreenBtn').addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    // Enter fullscreen
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen();
+    } else if (document.documentElement.webkitRequestFullscreen) {
+      document.documentElement.webkitRequestFullscreen();
+    } else if (document.documentElement.msRequestFullscreen) {
+      document.documentElement.msRequestFullscreen();
+    }
+  } else {
+    // Exit fullscreen
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
+  }
+});
+
+// Update button text based on fullscreen state
+document.addEventListener('fullscreenchange', updateFullscreenButton);
+document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+document.addEventListener('msfullscreenchange', updateFullscreenButton);
+
+function updateFullscreenButton() {
+  const fullscreenBtn = document.getElementById('fullscreenBtn');
+  if (fullscreenBtn) {
+    if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+      fullscreenBtn.textContent = 'EXIT FULLSCREEN';
+    } else {
+      fullscreenBtn.textContent = 'FULLSCREEN';
+    }
+  }
+}
 
 /* ---------- Settings button ---------- */
 document.getElementById('settingsBtn').addEventListener('click', () => {
