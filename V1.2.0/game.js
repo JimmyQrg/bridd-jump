@@ -545,6 +545,15 @@ function resetWorld(){
   player.isDropping = false; // Reset drop state
   playerDeathY = null; // Reset death position
 
+  // Reset input flags
+  jumpKeyPressed = false;
+  dropKeyPressed = false;
+  mousePressed = false;
+  touchPressed = false;
+  isDraggingDown = false;
+  touchStartY = null;
+  touchStartTime = null;
+
   // reset score and color cycling
   score = 0; colorLerp = 0; globalTime = 0;
   colorIndex = 0; platformColor = {...baseColors[0]}; nextColor = baseColors[1];
@@ -2027,25 +2036,58 @@ let touchStartY = null;
 let touchStartTime = null;
 let isDraggingDown = false;
 
+// Track if keys/touches are currently pressed to prevent re-triggering
+let jumpKeyPressed = false;
+let dropKeyPressed = false;
+let mousePressed = false;
+let touchPressed = false;
+
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
-  if(["KeyW","ArrowUp","Space"].includes(e.code)) jump();
-  if(["ArrowDown","KeyS"].includes(e.code)) drop();
+  if(["KeyW","ArrowUp","Space"].includes(e.code)) {
+    if(!jumpKeyPressed) {
+      jumpKeyPressed = true;
+      jump();
+    }
+  }
+  if(["ArrowDown","KeyS"].includes(e.code)) {
+    if(!dropKeyPressed) {
+      dropKeyPressed = true;
+      drop();
+    }
+  }
 });
 window.addEventListener('keyup', e => { 
   keys[e.code] = false;
-  if(["ArrowDown","KeyS"].includes(e.code)) stopDrop();
+  if(["KeyW","ArrowUp","Space"].includes(e.code)) {
+    jumpKeyPressed = false;
+  }
+  if(["ArrowDown","KeyS"].includes(e.code)) {
+    dropKeyPressed = false;
+    stopDrop();
+  }
 });
-window.addEventListener('mousedown', () => jump());
+window.addEventListener('mousedown', () => {
+  if(!mousePressed) {
+    mousePressed = true;
+    jump();
+  }
+});
+window.addEventListener('mouseup', () => {
+  mousePressed = false;
+});
 window.addEventListener('touchstart', (e) => {
-  touchStartY = e.touches[0].clientY;
-  touchStartTime = Date.now();
-  isDraggingDown = false;
-  // Allow tap to jump
-  jump();
+  if(!touchPressed) {
+    touchPressed = true;
+    touchStartY = e.touches[0].clientY;
+    touchStartTime = Date.now();
+    isDraggingDown = false;
+    // Allow tap to jump
+    jump();
+  }
 });
 window.addEventListener('touchmove', (e) => {
-  if(touchStartY !== null) {
+  if(touchStartY !== null && touchPressed) {
     const currentY = e.touches[0].clientY;
     const deltaY = currentY - touchStartY;
     
@@ -2062,6 +2104,7 @@ window.addEventListener('touchmove', (e) => {
   }
 });
 window.addEventListener('touchend', () => {
+  touchPressed = false;
   touchStartY = null;
   touchStartTime = null;
   isDraggingDown = false;
@@ -3125,6 +3168,18 @@ window.addEventListener('keydown', function(e){
 
 // Mobile command button
 document.getElementById('mobileCommandBtn').addEventListener('click', openCommandPrompt);
+
+// How to Play button
+document.getElementById('howToPlayBtn').addEventListener('click', () => {
+  document.getElementById('howToPlayModal').classList.add('show');
+});
+
+// Close modal when clicking outside (optional)
+document.getElementById('howToPlayModal').addEventListener('click', (e) => {
+  if(e.target.id === 'howToPlayModal') {
+    document.getElementById('howToPlayModal').classList.remove('show');
+  }
+});
 
 /* ---------- Start / Reset Game ---------- */
 function startGame(){
