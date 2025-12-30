@@ -2867,18 +2867,20 @@ function draw(){
     // Texture should be ON when blockTextureMul > 0, OFF when = 0
     const useTexture = runtime.effects.blockTextureMul > 0;
     if(useTexture){
-      // When texture is ON: horizontal gradient from left (color) to right (black)
-      for(let y = plat.y; y < plat.y + plat.height; y += BLOCK_SIZE){
-        const blockHeight = Math.min(BLOCK_SIZE, plat.y + plat.height - y);
-        // Horizontal gradient: left (color) to right (black)
-        const grd = ctx.createLinearGradient(plat.x - cameraX, y - cameraY, plat.x + plat.width - cameraX, y - cameraY);
-        grd.addColorStop(0, `rgb(${plat.color.r},${plat.color.g},${plat.color.b})`);
-        grd.addColorStop(1, "rgb(0,0,0)");
-        ctx.fillStyle = grd;
-        if(runtime.glowEnabled){ ctx.shadowColor = `rgba(${plat.color.r},${plat.color.g},${plat.color.b},0.9)`; ctx.shadowBlur = plat === platforms[0] ? 12 : 0; }
-        ctx.fillRect(plat.x - cameraX, y - cameraY, plat.width, blockHeight);
-        ctx.shadowBlur = 0;
-      }
+      // When texture is ON: diagonal gradient from top-left (color) to bottom-right (black)
+      // Create diagonal gradient across the entire platform
+      const grd = ctx.createLinearGradient(
+        plat.x - cameraX, 
+        plat.y - cameraY, 
+        plat.x + plat.width - cameraX, 
+        plat.y + plat.height - cameraY
+      );
+      grd.addColorStop(0, `rgb(${plat.color.r},${plat.color.g},${plat.color.b})`);
+      grd.addColorStop(1, "rgb(0,0,0)");
+      ctx.fillStyle = grd;
+      if(runtime.glowEnabled){ ctx.shadowColor = `rgba(${plat.color.r},${plat.color.g},${plat.color.b},0.9)`; ctx.shadowBlur = plat === platforms[0] ? 12 : 0; }
+      ctx.fillRect(plat.x - cameraX, plat.y - cameraY, plat.width, plat.height);
+      ctx.shadowBlur = 0;
     } else {
       // When texture is OFF: full block is solid color (no gradient, no black)
       // Use platform pulse effect if enabled
