@@ -773,11 +773,14 @@ function initializeParallaxLayers(){
   
   for(let i = 0; i < Math.floor(5 * runtime.advanced.parallaxLayersMul); i++){
     const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
+    const sizeSpeedFactor = Math.random() * 0.9 + 0.1; // Random value between 0.1~1.0 (lower = larger/faster)
+    const baseWidth = 200; // Base width
+    const baseSpeed = 0.3 * player.speed * (i + 1) * 0.2; // Base speed
     parallaxLayers.push({
       y: cameraY + (Math.random() - 0.5) * canvas.height * 3, // Expanded 3x height, centered on cameraY
-      width: Math.random() * 300 + 100,
+      width: baseWidth / sizeSpeedFactor, // Lower factor = larger width
       height: Math.random() * 3 + 1,
-      speed: (Math.random() * 0.5 + 0.1) * player.speed * (i + 1) * 0.2,
+      speed: baseSpeed / sizeSpeedFactor, // Lower factor = faster speed
       x: Math.random() * canvas.width * 2,
       color: `rgba(100, 100, 255, ${Math.random() * 0.1 + 0.05})`,
       depth: i + 1,
@@ -801,8 +804,13 @@ function updateParallaxLayers(){
     if(layer.x + layer.width < 0){
       layer.x = canvas.width + Math.random() * canvas.width;
       const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
+      const sizeSpeedFactor = Math.random() * 0.9 + 0.1; // Random value between 0.1~1.0 (lower = larger/faster)
+      const baseWidth = 200; // Base width
+      const baseSpeed = 0.3 * player.speed * layer.depth * 0.2; // Base speed
       layer.y = cameraY + (Math.random() - 0.5) * canvas.height * 3; // Expanded 3x height, centered on cameraY
       layer.moveY = moveY; // Update the parallax movement value
+      layer.width = baseWidth / sizeSpeedFactor; // Lower factor = larger width
+      layer.speed = baseSpeed / sizeSpeedFactor; // Lower factor = faster speed
     }
   }
 }
@@ -930,12 +938,15 @@ function createWindParticles(){
   
   for(let i = 0; i < Math.floor(5 * runtime.advanced.windParticlesMul * ANIMATION_INTENSITY_BOOST); i++){
     const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
+    const sizeSpeedFactor = Math.random() * 0.9 + 0.1; // Random value between 0.1~1.0 (lower = larger/faster)
+    const baseSize = 2.5; // Base size
+    const baseSpeed = 12.5; // Base speed
     windParticles.push({
       x: player.x + canvas.width + Math.random() * 100,
       y: cameraY + (Math.random() - 0.5) * canvas.height * 3, // Expanded 3x height, centered on cameraY
-      vx: -(Math.random() * 15 + 10) * player.speed * 0.12 * ANIMATION_INTENSITY_BOOST,
+      vx: -(baseSpeed / sizeSpeedFactor) * player.speed * 0.12 * ANIMATION_INTENSITY_BOOST,
       vy: (Math.random() - 0.5) * 4,
-      size: Math.random() * 4 + 1,
+      size: baseSize / sizeSpeedFactor,
       life: Math.random() * 100 + 50,
       color: `rgba(200, 220, 255, ${Math.random() * 0.3 + 0.1})`,
       moveY: moveY // Store the parallax movement value
@@ -1008,11 +1019,14 @@ function updateStarRush(){
   // Spawn new stars streaming past the player
   if(Math.random() < 0.75 * runtime.advanced.starRushMul * ANIMATION_INTENSITY_BOOST){
     const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
+    const sizeSpeedFactor = Math.random() * 0.9 + 0.1; // Random value between 0.1~1.0 (lower = larger/faster)
+    const baseSize = 2.0; // Base size
+    const baseSpeed = player.speed * 0.8 + 9; // Base speed
     starRush.push({
       x: player.x + canvas.width + Math.random() * 300,
       y: cameraY + (Math.random() - 0.5) * canvas.height * 3, // Expanded 3x height, centered on cameraY
-      vx: -(player.speed * 0.8 + Math.random() * 18) * 0.6,
-      size: Math.random() * 3 + 1,
+      vx: -(baseSpeed / sizeSpeedFactor) * 0.6,
+      size: baseSize / sizeSpeedFactor,
       life: 120,
       color: Math.random() > 0.5 ? "#aef" : "#6ff",
       moveY: moveY // Store the parallax movement value
@@ -1055,12 +1069,15 @@ function updateNebulaDust(){
   if(!runtime.nebulaDustEnabled) return;
   if(Math.random() < 0.35 * runtime.advanced.nebulaDustMul * ANIMATION_INTENSITY_BOOST){
     const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
+    const sizeSpeedFactor = Math.random() * 0.9 + 0.1; // Random value between 0.1~1.0 (lower = larger/faster)
+    const baseSize = 50; // Base size
+    const baseSpeed = 5; // Base speed
     nebulaDust.push({
       x: player.x + canvas.width + Math.random() * 200,
       y: cameraY + (Math.random() - 0.5) * canvas.height * 3, // Expanded 3x height, centered on cameraY
-      vx: -(Math.random() * 6 + 4),
+      vx: -(baseSpeed / sizeSpeedFactor),
       vy: (Math.random() - 0.5) * 0.8,
-      size: Math.random() * 70 + 30,
+      size: baseSize / sizeSpeedFactor,
       life: 260,
       alpha: Math.random() * 0.25 + 0.1,
       hue: Math.random() * 60 + 190,
@@ -2178,11 +2195,14 @@ function addLine(){
   const lineStartX = playerRightEdge + (BLOCK_SIZE * 20) + Math.random() * BLOCK_SIZE * 4;
   
   const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
+  const sizeSpeedFactor = Math.random() * 0.9 + 0.1; // Random value between 0.1~1.0 (lower = larger/faster)
+  const baseWidth = 100; // Base width
+  const baseSpeed = player.speed * 2.5; // Base speed
   lines.push({ 
     x: lineStartX, 
     y: cameraY + (Math.random() - 0.5) * canvas.height * 3, // Expanded 3x height, centered on cameraY
-    width: Math.random() * 150 + 50, // Wider lines
-    speed: player.speed * 2.5, // Faster movement
+    width: baseWidth / sizeSpeedFactor, // Lower factor = larger width
+    speed: baseSpeed / sizeSpeedFactor, // Lower factor = faster speed
     passed: false,
     moveY: moveY // Store the parallax movement value
   });
