@@ -38,7 +38,7 @@ const defaultSettings = {
     depthOfField: 100,
     windParticles: 100,
     speedLines: 100,
-    timeDilation: 100,
+      timeDilation: 0,
     lensFlare: 100,
     screenTear: 100,
     dynamicFog: 100,
