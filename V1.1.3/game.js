@@ -39,6 +39,7 @@ const GRAVITY = 0.7;
 const TICKS_PER_SECOND = 60;
 const TICK_INTERVAL = 1000 / TICKS_PER_SECOND;
 const DELETE_OFFSET = BLOCK_SIZE * 6;
+const ANIMATION_INTENSITY_BOOST = 1.2;
 
 /* Player object blueprint */
 let player = {
@@ -55,6 +56,9 @@ let parallaxLayers = [], velocityStreaks = [], impactWaves = [], platformPulses 
 let windParticles = [], speedLines = [], lensFlares = [], screenTears = [];
 let dynamicFog = [], heatDistortions = [], starbursts = [], afterImages = [];
 let gravityWaves = [], energyRipples = [], pixelDisplacements = [];
+let starRush = [], nebulaDust = [], warpTunnels = [], boostFlares = [], contrailJets = [];
+let edgeLightnings = [], compressionRings = [];
+let deathImplosions = [], deathGlitches = [], deathVapors = [];
 
 /* gameplay */
 let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
@@ -121,7 +125,17 @@ const defaultSettings = {
     energyRipples: 100,
     pixelDisplacement: 100,
     ambientOcclusion: 100,
-    radialBlur: 100
+    radialBlur: 100,
+    starRush: 100,
+    nebulaDust: 100,
+    warpTunnel: 100,
+    boostFlash: 100,
+    contrailJets: 100,
+    edgeLightning: 100,
+    compressionRings: 100,
+    deathImplode: 100,
+    deathGlitch: 100,
+    deathVaporize: 100
   }
 };
 
@@ -133,7 +147,9 @@ const qualityPresets = {
     parallaxLayers:0, velocityStreaks:0, impactWaves:0, platformPulse:0, colorBleed:0,
     depthOfField:0, windParticles:0, speedLines:0, timeDilation:0, lensFlare:0,
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
-    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0
+    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0,
+    starRush:0, nebulaDust:0, warpTunnel:0, boostFlash:0, contrailJets:0, edgeLightning:0, compressionRings:0,
+    deathImplode:0, deathGlitch:0, deathVaporize:0
   },
   "Low": {
     blockTexture:1, jumpEffect:5, walkEffect:0, dieEffect:0, horizontalLines:0, trail:0, glow:0, lines:false,
@@ -142,7 +158,9 @@ const qualityPresets = {
     parallaxLayers:10, velocityStreaks:0, impactWaves:0, platformPulse:0, colorBleed:0,
     depthOfField:0, windParticles:10, speedLines:10, timeDilation:0, lensFlare:0,
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
-    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0
+    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0,
+    starRush:10, nebulaDust:5, warpTunnel:0, boostFlash:0, contrailJets:10, edgeLightning:0, compressionRings:0,
+    deathImplode:5, deathGlitch:5, deathVaporize:5
   },
   "Medium": {
     blockTexture:1, jumpEffect:10, walkEffect:0, dieEffect:10, horizontalLines:0, trail:0, glow:0, lines:false,
@@ -151,7 +169,9 @@ const qualityPresets = {
     parallaxLayers:25, velocityStreaks:10, impactWaves:10, platformPulse:10, colorBleed:0,
     depthOfField:10, windParticles:25, speedLines:25, timeDilation:0, lensFlare:0,
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
-    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0
+    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0,
+    starRush:25, nebulaDust:15, warpTunnel:10, boostFlash:10, contrailJets:25, edgeLightning:10, compressionRings:10,
+    deathImplode:15, deathGlitch:15, deathVaporize:15
   },
   "Medium+": {
     blockTexture:1, jumpEffect:15, walkEffect:15, dieEffect:15, horizontalLines:0, trail:0, glow:0, lines:false,
@@ -160,7 +180,9 @@ const qualityPresets = {
     parallaxLayers:50, velocityStreaks:25, impactWaves:25, platformPulse:25, colorBleed:10,
     depthOfField:25, windParticles:50, speedLines:50, timeDilation:10, lensFlare:10,
     screenTear:0, dynamicFog:10, heatDistortion:10, starbursts:10, afterImages:10,
-    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:10, radialBlur:10
+    gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:10, radialBlur:10,
+    starRush:50, nebulaDust:35, warpTunnel:25, boostFlash:25, contrailJets:50, edgeLightning:25, compressionRings:25,
+    deathImplode:25, deathGlitch:25, deathVaporize:25
   },
   "High": {
     blockTexture:1, jumpEffect:15, walkEffect:15, dieEffect:15, horizontalLines:15, trail:0, glow:0, lines:true,
@@ -169,7 +191,9 @@ const qualityPresets = {
     parallaxLayers:75, velocityStreaks:50, impactWaves:50, platformPulse:50, colorBleed:25,
     depthOfField:50, windParticles:75, speedLines:75, timeDilation:25, lensFlare:25,
     screenTear:10, dynamicFog:25, heatDistortion:25, starbursts:25, afterImages:25,
-    gravityWaves:10, energyRipples:10, pixelDisplacement:10, ambientOcclusion:25, radialBlur:25
+    gravityWaves:10, energyRipples:10, pixelDisplacement:10, ambientOcclusion:25, radialBlur:25,
+    starRush:75, nebulaDust:50, warpTunnel:50, boostFlash:50, contrailJets:75, edgeLightning:50, compressionRings:50,
+    deathImplode:50, deathGlitch:50, deathVaporize:50
   },
   "High+": {
     blockTexture:1, jumpEffect:33, walkEffect:33, dieEffect:33, horizontalLines:33, trail:0, glow:0, lines:true,
@@ -178,7 +202,9 @@ const qualityPresets = {
     parallaxLayers:100, velocityStreaks:75, impactWaves:75, platformPulse:75, colorBleed:50,
     depthOfField:75, windParticles:100, speedLines:100, timeDilation:50, lensFlare:50,
     screenTear:25, dynamicFog:50, heatDistortion:50, starbursts:50, afterImages:50,
-    gravityWaves:25, energyRipples:25, pixelDisplacement:25, ambientOcclusion:50, radialBlur:50
+    gravityWaves:25, energyRipples:25, pixelDisplacement:25, ambientOcclusion:50, radialBlur:50,
+    starRush:100, nebulaDust:75, warpTunnel:75, boostFlash:75, contrailJets:100, edgeLightning:75, compressionRings:75,
+    deathImplode:75, deathGlitch:75, deathVaporize:75
   },
   "Extreme": {
     blockTexture:1, jumpEffect:60, walkEffect:60, dieEffect:60, horizontalLines:60, trail:0, glow:0, lines:true,
@@ -187,7 +213,9 @@ const qualityPresets = {
     parallaxLayers:125, velocityStreaks:100, impactWaves:100, platformPulse:100, colorBleed:75,
     depthOfField:100, windParticles:125, speedLines:125, timeDilation:75, lensFlare:75,
     screenTear:50, dynamicFog:75, heatDistortion:75, starbursts:75, afterImages:75,
-    gravityWaves:50, energyRipples:50, pixelDisplacement:50, ambientOcclusion:75, radialBlur:75
+    gravityWaves:50, energyRipples:50, pixelDisplacement:50, ambientOcclusion:75, radialBlur:75,
+    starRush:125, nebulaDust:100, warpTunnel:100, boostFlash:100, contrailJets:125, edgeLightning:100, compressionRings:100,
+    deathImplode:100, deathGlitch:100, deathVaporize:100
   },
   "Extreme+": {
     blockTexture:1, jumpEffect:64, walkEffect:64, dieEffect:64, horizontalLines:64, trail:1, glow:1, lines:true,
@@ -196,7 +224,9 @@ const qualityPresets = {
     parallaxLayers:150, velocityStreaks:125, impactWaves:125, platformPulse:125, colorBleed:100,
     depthOfField:125, windParticles:150, speedLines:150, timeDilation:100, lensFlare:100,
     screenTear:75, dynamicFog:100, heatDistortion:100, starbursts:100, afterImages:100,
-    gravityWaves:75, energyRipples:75, pixelDisplacement:75, ambientOcclusion:100, radialBlur:100
+    gravityWaves:75, energyRipples:75, pixelDisplacement:75, ambientOcclusion:100, radialBlur:100,
+    starRush:150, nebulaDust:125, warpTunnel:125, boostFlash:125, contrailJets:150, edgeLightning:125, compressionRings:125,
+    deathImplode:125, deathGlitch:125, deathVaporize:125
   },
   "Ultra": {
     blockTexture:1, jumpEffect:100, walkEffect:100, dieEffect:100, horizontalLines:100, trail:0, glow:1, lines:true,
@@ -205,7 +235,9 @@ const qualityPresets = {
     parallaxLayers:175, velocityStreaks:150, impactWaves:150, platformPulse:150, colorBleed:125,
     depthOfField:150, windParticles:175, speedLines:175, timeDilation:125, lensFlare:125,
     screenTear:100, dynamicFog:125, heatDistortion:125, starbursts:125, afterImages:125,
-    gravityWaves:100, energyRipples:100, pixelDisplacement:100, ambientOcclusion:125, radialBlur:125
+    gravityWaves:100, energyRipples:100, pixelDisplacement:100, ambientOcclusion:125, radialBlur:125,
+    starRush:175, nebulaDust:150, warpTunnel:150, boostFlash:150, contrailJets:175, edgeLightning:150, compressionRings:150,
+    deathImplode:150, deathGlitch:150, deathVaporize:150
   },
   "Ultra+": {
     blockTexture:1, jumpEffect:120, walkEffect:120, dieEffect:120, horizontalLines:120, trail:1, glow:1, lines:true,
@@ -214,7 +246,9 @@ const qualityPresets = {
     parallaxLayers:200, velocityStreaks:175, impactWaves:175, platformPulse:175, colorBleed:150,
     depthOfField:175, windParticles:200, speedLines:200, timeDilation:150, lensFlare:150,
     screenTear:125, dynamicFog:150, heatDistortion:150, starbursts:150, afterImages:150,
-    gravityWaves:125, energyRipples:125, pixelDisplacement:125, ambientOcclusion:150, radialBlur:150
+    gravityWaves:125, energyRipples:125, pixelDisplacement:125, ambientOcclusion:150, radialBlur:150,
+    starRush:200, nebulaDust:175, warpTunnel:175, boostFlash:175, contrailJets:200, edgeLightning:175, compressionRings:175,
+    deathImplode:175, deathGlitch:175, deathVaporize:175
   },
   "Ultra++": {
     blockTexture:1, jumpEffect:200, walkEffect:200, dieEffect:200, horizontalLines:200, trail:1, glow:1.5, lines:true,
@@ -223,7 +257,9 @@ const qualityPresets = {
     parallaxLayers:225, velocityStreaks:200, impactWaves:200, platformPulse:200, colorBleed:175,
     depthOfField:200, windParticles:225, speedLines:225, timeDilation:175, lensFlare:175,
     screenTear:150, dynamicFog:175, heatDistortion:175, starbursts:175, afterImages:175,
-    gravityWaves:150, energyRipples:150, pixelDisplacement:150, ambientOcclusion:175, radialBlur:175
+    gravityWaves:150, energyRipples:150, pixelDisplacement:150, ambientOcclusion:175, radialBlur:175,
+    starRush:225, nebulaDust:200, warpTunnel:200, boostFlash:200, contrailJets:225, edgeLightning:200, compressionRings:200,
+    deathImplode:200, deathGlitch:200, deathVaporize:200
   },
   "Highest": {
     blockTexture:1, jumpEffect:200, walkEffect:200, dieEffect:200, horizontalLines:200, trail:1, glow:2, lines:true,
@@ -232,7 +268,9 @@ const qualityPresets = {
     parallaxLayers:250, velocityStreaks:250, impactWaves:250, platformPulse:250, colorBleed:200,
     depthOfField:250, windParticles:250, speedLines:250, timeDilation:200, lensFlare:200,
     screenTear:200, dynamicFog:200, heatDistortion:200, starbursts:200, afterImages:200,
-    gravityWaves:200, energyRipples:200, pixelDisplacement:200, ambientOcclusion:200, radialBlur:200
+    gravityWaves:200, energyRipples:200, pixelDisplacement:200, ambientOcclusion:200, radialBlur:200,
+    starRush:250, nebulaDust:225, warpTunnel:225, boostFlash:225, contrailJets:250, edgeLightning:225, compressionRings:225,
+    deathImplode:225, deathGlitch:225, deathVaporize:225
   }
 };
 
@@ -299,7 +337,17 @@ let runtime = {
     energyRipplesMul: 1,
     pixelDisplacementMul: 1,
     ambientOcclusionMul: 1,
-    radialBlurMul: 1
+    radialBlurMul: 1,
+    starRushMul: 1,
+    nebulaDustMul: 1,
+    warpTunnelMul: 1,
+    boostFlashMul: 1,
+    contrailJetsMul: 1,
+    edgeLightningMul: 1,
+    compressionRingsMul: 1,
+    deathImplodeMul: 1,
+    deathGlitchMul: 1,
+    deathVaporizeMul: 1
   },
   glowEnabled: true,
   linesEnabled: true,
@@ -331,7 +379,17 @@ let runtime = {
   energyRipplesEnabled: true,
   pixelDisplacementEnabled: true,
   ambientOcclusionEnabled: true,
-  radialBlurEnabled: true
+  radialBlurEnabled: true,
+  starRushEnabled: true,
+  nebulaDustEnabled: true,
+  warpTunnelEnabled: true,
+  boostFlashEnabled: true,
+  contrailJetsEnabled: true,
+  edgeLightningEnabled: true,
+  compressionRingsEnabled: true,
+  deathImplodeEnabled: true,
+  deathGlitchEnabled: true,
+  deathVaporizeEnabled: true
 };
 
 function applySettings(s){
@@ -386,6 +444,16 @@ function applySettings(s){
   runtime.advanced.pixelDisplacementMul = pct(settings.advanced.pixelDisplacement) || (preset.pixelDisplacement ? preset.pixelDisplacement/100 : 0);
   runtime.advanced.ambientOcclusionMul = pct(settings.advanced.ambientOcclusion) || (preset.ambientOcclusion ? preset.ambientOcclusion/100 : 0);
   runtime.advanced.radialBlurMul = pct(settings.advanced.radialBlur) || (preset.radialBlur ? preset.radialBlur/100 : 0);
+  runtime.advanced.starRushMul = pct(settings.advanced.starRush) || (preset.starRush ? preset.starRush/100 : 0);
+  runtime.advanced.nebulaDustMul = pct(settings.advanced.nebulaDust) || (preset.nebulaDust ? preset.nebulaDust/100 : 0);
+  runtime.advanced.warpTunnelMul = pct(settings.advanced.warpTunnel) || (preset.warpTunnel ? preset.warpTunnel/100 : 0);
+  runtime.advanced.boostFlashMul = pct(settings.advanced.boostFlash) || (preset.boostFlash ? preset.boostFlash/100 : 0);
+  runtime.advanced.contrailJetsMul = pct(settings.advanced.contrailJets) || (preset.contrailJets ? preset.contrailJets/100 : 0);
+  runtime.advanced.edgeLightningMul = pct(settings.advanced.edgeLightning) || (preset.edgeLightning ? preset.edgeLightning/100 : 0);
+  runtime.advanced.compressionRingsMul = pct(settings.advanced.compressionRings) || (preset.compressionRings ? preset.compressionRings/100 : 0);
+  runtime.advanced.deathImplodeMul = pct(settings.advanced.deathImplode) || (preset.deathImplode ? preset.deathImplode/100 : 0);
+  runtime.advanced.deathGlitchMul = pct(settings.advanced.deathGlitch) || (preset.deathGlitch ? preset.deathGlitch/100 : 0);
+  runtime.advanced.deathVaporizeMul = pct(settings.advanced.deathVaporize) || (preset.deathVaporize ? preset.deathVaporize/100 : 0);
 
   // Enable/disable based on settings
   runtime.glowEnabled = (settings.quality && settings.quality.glow !== undefined) ? (settings.quality.glow > 0) : (preset.glow !== undefined ? preset.glow > 0 : true);
@@ -421,6 +489,16 @@ function applySettings(s){
   runtime.pixelDisplacementEnabled = runtime.advanced.pixelDisplacementMul > 0;
   runtime.ambientOcclusionEnabled = runtime.advanced.ambientOcclusionMul > 0;
   runtime.radialBlurEnabled = runtime.advanced.radialBlurMul > 0;
+  runtime.starRushEnabled = runtime.advanced.starRushMul > 0;
+  runtime.nebulaDustEnabled = runtime.advanced.nebulaDustMul > 0;
+  runtime.warpTunnelEnabled = runtime.advanced.warpTunnelMul > 0;
+  runtime.boostFlashEnabled = runtime.advanced.boostFlashMul > 0;
+  runtime.contrailJetsEnabled = runtime.advanced.contrailJetsMul > 0;
+  runtime.edgeLightningEnabled = runtime.advanced.edgeLightningMul > 0;
+  runtime.compressionRingsEnabled = runtime.advanced.compressionRingsMul > 0;
+  runtime.deathImplodeEnabled = runtime.advanced.deathImplodeMul > 0;
+  runtime.deathGlitchEnabled = runtime.advanced.deathGlitchMul > 0;
+  runtime.deathVaporizeEnabled = runtime.advanced.deathVaporizeMul > 0;
 
   // save canonical
   writeSettings(settings);
@@ -439,7 +517,9 @@ function resetWorld(){
   lightRays = []; parallaxLayers = []; velocityStreaks = []; impactWaves = []; platformPulses = [];
   windParticles = []; speedLines = []; lensFlares = []; screenTears = []; dynamicFog = [];
   heatDistortions = []; starbursts = []; afterImages = []; gravityWaves = []; energyRipples = [];
-  pixelDisplacements = [];
+  pixelDisplacements = []; starRush = []; nebulaDust = []; warpTunnels = []; boostFlares = [];
+  contrailJets = []; edgeLightnings = []; compressionRings = [];
+  deathImplosions = []; deathGlitches = []; deathVapors = [];
   
   screenShake = 0;
   screenFlash = 0;
@@ -593,12 +673,12 @@ function drawParallaxLayers(){
 
 /* 2. VELOCITY STREAKS - Speed lines that follow player movement */
 function createVelocityStreaks(){
-  if(!runtime.velocityStreaksEnabled || Math.random() > 0.3 * runtime.advanced.velocityStreaksMul) return;
+  if(!runtime.velocityStreaksEnabled || Math.random() > 0.3 * runtime.advanced.velocityStreaksMul / ANIMATION_INTENSITY_BOOST) return;
   
   velocityStreaks.push({
     x: player.x + player.width/2,
     y: player.y + player.height/2,
-    length: Math.random() * 100 + 50 * runtime.advanced.velocityStreaksMul,
+    length: (Math.random() * 100 + 50) * runtime.advanced.velocityStreaksMul * ANIMATION_INTENSITY_BOOST,
     angle: Math.atan2(player.vy, player.speed) + (Math.random() - 0.5) * 0.5,
     width: Math.random() * 3 + 1,
     life: 30,
@@ -644,17 +724,17 @@ function drawVelocityStreaks(){
 
 /* 3. SPEED LINES - Radial lines emanating from player */
 function createSpeedLines(){
-  if(!runtime.speedLinesEnabled || Math.random() > 0.4 * runtime.advanced.speedLinesMul) return;
+  if(!runtime.speedLinesEnabled || Math.random() > 0.4 * runtime.advanced.speedLinesMul / ANIMATION_INTENSITY_BOOST) return;
   
-  for(let i = 0; i < Math.floor(3 * runtime.advanced.speedLinesMul); i++){
+  for(let i = 0; i < Math.floor(3 * runtime.advanced.speedLinesMul * ANIMATION_INTENSITY_BOOST); i++){
     speedLines.push({
       x: player.x + player.width/2,
       y: player.y + player.height/2,
       angle: Math.random() * Math.PI * 2,
-      length: Math.random() * 80 + 40 * runtime.advanced.speedLinesMul,
-      speed: Math.random() * 10 + 5,
-      life: 20,
-      alpha: 0.4,
+      length: (Math.random() * 80 + 40) * runtime.advanced.speedLinesMul * ANIMATION_INTENSITY_BOOST,
+      speed: (Math.random() * 10 + 5) * ANIMATION_INTENSITY_BOOST,
+      life: 24,
+      alpha: 0.45,
       color: '#ffffff'
     });
   }
@@ -699,13 +779,13 @@ function drawSpeedLines(){
 
 /* 4. WIND PARTICLES - Particles blowing past player */
 function createWindParticles(){
-  if(!runtime.windParticlesEnabled || Math.random() > 0.5 * runtime.advanced.windParticlesMul) return;
+  if(!runtime.windParticlesEnabled || Math.random() > 0.5 * runtime.advanced.windParticlesMul / ANIMATION_INTENSITY_BOOST) return;
   
-  for(let i = 0; i < Math.floor(5 * runtime.advanced.windParticlesMul); i++){
+  for(let i = 0; i < Math.floor(5 * runtime.advanced.windParticlesMul * ANIMATION_INTENSITY_BOOST); i++){
     windParticles.push({
       x: player.x + canvas.width + Math.random() * 100,
       y: Math.random() * canvas.height,
-      vx: -(Math.random() * 15 + 10) * player.speed * 0.1,
+      vx: -(Math.random() * 15 + 10) * player.speed * 0.12 * ANIMATION_INTENSITY_BOOST,
       vy: (Math.random() - 0.5) * 4,
       size: Math.random() * 4 + 1,
       life: Math.random() * 100 + 50,
@@ -765,6 +845,296 @@ function applyRadialBlur(){
   ctx.restore();
 }
 
+/* ========== ADDITIONAL FORWARD SPEED EFFECTS ========== */
+
+function updateStarRush(){
+  if(!runtime.starRushEnabled) return;
+  // Spawn new stars streaming past the player
+  if(Math.random() < 0.75 * runtime.advanced.starRushMul * ANIMATION_INTENSITY_BOOST){
+    starRush.push({
+      x: player.x + canvas.width + Math.random() * 300,
+      y: Math.random() * canvas.height,
+      vx: -(player.speed * 0.8 + Math.random() * 18) * 0.6,
+      size: Math.random() * 3 + 1,
+      life: 120,
+      color: Math.random() > 0.5 ? "#aef" : "#6ff"
+    });
+  }
+  
+  for(let i = starRush.length - 1; i >= 0; i--){
+    const s = starRush[i];
+    s.x += s.vx * runtime.advanced.starRushMul * ANIMATION_INTENSITY_BOOST;
+    s.life--;
+    if(s.life <= 0 || s.x < player.x - canvas.width){
+      starRush.splice(i, 1);
+    }
+  }
+}
+
+function drawStarRush(){
+  if(!runtime.starRushEnabled || starRush.length === 0) return;
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  for(let s of starRush){
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.size;
+    ctx.beginPath();
+    ctx.moveTo(s.x - cameraX, s.y - cameraY);
+    ctx.lineTo(s.x - cameraX + s.vx * 3, s.y - cameraY);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function updateNebulaDust(){
+  if(!runtime.nebulaDustEnabled) return;
+  if(Math.random() < 0.35 * runtime.advanced.nebulaDustMul * ANIMATION_INTENSITY_BOOST){
+    nebulaDust.push({
+      x: player.x + canvas.width + Math.random() * 200,
+      y: Math.random() * canvas.height,
+      vx: -(Math.random() * 6 + 4),
+      vy: (Math.random() - 0.5) * 0.8,
+      size: Math.random() * 70 + 30,
+      life: 260,
+      alpha: Math.random() * 0.25 + 0.1,
+      hue: Math.random() * 60 + 190
+    });
+  }
+  
+  for(let i = nebulaDust.length - 1; i >= 0; i--){
+    const d = nebulaDust[i];
+    d.x += d.vx * runtime.advanced.nebulaDustMul * 0.5;
+    d.y += d.vy;
+    d.life--;
+    if(d.life <= 0 || d.x < player.x - canvas.width * 0.5){
+      nebulaDust.splice(i, 1);
+    }
+  }
+}
+
+function drawNebulaDust(){
+  if(!runtime.nebulaDustEnabled || nebulaDust.length === 0) return;
+  ctx.save();
+  for(let d of nebulaDust){
+    const gradient = ctx.createRadialGradient(
+      d.x - cameraX, d.y - cameraY, d.size * 0.1,
+      d.x - cameraX, d.y - cameraY, d.size
+    );
+    gradient.addColorStop(0, `hsla(${Math.floor(d.hue)}, 80%, 65%, ${d.alpha})`);
+    gradient.addColorStop(1, `hsla(${Math.floor(d.hue)}, 80%, 65%, 0)`);
+    ctx.fillStyle = gradient;
+    ctx.globalAlpha = d.life / 260;
+    ctx.beginPath();
+    ctx.arc(d.x - cameraX, d.y - cameraY, d.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function spawnWarpTunnel(){
+  if(!runtime.warpTunnelEnabled) return;
+  if(warpTunnels.length > 10) return;
+  warpTunnels.push({
+    radius: player.width,
+    width: 4,
+    alpha: 0.25 * runtime.advanced.warpTunnelMul,
+    speed: (12 + player.speed) * runtime.advanced.warpTunnelMul * ANIMATION_INTENSITY_BOOST
+  });
+}
+
+function updateWarpTunnels(){
+  if(!runtime.warpTunnelEnabled) return;
+  if(Math.random() < 0.08 * runtime.advanced.warpTunnelMul * ANIMATION_INTENSITY_BOOST){
+    spawnWarpTunnel();
+  }
+  for(let i = warpTunnels.length - 1; i >= 0; i--){
+    const t = warpTunnels[i];
+    t.radius += t.speed * 0.2;
+    t.alpha *= 0.965;
+    if(t.radius > canvas.width * 1.2 || t.alpha <= 0.01){
+      warpTunnels.splice(i, 1);
+    }
+  }
+}
+
+function drawWarpTunnels(){
+  if(!runtime.warpTunnelEnabled || warpTunnels.length === 0) return;
+  ctx.save();
+  ctx.strokeStyle = "#4df";
+  for(let t of warpTunnels){
+    ctx.globalAlpha = t.alpha;
+    ctx.lineWidth = t.width;
+    ctx.beginPath();
+    ctx.arc(player.x - cameraX, player.y - cameraY, t.radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function createBoostFlash(){
+  if(!runtime.boostFlashEnabled) return;
+  boostFlares.push({
+    life: 18,
+    alpha: 0.6 * runtime.advanced.boostFlashMul * ANIMATION_INTENSITY_BOOST
+  });
+}
+
+function updateBoostFlares(){
+  if(!runtime.boostFlashEnabled) return;
+  for(let i = boostFlares.length - 1; i >= 0; i--){
+    const f = boostFlares[i];
+    f.life--;
+    f.alpha *= 0.9;
+    if(f.life <= 0 || f.alpha <= 0.01){
+      boostFlares.splice(i, 1);
+    }
+  }
+}
+
+function drawBoostFlares(){
+  if(!runtime.boostFlashEnabled || boostFlares.length === 0) return;
+  ctx.save();
+  for(let f of boostFlares){
+    const gradient = ctx.createLinearGradient(canvas.width, 0, canvas.width * 0.6, 0);
+    gradient.addColorStop(0, `rgba(255,255,255,${f.alpha})`);
+    gradient.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  ctx.restore();
+}
+
+function createContrailJet(){
+  if(!runtime.contrailJetsEnabled) return;
+  contrailJets.push({
+    x: player.x - 10,
+    y: player.y + player.height/2 + (Math.random() - 0.5) * 24,
+    length: (30 + Math.random() * 20) * runtime.advanced.contrailJetsMul * ANIMATION_INTENSITY_BOOST,
+    width: 6,
+    life: 32,
+    alpha: 0.7
+  });
+}
+
+function updateContrailJets(){
+  if(!runtime.contrailJetsEnabled) return;
+  if(Math.random() < 0.7 * runtime.advanced.contrailJetsMul * ANIMATION_INTENSITY_BOOST){
+    createContrailJet();
+  }
+  for(let i = contrailJets.length - 1; i >= 0; i--){
+    const c = contrailJets[i];
+    c.x -= player.speed * 1.15;
+    c.length *= 0.98;
+    c.life--;
+    c.alpha *= 0.93;
+    if(c.life <= 0 || c.alpha <= 0.01){
+      contrailJets.splice(i, 1);
+    }
+  }
+}
+
+function drawContrailJets(){
+  if(!runtime.contrailJetsEnabled || contrailJets.length === 0) return;
+  ctx.save();
+  ctx.fillStyle = "rgba(100,255,255,0.5)";
+  for(let c of contrailJets){
+    ctx.globalAlpha = c.alpha;
+    ctx.beginPath();
+    ctx.moveTo(c.x - cameraX, c.y - cameraY);
+    ctx.lineTo(c.x - cameraX - c.length, c.y - cameraY - c.width);
+    ctx.lineTo(c.x - cameraX - c.length, c.y - cameraY + c.width);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function spawnEdgeLightning(){
+  if(!runtime.edgeLightningEnabled) return;
+  if(Math.random() > 0.18 * runtime.advanced.edgeLightningMul * ANIMATION_INTENSITY_BOOST) return;
+  edgeLightnings.push({
+    side: Math.random() > 0.5 ? "top" : "bottom",
+    x: Math.random() * canvas.width,
+    life: 14,
+    alpha: 0.8
+  });
+}
+
+function updateEdgeLightnings(){
+  if(!runtime.edgeLightningEnabled) return;
+  spawnEdgeLightning();
+  for(let i = edgeLightnings.length - 1; i >= 0; i--){
+    const e = edgeLightnings[i];
+    e.life--;
+    e.alpha *= 0.9;
+    if(e.life <= 0 || e.alpha <= 0.05){
+      edgeLightnings.splice(i, 1);
+    }
+  }
+}
+
+function drawEdgeLightnings(){
+  if(!runtime.edgeLightningEnabled || edgeLightnings.length === 0) return;
+  ctx.save();
+  ctx.strokeStyle = "#8ff";
+  ctx.lineWidth = 2;
+  for(let e of edgeLightnings){
+    ctx.globalAlpha = e.alpha;
+    ctx.beginPath();
+    const segments = 6;
+    const segmentLength = canvas.width / segments;
+    for(let i = 0; i <= segments; i++){
+      const sx = segmentLength * i + (Math.random() - 0.5) * 8;
+      const sy = e.side === "top" ? 0 : canvas.height;
+      if(i === 0) ctx.moveTo(sx, sy);
+      else ctx.lineTo(sx, sy + (Math.random() - 0.5) * 20);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function createCompressionRing(){
+  if(!runtime.compressionRingsEnabled) return;
+  compressionRings.push({
+    x: player.x + player.width * 2,
+    y: player.y + player.height/2,
+    radius: 18,
+    width: 3,
+    alpha: 0.6,
+    speed: (12 + player.speed) * runtime.advanced.compressionRingsMul * ANIMATION_INTENSITY_BOOST
+  });
+}
+
+function updateCompressionRings(){
+  if(!runtime.compressionRingsEnabled) return;
+  if(Math.random() < 0.1 * runtime.advanced.compressionRingsMul * ANIMATION_INTENSITY_BOOST){
+    createCompressionRing();
+  }
+  for(let i = compressionRings.length - 1; i >= 0; i--){
+    const c = compressionRings[i];
+    c.radius += c.speed * 0.18;
+    c.alpha *= 0.93;
+    if(c.alpha <= 0.02 || c.radius > canvas.width){
+      compressionRings.splice(i, 1);
+    }
+  }
+}
+
+function drawCompressionRings(){
+  if(!runtime.compressionRingsEnabled || compressionRings.length === 0) return;
+  ctx.save();
+  ctx.strokeStyle = "#9cf";
+  for(let c of compressionRings){
+    ctx.globalAlpha = c.alpha;
+    ctx.lineWidth = c.width;
+    ctx.beginPath();
+    ctx.arc(c.x - cameraX, c.y - cameraY, c.radius, -0.2, Math.PI + 0.2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /* ========== VISUAL ENHANCEMENT EFFECTS ========== */
 
 /* 6. PLATFORM PULSE - Platforms pulse with color */
@@ -800,8 +1170,8 @@ function createImpactWave(x, y, intensity = 1){
     x: x,
     y: y,
     radius: 0,
-    maxRadius: 100 * intensity * runtime.advanced.impactWavesMul,
-    speed: 5 + 5 * runtime.advanced.impactWavesMul,
+    maxRadius: 120 * intensity * runtime.advanced.impactWavesMul * ANIMATION_INTENSITY_BOOST,
+    speed: (5 + 5 * runtime.advanced.impactWavesMul) * ANIMATION_INTENSITY_BOOST,
     life: 1,
     color: '#ffffff',
     width: 2
@@ -1345,11 +1715,11 @@ function applyAmbientOcclusion(){
 function spawnParticlesEarly(x, y, type, amountMul = 1) {
   const color = type === "jump" ? "#0ff" : type === "double" ? "#ff0" : "#fff";
   const baseCount = type === "land" ? 10 : 15;
-  const count = Math.max(0, Math.floor(baseCount * amountMul * runtime.effects.jumpEffectMul));
+  const count = Math.max(0, Math.floor(baseCount * amountMul * runtime.effects.jumpEffectMul * ANIMATION_INTENSITY_BOOST));
   
   for(let i = 0; i < count; i++) {
-    const vx = (Math.random() - 0.5) * (type === "land" ? 8 : 5);
-    const vy = (Math.random() - (type === "land" ? 1 : 1.5)) * (type === "land" ? 4 : 5);
+    const vx = (Math.random() - 0.5) * (type === "land" ? 8 : 5) * ANIMATION_INTENSITY_BOOST;
+    const vy = (Math.random() - (type === "land" ? 1 : 1.5)) * (type === "land" ? 4 : 5) * ANIMATION_INTENSITY_BOOST;
     particles.push({
       x: x + (Math.random() - 0.5) * (type === "land" ? 10 : 5),
       y: y + (Math.random() - 0.5) * (type === "land" ? 10 : 5),
@@ -1496,6 +1866,129 @@ function createCrashEarly(amountMul = 1) {
   if(runtime.lensFlareEnabled) {
     createLensFlare(player.x + player.width/2, player.y + player.height/2, 2);
   }
+}
+
+// Extra death visuals
+function createDeathImplosion(intensity = 1){
+  if(!runtime.deathImplodeEnabled) return;
+  const pieces = Math.max(8, Math.floor(18 * runtime.advanced.deathImplodeMul * intensity * ANIMATION_INTENSITY_BOOST));
+  for(let i = 0; i < pieces; i++){
+    const angle = Math.random() * Math.PI * 2;
+    deathImplosions.push({
+      x: player.x + player.width/2 + Math.cos(angle) * 80,
+      y: player.y + player.height/2 + Math.sin(angle) * 80,
+      tx: player.x + player.width/2,
+      ty: player.y + player.height/2,
+      life: 40,
+      alpha: 1,
+      color: `hsl(${Math.random()*40+180}, 90%, 60%)`
+    });
+  }
+}
+
+function updateDeathImplosions(){
+  for(let i = deathImplosions.length - 1; i >= 0; i--){
+    const p = deathImplosions[i];
+    p.x += (p.tx - p.x) * 0.25;
+    p.y += (p.ty - p.y) * 0.25;
+    p.life--;
+    p.alpha *= 0.9;
+    if(p.life <= 0 || p.alpha <= 0.05){
+      deathImplosions.splice(i,1);
+    }
+  }
+}
+
+function drawDeathImplosions(){
+  if(deathImplosions.length === 0) return;
+  ctx.save();
+  for(let p of deathImplosions){
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - cameraX - 4, p.y - cameraY - 4, 8, 8);
+  }
+  ctx.restore();
+}
+
+function createDeathGlitch(intensity = 1){
+  if(!runtime.deathGlitchEnabled) return;
+  const glitches = Math.max(6, Math.floor(14 * runtime.advanced.deathGlitchMul * intensity * ANIMATION_INTENSITY_BOOST));
+  for(let i = 0; i < glitches; i++){
+    deathGlitches.push({
+      x: player.x + (Math.random() - 0.5) * 80,
+      y: player.y + (Math.random() - 0.5) * 80,
+      w: Math.random() * 30 + 10,
+      h: Math.random() * 10 + 6,
+      life: 24,
+      alpha: 0.8,
+      shift: (Math.random() - 0.5) * 25
+    });
+  }
+}
+
+function updateDeathGlitches(){
+  for(let i = deathGlitches.length - 1; i >= 0; i--){
+    const g = deathGlitches[i];
+    g.shift *= -1;
+    g.life--;
+    g.alpha *= 0.9;
+    if(g.life <= 0 || g.alpha <= 0.05){
+      deathGlitches.splice(i, 1);
+    }
+  }
+}
+
+function drawDeathGlitches(){
+  if(deathGlitches.length === 0) return;
+  ctx.save();
+  for(let g of deathGlitches){
+    ctx.globalAlpha = g.alpha;
+    ctx.fillStyle = "#0ff";
+    ctx.fillRect(g.x - cameraX + g.shift, g.y - cameraY, g.w, g.h);
+  }
+  ctx.restore();
+}
+
+function createDeathVaporize(intensity = 1){
+  if(!runtime.deathVaporizeEnabled) return;
+  deathVapors.push({
+    radius: 20,
+    alpha: 0.9,
+    life: 26,
+    grow: (20 * runtime.advanced.deathVaporizeMul + 40) * intensity * ANIMATION_INTENSITY_BOOST,
+    x: player.x + player.width/2,
+    y: player.y + player.height/2
+  });
+}
+
+function updateDeathVapors(){
+  for(let i = deathVapors.length - 1; i >= 0; i--){
+    const v = deathVapors[i];
+    v.radius += v.grow * 0.08;
+    v.life--;
+    v.alpha *= 0.9;
+    if(v.life <= 0 || v.alpha <= 0.02){
+      deathVapors.splice(i, 1);
+    }
+  }
+}
+
+function drawDeathVapors(){
+  if(deathVapors.length === 0) return;
+  ctx.save();
+  for(let v of deathVapors){
+    const gradient = ctx.createRadialGradient(
+      v.x - cameraX, v.y - cameraY, 0,
+      v.x - cameraX, v.y - cameraY, v.radius
+    );
+    gradient.addColorStop(0, `rgba(255,255,255,${v.alpha})`);
+    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(v.x - cameraX, v.y - cameraY, v.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 /* ---------- Lines background ---------- */
@@ -1699,6 +2192,58 @@ function cleanupOffScreenObjects() {
       pixelDisplacements.splice(i, 1);
     }
   }
+
+  // Clean up new speed/background effects
+  for(let i = starRush.length - 1; i >= 0; i--) {
+    if(starRush[i].life <= 0 || starRush[i].x < deleteThreshold) {
+      starRush.splice(i, 1);
+    }
+  }
+  for(let i = nebulaDust.length - 1; i >= 0; i--) {
+    if(nebulaDust[i].life <= 0 || nebulaDust[i].x < deleteThreshold) {
+      nebulaDust.splice(i, 1);
+    }
+  }
+  for(let i = warpTunnels.length - 1; i >= 0; i--) {
+    if(warpTunnels[i].alpha <= 0.01) {
+      warpTunnels.splice(i, 1);
+    }
+  }
+  for(let i = boostFlares.length - 1; i >= 0; i--) {
+    if(boostFlares[i].alpha <= 0.01) {
+      boostFlares.splice(i, 1);
+    }
+  }
+  for(let i = contrailJets.length - 1; i >= 0; i--) {
+    if(contrailJets[i].alpha <= 0.01) {
+      contrailJets.splice(i, 1);
+    }
+  }
+  for(let i = edgeLightnings.length - 1; i >= 0; i--) {
+    if(edgeLightnings[i].alpha <= 0.05) {
+      edgeLightnings.splice(i, 1);
+    }
+  }
+  for(let i = compressionRings.length - 1; i >= 0; i--) {
+    if(compressionRings[i].alpha <= 0.02) {
+      compressionRings.splice(i, 1);
+    }
+  }
+  for(let i = deathImplosions.length - 1; i >= 0; i--) {
+    if(deathImplosions[i].alpha <= 0.05) {
+      deathImplosions.splice(i, 1);
+    }
+  }
+  for(let i = deathGlitches.length - 1; i >= 0; i--) {
+    if(deathGlitches[i].alpha <= 0.05) {
+      deathGlitches.splice(i, 1);
+    }
+  }
+  for(let i = deathVapors.length - 1; i >= 0; i--) {
+    if(deathVapors[i].alpha <= 0.02) {
+      deathVapors.splice(i, 1);
+    }
+  }
 }
 
 /* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
@@ -1801,9 +2346,16 @@ function gameTick() {
 
   // Update all visual effects
   updateParallaxLayers();
+  updateStarRush();
+  updateNebulaDust();
   updateVelocityStreaks();
   updateSpeedLines();
   updateWindParticles();
+  updateWarpTunnels();
+  updateBoostFlares();
+  updateContrailJets();
+  updateEdgeLightnings();
+  updateCompressionRings();
   updatePlatformPulse();
   updateImpactWaves();
   updateLensFlares();
@@ -1813,6 +2365,9 @@ function gameTick() {
   updateGravityWaves();
   updateEnergyRipples();
   updatePixelDisplacements();
+  updateDeathImplosions();
+  updateDeathGlitches();
+  updateDeathVapors();
   applyTimeDilation();
 
   // update crash pieces with enhanced physics
@@ -1914,6 +2469,9 @@ function tryDie(spike){
     player.visible = false;
     if(spike) spike.hit = false;
     createCrashEarly(runtime.effects.dieEffectMul);
+    createDeathImplosion(runtime.advanced.deathImplodeMul);
+    createDeathGlitch(runtime.advanced.deathGlitchMul);
+    createDeathVaporize(runtime.advanced.deathVaporizeMul);
     gameRunning = false;
     if(score > bestScore){
       bestScore = Math.floor(score);
@@ -1976,11 +2534,18 @@ function draw(){
   ctx.fillStyle = "#000";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
+  // Deep background particles
+  drawNebulaDust();
+  drawStarRush();
+
   // Draw parallax layers first (background)
   drawParallaxLayers();
   
   // Draw dynamic fog
   drawDynamicFog();
+
+  // Warp tunnel rings
+  drawWarpTunnels();
 
   // horizontal lines background
   if(runtime.linesEnabled){
@@ -2008,6 +2573,15 @@ function draw(){
   
   // Draw wind particles
   drawWindParticles();
+
+  // Jet contrails hugging the player path
+  drawContrailJets();
+
+  // Edge lightning flashes
+  drawEdgeLightnings();
+
+  // Screen-edge boost flare
+  drawBoostFlares();
 
   // Draw ambient occlusion first (shadows)
   applyAmbientOcclusion();
@@ -2089,6 +2663,9 @@ function draw(){
   
   // Draw impact waves
   drawImpactWaves();
+
+  // Draw compression rings blasting forward
+  drawCompressionRings();
   
   // Draw lens flares
   drawLensFlares();
@@ -2175,6 +2752,11 @@ function draw(){
       ctx.restore();
     }
   }
+
+  // Death-only overlays
+  drawDeathVapors();
+  drawDeathImplosions();
+  drawDeathGlitches();
 
   // crash pieces with enhanced animation
   for(let p of crashPieces){

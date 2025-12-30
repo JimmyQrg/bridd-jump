@@ -299,6 +299,34 @@
             <label>Radial Blur</label>
             <input type="range" id="radialBlur" min="0" max="200" value="100">
             <div class="range-value" id="radialBlurVal">100%</div>
+
+            <label>Star Rush</label>
+            <input type="range" id="starRush" min="0" max="250" value="100">
+            <div class="range-value" id="starRushVal">100%</div>
+
+            <label>Nebula Dust</label>
+            <input type="range" id="nebulaDust" min="0" max="250" value="100">
+            <div class="range-value" id="nebulaDustVal">100%</div>
+
+            <label>Warp Tunnel Rings</label>
+            <input type="range" id="warpTunnel" min="0" max="250" value="100">
+            <div class="range-value" id="warpTunnelVal">100%</div>
+
+            <label>Boost Flare</label>
+            <input type="range" id="boostFlash" min="0" max="250" value="100">
+            <div class="range-value" id="boostFlashVal">100%</div>
+
+            <label>Contrail Jets</label>
+            <input type="range" id="contrailJets" min="0" max="250" value="100">
+            <div class="range-value" id="contrailJetsVal">100%</div>
+
+            <label>Edge Lightning</label>
+            <input type="range" id="edgeLightning" min="0" max="250" value="100">
+            <div class="range-value" id="edgeLightningVal">100%</div>
+
+            <label>Compression Rings</label>
+            <input type="range" id="compressionRings" min="0" max="250" value="100">
+            <div class="range-value" id="compressionRingsVal">100%</div>
           </div>
         </div>
         
@@ -369,6 +397,22 @@
             <div class="range-value" id="ambientOcclusionVal">100%</div>
           </div>
         </div>
+
+        <div class="settings-section">
+          <div class="section-title">Death Animations</div>
+
+          <label>Implosion</label>
+          <input type="range" id="deathImplode" min="0" max="250" value="100">
+          <div class="range-value" id="deathImplodeVal">100%</div>
+
+          <label>Glitch Out</label>
+          <input type="range" id="deathGlitch" min="0" max="250" value="100">
+          <div class="range-value" id="deathGlitchVal">100%</div>
+
+          <label>Vaporize</label>
+          <input type="range" id="deathVaporize" min="0" max="250" value="100">
+          <div class="range-value" id="deathVaporizeVal">100%</div>
+        </div>
       </div>
     </div>
 
@@ -430,6 +474,13 @@
           document.getElementById("windParticles").value = settings.advanced.windParticles || 100;
           document.getElementById("speedLines").value = settings.advanced.speedLines || 100;
           document.getElementById("radialBlur").value = settings.advanced.radialBlur || 100;
+          document.getElementById("starRush").value = settings.advanced.starRush || 100;
+          document.getElementById("nebulaDust").value = settings.advanced.nebulaDust || 100;
+          document.getElementById("warpTunnel").value = settings.advanced.warpTunnel || 100;
+          document.getElementById("boostFlash").value = settings.advanced.boostFlash || 100;
+          document.getElementById("contrailJets").value = settings.advanced.contrailJets || 100;
+          document.getElementById("edgeLightning").value = settings.advanced.edgeLightning || 100;
+          document.getElementById("compressionRings").value = settings.advanced.compressionRings || 100;
           
           // Visual enhancement effects
           document.getElementById("platformPulse").value = settings.advanced.platformPulse || 100;
@@ -447,6 +498,11 @@
           document.getElementById("energyRipples").value = settings.advanced.energyRipples || 100;
           document.getElementById("pixelDisplacement").value = settings.advanced.pixelDisplacement || 100;
           document.getElementById("ambientOcclusion").value = settings.advanced.ambientOcclusion || 100;
+          
+          // Death animations
+          document.getElementById("deathImplode").value = settings.advanced.deathImplode || 100;
+          document.getElementById("deathGlitch").value = settings.advanced.deathGlitch || 100;
+          document.getElementById("deathVaporize").value = settings.advanced.deathVaporize || 100;
         }
         
         // Update all range value displays
@@ -471,13 +527,17 @@
         
         // Forward motion effects
         "parallaxLayers", "velocityStreaks", "windParticles", "speedLines",
-        "radialBlur",
+        "radialBlur", "starRush", "nebulaDust", "warpTunnel", "boostFlash",
+        "contrailJets", "edgeLightning", "compressionRings",
         
         // Visual enhancement effects
         "platformPulse", "impactWaves", "colorBleed", "depthOfField",
         "timeDilation", "lensFlare", "screenTear", "dynamicFog",
         "heatDistortion", "starbursts", "afterImages", "gravityWaves",
-        "energyRipples", "pixelDisplacement", "ambientOcclusion"
+        "energyRipples", "pixelDisplacement", "ambientOcclusion",
+        
+        // Death animations
+        "deathImplode", "deathGlitch", "deathVaporize"
       ];
       
       rangeIds.forEach(id => {
@@ -512,7 +572,10 @@
           lensFlare: 0, screenTear: 0, dynamicFog: 0,
           heatDistortion: 0, starbursts: 0, afterImages: 0,
           gravityWaves: 0, energyRipples: 0, pixelDisplacement: 0,
-          ambientOcclusion: 0
+          ambientOcclusion: 0,
+          starRush: 0, nebulaDust: 0, warpTunnel: 0, boostFlash: 0,
+          contrailJets: 0, edgeLightning: 0, compressionRings: 0,
+          deathImplode: 0, deathGlitch: 0, deathVaporize: 0
         }
       },
       "Low": {
@@ -531,7 +594,10 @@
           lensFlare: 0, screenTear: 0, dynamicFog: 0,
           heatDistortion: 0, starbursts: 0, afterImages: 0,
           gravityWaves: 0, energyRipples: 0, pixelDisplacement: 0,
-          ambientOcclusion: 0
+          ambientOcclusion: 0,
+          starRush: 10, nebulaDust: 5, warpTunnel: 0, boostFlash: 0,
+          contrailJets: 10, edgeLightning: 0, compressionRings: 0,
+          deathImplode: 5, deathGlitch: 5, deathVaporize: 5
         }
       },
       "Medium": {
@@ -550,7 +616,10 @@
           lensFlare: 0, screenTear: 0, dynamicFog: 0,
           heatDistortion: 0, starbursts: 0, afterImages: 0,
           gravityWaves: 0, energyRipples: 0, pixelDisplacement: 0,
-          ambientOcclusion: 0
+          ambientOcclusion: 0,
+          starRush: 25, nebulaDust: 15, warpTunnel: 10, boostFlash: 10,
+          contrailJets: 25, edgeLightning: 10, compressionRings: 10,
+          deathImplode: 15, deathGlitch: 15, deathVaporize: 15
         }
       },
       "Medium+": {
@@ -569,7 +638,10 @@
           lensFlare: 10, screenTear: 0, dynamicFog: 10,
           heatDistortion: 10, starbursts: 10, afterImages: 10,
           gravityWaves: 0, energyRipples: 0, pixelDisplacement: 0,
-          ambientOcclusion: 10
+          ambientOcclusion: 10,
+          starRush: 50, nebulaDust: 35, warpTunnel: 25, boostFlash: 25,
+          contrailJets: 50, edgeLightning: 25, compressionRings: 25,
+          deathImplode: 25, deathGlitch: 25, deathVaporize: 25
         }
       },
       "High": {
@@ -588,7 +660,10 @@
           lensFlare: 25, screenTear: 10, dynamicFog: 25,
           heatDistortion: 25, starbursts: 25, afterImages: 25,
           gravityWaves: 10, energyRipples: 10, pixelDisplacement: 10,
-          ambientOcclusion: 25
+          ambientOcclusion: 25,
+          starRush: 75, nebulaDust: 50, warpTunnel: 50, boostFlash: 50,
+          contrailJets: 75, edgeLightning: 50, compressionRings: 50,
+          deathImplode: 50, deathGlitch: 50, deathVaporize: 50
         }
       },
       "High+": {
@@ -607,7 +682,10 @@
           lensFlare: 50, screenTear: 25, dynamicFog: 50,
           heatDistortion: 50, starbursts: 50, afterImages: 50,
           gravityWaves: 25, energyRipples: 25, pixelDisplacement: 25,
-          ambientOcclusion: 50
+          ambientOcclusion: 50,
+          starRush: 100, nebulaDust: 75, warpTunnel: 75, boostFlash: 75,
+          contrailJets: 100, edgeLightning: 75, compressionRings: 75,
+          deathImplode: 75, deathGlitch: 75, deathVaporize: 75
         }
       },
       "Extreme": {
@@ -626,7 +704,10 @@
           lensFlare: 75, screenTear: 50, dynamicFog: 75,
           heatDistortion: 75, starbursts: 75, afterImages: 75,
           gravityWaves: 50, energyRipples: 50, pixelDisplacement: 50,
-          ambientOcclusion: 75
+          ambientOcclusion: 75,
+          starRush: 125, nebulaDust: 100, warpTunnel: 100, boostFlash: 100,
+          contrailJets: 125, edgeLightning: 100, compressionRings: 100,
+          deathImplode: 100, deathGlitch: 100, deathVaporize: 100
         }
       },
       "Extreme+": {
@@ -645,7 +726,10 @@
           lensFlare: 100, screenTear: 75, dynamicFog: 100,
           heatDistortion: 100, starbursts: 100, afterImages: 100,
           gravityWaves: 75, energyRipples: 75, pixelDisplacement: 75,
-          ambientOcclusion: 100
+          ambientOcclusion: 100,
+          starRush: 150, nebulaDust: 125, warpTunnel: 125, boostFlash: 125,
+          contrailJets: 150, edgeLightning: 125, compressionRings: 125,
+          deathImplode: 125, deathGlitch: 125, deathVaporize: 125
         }
       },
       "Ultra": {
@@ -664,7 +748,10 @@
           lensFlare: 125, screenTear: 100, dynamicFog: 125,
           heatDistortion: 125, starbursts: 125, afterImages: 125,
           gravityWaves: 100, energyRipples: 100, pixelDisplacement: 100,
-          ambientOcclusion: 125
+          ambientOcclusion: 125,
+          starRush: 175, nebulaDust: 150, warpTunnel: 150, boostFlash: 150,
+          contrailJets: 175, edgeLightning: 150, compressionRings: 150,
+          deathImplode: 150, deathGlitch: 150, deathVaporize: 150
         }
       },
       "Ultra+": {
@@ -683,7 +770,10 @@
           lensFlare: 150, screenTear: 125, dynamicFog: 150,
           heatDistortion: 150, starbursts: 150, afterImages: 150,
           gravityWaves: 125, energyRipples: 125, pixelDisplacement: 125,
-          ambientOcclusion: 150
+          ambientOcclusion: 150,
+          starRush: 200, nebulaDust: 175, warpTunnel: 175, boostFlash: 175,
+          contrailJets: 200, edgeLightning: 175, compressionRings: 175,
+          deathImplode: 175, deathGlitch: 175, deathVaporize: 175
         }
       },
       "Ultra++": {
@@ -702,7 +792,10 @@
           lensFlare: 175, screenTear: 150, dynamicFog: 175,
           heatDistortion: 175, starbursts: 175, afterImages: 175,
           gravityWaves: 150, energyRipples: 150, pixelDisplacement: 150,
-          ambientOcclusion: 175
+          ambientOcclusion: 175,
+          starRush: 225, nebulaDust: 200, warpTunnel: 200, boostFlash: 200,
+          contrailJets: 225, edgeLightning: 200, compressionRings: 200,
+          deathImplode: 200, deathGlitch: 200, deathVaporize: 200
         }
       },
       "Highest": {
@@ -721,7 +814,10 @@
           lensFlare: 200, screenTear: 200, dynamicFog: 200,
           heatDistortion: 200, starbursts: 200, afterImages: 200,
           gravityWaves: 200, energyRipples: 200, pixelDisplacement: 200,
-          ambientOcclusion: 200
+          ambientOcclusion: 200,
+          starRush: 250, nebulaDust: 225, warpTunnel: 225, boostFlash: 225,
+          contrailJets: 250, edgeLightning: 225, compressionRings: 225,
+          deathImplode: 225, deathGlitch: 225, deathVaporize: 225
         }
       }
     };
@@ -738,14 +834,18 @@
       "motionBlur", "lightRays",
       
       // Forward motion effects
-      "parallaxLayers", "velocityStreaks", "windParticles", "speedLines",
-      "radialBlur",
+        "parallaxLayers", "velocityStreaks", "windParticles", "speedLines",
+        "radialBlur", "starRush", "nebulaDust", "warpTunnel", "boostFlash",
+        "contrailJets", "edgeLightning", "compressionRings",
       
       // Visual enhancement effects
       "platformPulse", "impactWaves", "colorBleed", "depthOfField",
       "timeDilation", "lensFlare", "screenTear", "dynamicFog",
       "heatDistortion", "starbursts", "afterImages", "gravityWaves",
-      "energyRipples", "pixelDisplacement", "ambientOcclusion"
+        "energyRipples", "pixelDisplacement", "ambientOcclusion",
+        
+        // Death animations
+        "deathImplode", "deathGlitch", "deathVaporize"
     ];
 
     allRangeIds.forEach(id => {
@@ -901,6 +1001,13 @@
           windParticles: parseInt(document.getElementById("windParticles").value) || 0,
           speedLines: parseInt(document.getElementById("speedLines").value) || 0,
           radialBlur: parseInt(document.getElementById("radialBlur").value) || 0,
+          starRush: parseInt(document.getElementById("starRush").value) || 0,
+          nebulaDust: parseInt(document.getElementById("nebulaDust").value) || 0,
+          warpTunnel: parseInt(document.getElementById("warpTunnel").value) || 0,
+          boostFlash: parseInt(document.getElementById("boostFlash").value) || 0,
+          contrailJets: parseInt(document.getElementById("contrailJets").value) || 0,
+          edgeLightning: parseInt(document.getElementById("edgeLightning").value) || 0,
+          compressionRings: parseInt(document.getElementById("compressionRings").value) || 0,
           
           // Visual enhancement effects
           platformPulse: parseInt(document.getElementById("platformPulse").value) || 0,
@@ -917,7 +1024,12 @@
           gravityWaves: parseInt(document.getElementById("gravityWaves").value) || 0,
           energyRipples: parseInt(document.getElementById("energyRipples").value) || 0,
           pixelDisplacement: parseInt(document.getElementById("pixelDisplacement").value) || 0,
-          ambientOcclusion: parseInt(document.getElementById("ambientOcclusion").value) || 0
+          ambientOcclusion: parseInt(document.getElementById("ambientOcclusion").value) || 0,
+          
+          // Death animations
+          deathImplode: parseInt(document.getElementById("deathImplode").value) || 0,
+          deathGlitch: parseInt(document.getElementById("deathGlitch").value) || 0,
+          deathVaporize: parseInt(document.getElementById("deathVaporize").value) || 0
         }
       };
       

@@ -4,5 +4,4 @@
 <p>Updates:</p>
 <ol>
     <li>Added 5 times more effects</li>
-    <li>Split Files</li>
 </ol>
