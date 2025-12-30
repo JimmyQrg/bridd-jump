@@ -13,6 +13,143 @@
   let currentFindIndex = 0;
   let findMatches = [];
   let isCodeEditorActive = false;
+  let isLoadingGameCode = false;
+
+  // Create loading screen
+  function createLoadingScreen() {
+    const loader = document.createElement('div');
+    loader.id = 'gameCodeLoader';
+    loader.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #0ff;
+        font-family: 'Press Start 2P', monospace;
+        text-align: center;
+      ">
+        <div style="font-size: 24px; margin-bottom: 20px; text-shadow: 0 0 20px #0ff;">LOADING GAME CODE...</div>
+        <div style="font-size: 12px; color: #88f7ff; margin-top: 10px;" id="loaderStatus">Preparing...</div>
+      </div>
+    `;
+    document.body.appendChild(loader);
+    return loader;
+  }
+
+  // Remove loading screen
+  function removeLoadingScreen() {
+    const loader = document.getElementById('gameCodeLoader');
+    if (loader) {
+      loader.style.opacity = '0';
+      loader.style.transition = 'opacity 0.3s ease';
+      setTimeout(() => loader.remove(), 300);
+    }
+  }
+
+  // Update loader status
+  function updateLoaderStatus(text) {
+    const status = document.getElementById('loaderStatus');
+    if (status) status.textContent = text;
+  }
+
+  // Load game.js to sessionStorage on page load
+  async function loadGameCodeToStorage() {
+    if (isLoadingGameCode) return;
+    isLoadingGameCode = true;
+
+    const storageKey = `briddCode_${getVersionPath()}`;
+    
+    // Check if already loaded
+    if (sessionStorage.getItem(storageKey)) {
+      isLoadingGameCode = false;
+      return;
+    }
+
+    const loader = createLoadingScreen();
+    updateLoaderStatus('Loading game.js...');
+
+    try {
+      // Try to load from game.js
+      const possiblePaths = ['game.js', './game.js', '../game.js'];
+      let code = null;
+      let loadedPath = null;
+
+      for (const path of possiblePaths) {
+        try {
+          updateLoaderStatus(`Trying ${path}...`);
+          const response = await fetch(path, { cache: 'no-cache' });
+          if (response.ok) {
+            const text = await response.text();
+            if (text && text.trim().length > 0 && !text.includes('<!DOCTYPE')) {
+              code = text;
+              loadedPath = path;
+              break;
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      if (!code) {
+        // Try to extract from inline script
+        updateLoaderStatus('Extracting from inline scripts...');
+        code = extractInlineCode();
+        if (code && code !== '// No code found') {
+          loadedPath = 'inline';
+        }
+      }
+
+      if (code && code !== '// No code found') {
+        // Store in sessionStorage
+        updateLoaderStatus('Storing in sessionStorage...');
+        sessionStorage.setItem(storageKey, code);
+        updateLoaderStatus('Done!');
+        setTimeout(() => {
+          removeLoadingScreen();
+          // Now load the game from sessionStorage
+          loadGameFromStorage();
+        }, 500);
+      } else {
+        updateLoaderStatus('No code found. Using default.');
+        removeLoadingScreen();
+        isLoadingGameCode = false;
+      }
+    } catch (error) {
+      console.error('Error loading game code:', error);
+      updateLoaderStatus('Error loading code');
+      setTimeout(() => {
+        removeLoadingScreen();
+        isLoadingGameCode = false;
+      }, 1000);
+    }
+  }
+
+  // Load game from sessionStorage
+  function loadGameFromStorage() {
+    const storageKey = `briddCode_${getVersionPath()}`;
+    const storedCode = sessionStorage.getItem(storageKey);
+    
+    if (storedCode) {
+      // Replace script tags with stored code
+      const scripts = document.querySelectorAll('script[src*="game.js"]:not([data-source])');
+      scripts.forEach(script => {
+        const newScript = document.createElement('script');
+        newScript.textContent = storedCode;
+        newScript.setAttribute('data-source', 'sessionStorage');
+        script.parentNode.insertBefore(newScript, script);
+        script.remove();
+      });
+    }
+  }
 
   // Initialize code editor
   function initCodeEditor() {
@@ -35,8 +172,8 @@
     setupEventListeners();
   }
 
-  // Load code from game.js file or sessionStorage
-  async function loadCode() {
+  // Load code from sessionStorage (always from storage now)
+  function loadCode() {
     if (!codeEditor) {
       console.error('Code editor not initialized');
       return;
@@ -47,40 +184,9 @@
     
     if (stored) {
       codeEditor.value = stored;
-      return;
+    } else {
+      codeEditor.value = '// No code found in sessionStorage.\n// Please refresh the page to load game.js.';
     }
-
-    // Try to load from game.js (try multiple possible paths)
-    const possiblePaths = ['game.js', './game.js', '../game.js'];
-    
-    for (const path of possiblePaths) {
-      try {
-        const response = await fetch(path, { cache: 'no-cache' });
-        if (response.ok) {
-          const code = await response.text();
-          if (code && code.trim().length > 0 && !code.includes('<!DOCTYPE')) {
-            codeEditor.value = code;
-            console.log('Loaded code from', path);
-            return;
-          }
-        }
-      } catch (e) {
-        // Try next path
-        continue;
-      }
-    }
-    
-    console.log('Could not load game.js from any path');
-
-    // Fallback: try to extract from inline script
-    const inlineCode = extractInlineCode();
-    if (inlineCode && inlineCode !== '// No code found') {
-      codeEditor.value = inlineCode;
-      return;
-    }
-
-    // Last resort: show helpful error message
-    codeEditor.value = `// Code not found.\n// This version may not have a game.js file, or it may be embedded inline.\n// Try editing the code in the browser's developer tools.\n//\n// If you see this message, the code editor is working but couldn't locate the source code.\n// You can still type code here and it will be saved to sessionStorage.`;
   }
 
   // Extract code from inline script tag (for versions without game.js)
@@ -114,8 +220,29 @@
 
   // Save code to sessionStorage
   function saveCode() {
+    if (!codeEditor) return;
     const storageKey = `briddCode_${getVersionPath()}`;
     sessionStorage.setItem(storageKey, codeEditor.value);
+    // Also update the running game if it's loaded from storage
+    updateRunningGame();
+  }
+
+  // Update the running game with new code from sessionStorage
+  function updateRunningGame() {
+    const storageKey = `briddCode_${getVersionPath()}`;
+    const storedCode = sessionStorage.getItem(storageKey);
+    
+    if (storedCode) {
+      // Remove old sessionStorage script
+      const oldScripts = document.querySelectorAll('script[data-source="sessionStorage"]');
+      oldScripts.forEach(s => s.remove());
+      
+      // Create and execute new script
+      const newScript = document.createElement('script');
+      newScript.textContent = storedCode;
+      newScript.setAttribute('data-source', 'sessionStorage');
+      document.body.appendChild(newScript);
+    }
   }
 
   // Setup all event listeners
@@ -412,18 +539,18 @@
     hideFindReplace();
   }
 
-  // Apply code (save and reload)
+  // Apply code (save and update running game)
   function applyCode() {
     const code = codeEditor.value;
     const storageKey = `briddCode_${getVersionPath()}`;
     sessionStorage.setItem(storageKey, code);
     
-    // Reload the page - the interceptGameJs function will load from sessionStorage
-    const reload = confirm('Code saved to sessionStorage!\n\nReload page to apply changes?');
+    // Update the running game immediately
+    updateRunningGame();
+    
+    const reload = confirm('Code saved to sessionStorage and applied!\n\nReload page for clean state? (Recommended)');
     if (reload) {
       location.reload();
-    } else {
-      alert('Code saved. Please refresh the page to see changes.');
     }
   }
 
@@ -459,20 +586,37 @@
         childList: true,
         subtree: true
       });
+    } else {
+      // If no stored code, load it first
+      loadGameCodeToStorage();
     }
   }
 
   // Expose open function globally
   window.openCodeEditor = openCodeEditor;
 
-  // Intercept game.js on page load
+  // Initialize on page load
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      interceptGameJs();
+      // First, try to load game code to sessionStorage
+      const storageKey = `briddCode_${getVersionPath()}`;
+      if (!sessionStorage.getItem(storageKey)) {
+        // No code in storage, load it
+        loadGameCodeToStorage();
+      } else {
+        // Code already in storage, load game from it
+        interceptGameJs();
+      }
       initCodeEditor();
     });
   } else {
-    interceptGameJs();
+    // Page already loaded
+    const storageKey = `briddCode_${getVersionPath()}`;
+    if (!sessionStorage.getItem(storageKey)) {
+      loadGameCodeToStorage();
+    } else {
+      interceptGameJs();
+    }
     initCodeEditor();
   }
 })();
