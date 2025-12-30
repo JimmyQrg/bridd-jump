@@ -1404,7 +1404,7 @@ function createStarburst(x, y, intensity = 1){
       y: y,
       angle: Math.random() * Math.PI * 2,
       distance: 0,
-      maxDistance: Math.random() * 100 + 50,
+      maxDistance: Math.random() * 50 + 25,
       speed: Math.random() * 5 + 2,
       size: Math.random() * 3 + 1,
       life: 1,
