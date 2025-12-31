@@ -1284,8 +1284,14 @@
       
       try {
         localStorage.setItem("briddSettings", JSON.stringify(settings));
+        // Play save sound
+        const saveSound = new Audio('../sounds/apply-save.mp3');
+        saveSound.volume = 0.6;
+        saveSound.play().catch(err => console.log('Sound play prevented:', err));
         // Go back to the game
-        window.location.href = "index.html";
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 100); // Small delay to let sound play
       } catch (e) {
         console.error("Failed to save settings:", e);
         alert("Failed to save settings!");

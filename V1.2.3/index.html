@@ -695,8 +695,8 @@
     <button id="settingsBtn" class="btn">SETTINGS</button>
     <button id="fullscreenBtn" class="btn">FULLSCREEN</button>
     <button id="howToPlayBtn" class="btn">HOW TO PLAY</button>
-    <button onclick="openCodeEditor()" class="btn">CODE</button>
-    <button onclick="window.location.href='../'" class="btn">HOME</button>
+    <button onclick="if(typeof playSound === 'function') playSound('menuClick'); openCodeEditor();" class="btn">CODE</button>
+    <button onclick="if(typeof playSound === 'function') playSound('menuClick'); window.location.href='../';" class="btn">HOME</button>
   </div>
 
   <!-- How to Play Modal -->
@@ -735,7 +735,7 @@
       </div>
     </div>
     
-    <button class="btn closeBtn" onclick="document.getElementById('howToPlayModal').classList.remove('show')">CLOSE</button>
+    <button class="btn closeBtn" onclick="if(typeof playSound === 'function') playSound('menuClick'); document.getElementById('howToPlayModal').classList.remove('show')">CLOSE</button>
   </div>
 
   <!-- Code Editor Modal -->

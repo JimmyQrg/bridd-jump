@@ -5,5 +5,5 @@
 <ol>
     <li>Better generation logic</li>
     <li>Drop speed increase with the horizonal player speed</i>
-    <li>Fix block texture</li>
+    <li>Fix block texture, remove supports</li>
 </ol>

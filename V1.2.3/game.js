@@ -4,6 +4,92 @@
    Will lag significantly at Ultra++ and Highest settings
    =========================== */
 
+/* ---------- Sound System ---------- */
+const sounds = {
+  firstJump: new Audio('../sounds/first-jump.mp3'),
+  secondJump: new Audio('../sounds/second-jump.mp3'),
+  triggerDrop: new Audio('../sounds/trigger-drop.mp3'),
+  die: new Audio('../sounds/die.mp3'),
+  collectGem: new Audio('../sounds/collect-gem.mp3'),
+  startChooseVersion: new Audio('../sounds/start-chooseversion.mp3'),
+  applySave: new Audio('../sounds/apply-save.mp3'),
+  menuClick: new Audio('../sounds/menu-click.mp3'),
+  background: new Audio('../sounds/background.mp3')
+};
+
+// Set background music to loop
+sounds.background.loop = true;
+sounds.background.volume = 0.5; // Set background music volume
+
+// Set volumes for sound effects
+sounds.firstJump.volume = 0.7;
+sounds.secondJump.volume = 0.7;
+sounds.triggerDrop.volume = 0.6;
+sounds.die.volume = 0.8;
+sounds.collectGem.volume = 0.7;
+sounds.startChooseVersion.volume = 0.6;
+sounds.applySave.volume = 0.6;
+sounds.menuClick.volume = 0.5;
+
+// Check if sound is enabled (set by the button that opens V1.2.3)
+const soundEnabled = localStorage.getItem('soundEnabled') === 'true';
+
+// Function to enable audio context (called on user interaction)
+function enableAudio() {
+  if (!soundEnabled) return;
+  
+  // Unlock audio context by playing a silent sound
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    gainNode.gain.value = 0; // Silent
+    
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.001);
+  } catch(err) {
+    console.log('Error enabling audio:', err);
+  }
+}
+
+// Function to play sound with error handling
+function playSound(soundName) {
+  if (!soundEnabled) return; // Don't play sounds if not enabled
+  
+  try {
+    const sound = sounds[soundName];
+    if(sound) {
+      sound.currentTime = 0; // Reset to start
+      sound.play().catch(err => {
+        // If autoplay is blocked, try to enable audio
+        enableAudio();
+        // Try playing again
+        sound.play().catch(err2 => {
+          console.log('Sound play prevented:', err2);
+        });
+      });
+    }
+  } catch(err) {
+    console.log('Error playing sound:', err);
+  }
+}
+
+// Function to stop sound
+function stopSound(soundName) {
+  try {
+    const sound = sounds[soundName];
+    if(sound) {
+      sound.pause();
+      sound.currentTime = 0;
+    }
+  } catch(err) {
+    console.log('Error stopping sound:', err);
+  }
+}
+
 /* ---------- Utilities ---------- */
 function showToast(msg, ms=1200){
   const d = document.getElementById('debugToast');
@@ -2310,6 +2396,14 @@ function jump(){
     spawnParticlesEarly(player.x + player.width/2, player.y + player.height, 
                        player.jumpsLeft === 2 ? "jump" : "double", 
                        runtime.effects.jumpEffectMul);
+    
+    // Play jump sound
+    if(player.jumpsLeft === 2) {
+      playSound('firstJump');
+    } else {
+      playSound('secondJump');
+    }
+    
     if(!cheats.infiniteJump) player.jumpsLeft--;
     
     // Create velocity streaks
@@ -2330,6 +2424,10 @@ function jump(){
 
 function drop(){
   if(!player.visible) return;
+  if(!player.isDropping) {
+    // Only play sound when starting to drop, not continuously
+    playSound('triggerDrop');
+  }
   player.isDropping = true;
   // Set downward velocity for fast drop (calculated as (player.speed/2)*5)
   const DROP_SPEED = (player.speed / 2) * 5;
@@ -2629,6 +2727,7 @@ function gameTick() {
     for(let g of gems){
       if(!g.collected && player.x + player.width > g.x && player.x < g.x + g.size && player.y + player.height > g.y && player.y < g.y + g.size){
         score += 50; g.collected = true;
+        playSound('collectGem');
         spawnParticlesEarly(g.x + g.size/2, g.y + g.size/2, "gem", runtime.effects.jumpEffectMul);
         
         // Add rotation to gem
@@ -2815,6 +2914,8 @@ function tryDie(spike){
     player.visible = false;
     playerDeathY = player.y; // Store death position for crash piece cleanup
     if(spike) spike.hit = false;
+    playSound('die');
+    stopSound('background'); // Stop background music on death
     createCrashEarly(runtime.effects.dieEffectMul);
     createDeathImplosion(runtime.advanced.deathImplodeMul);
     createDeathGlitch(runtime.advanced.deathGlitchMul);
@@ -2827,6 +2928,7 @@ function tryDie(spike){
     setTimeout(()=> {
       document.getElementById('menu').style.display = 'flex';
       document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
+      stopSound('background'); // Stop background music when menu appears
     }, 1200);
   }
 }
@@ -3291,7 +3393,10 @@ function openCommandPrompt() {
       createCrashEarly(runtime.effects.dieEffectMul);
       gameRunning = false;
       if(score>bestScore){ bestScore = Math.floor(score); localStorage.setItem('bestScore', bestScore); }
-      setTimeout(()=> { document.getElementById('menu').style.display = 'flex'; }, 500);
+      setTimeout(()=> { 
+        document.getElementById('menu').style.display = 'flex';
+        stopSound('background'); // Stop background music when menu appears
+      }, 500);
     }
     return;
   }
@@ -3384,6 +3489,7 @@ document.getElementById('mobileCommandBtn').addEventListener('click', openComman
 
 // How to Play button
 document.getElementById('howToPlayBtn').addEventListener('click', () => {
+  playSound('menuClick');
   document.getElementById('howToPlayModal').classList.add('show');
 });
 
@@ -3406,6 +3512,7 @@ function pauseGame() {
 
 function unpauseGame() {
   if(!isPaused) return; // Don't unpause if not paused
+  playSound('menuClick');
   isPaused = false;
   const pauseScreen = document.getElementById('pauseScreen');
   if(pauseScreen) {
@@ -3414,6 +3521,8 @@ function unpauseGame() {
 }
 
 function goToMainMenu() {
+  playSound('menuClick');
+  stopSound('background'); // Stop background music when going to menu
   isPaused = false;
   gameRunning = false;
   const pauseScreen = document.getElementById('pauseScreen');
@@ -3448,6 +3557,10 @@ document.addEventListener('visibilitychange', () => {
 
 /* ---------- Start / Reset Game ---------- */
 function startGame(){
+  // Enable audio on first user interaction (start button click)
+  enableAudio();
+  
+  playSound('startChooseVersion');
   document.getElementById('menu').style.display = 'none';
   resetWorld();
   gameRunning = true;
@@ -3455,12 +3568,15 @@ function startGame(){
   player.visible = true;
   tickAccumulator = 0; // Reset tick accumulator on restart
   lastLoopTime = performance.now(); // Reset time tracking
+  // Start background music
+  playSound('background');
 }
 
 document.getElementById('startBtn').addEventListener('click', startGame);
 
 /* ---------- Fullscreen button ---------- */
 document.getElementById('fullscreenBtn').addEventListener('click', () => {
+  playSound('menuClick');
   if (!document.fullscreenElement) {
     // Enter fullscreen
     if (document.documentElement.requestFullscreen) {
@@ -3500,6 +3616,7 @@ function updateFullscreenButton() {
 
 /* ---------- Settings button ---------- */
 document.getElementById('settingsBtn').addEventListener('click', () => {
+  playSound('menuClick');
   fetch('settings.html', { method: 'HEAD' }).then(resp => {
     if(resp.ok) {
       window.location.href = 'settings.html';
@@ -3556,6 +3673,8 @@ if(!localStorage.getItem(LS_KEY)){
 resetWorld();
 document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
 document.getElementById('menu').style.display = 'flex';
+// Stop background music if it's playing
+stopSound('background');
 
 // Initialize keyboard visualization
 initKeyboardVisualization();

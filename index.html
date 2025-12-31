@@ -299,7 +299,8 @@
   <div id="menu" role="dialog" aria-label="start menu">
     <h1>SELECT VERSION</h1>
 
-    <button onclick="window.location.href='V1.2.2/'" class="btn">V1.2.2 (ON TESTING)</button>
+    <button onclick="enableSoundAndNavigate('V1.2.3/')" class="btn">V1.2.3</button>
+    <button onclick="window.location.href='V1.2.2/'" class="btn">V1.2.2</button>
     <button onclick="window.location.href='V1.2.1/'" class="btn">V1.2.1</button>
     <button onclick="window.location.href='V1.2.0/'" class="btn">V1.2.0 Release</button>
     <button onclick="window.location.href='V1.1.4/'" class="btn">V1.1.4</button>
@@ -316,6 +317,31 @@
   </div>
 
   <script>
+    // Function to enable sound and navigate to V1.2.3
+    function enableSoundAndNavigate(path) {
+      // Enable audio by creating and playing a silent sound
+      // This unlocks audio for the browser's autoplay policy
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Set volume to 0 (silent)
+      gainNode.gain.value = 0;
+      
+      // Play for a very short time to unlock audio
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.001);
+      
+      // Store flag that sound is enabled
+      localStorage.setItem('soundEnabled', 'true');
+      
+      // Navigate to V1.2.3
+      window.location.href = path;
+    }
+
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
