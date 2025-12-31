@@ -9,6 +9,7 @@ const sounds = {
   firstJump: new Audio('../sounds/first-jump.mp3'),
   secondJump: new Audio('../sounds/second-jump.mp3'),
   triggerDrop: new Audio('../sounds/trigger-drop.mp3'),
+  land: new Audio('../sounds/land.mp3'),
   die: new Audio('../sounds/die.mp3'),
   collectGem: new Audio('../sounds/collect-gem.mp3'),
   startChooseVersion: new Audio('../sounds/start-chooseversion.mp3'),
@@ -25,6 +26,7 @@ sounds.background.volume = 0.5; // Set background music volume
 sounds.firstJump.volume = 0.7;
 sounds.secondJump.volume = 0.7;
 sounds.triggerDrop.volume = 0.6;
+sounds.land.volume = 0.6;
 sounds.die.volume = 0.8;
 sounds.collectGem.volume = 0.7;
 sounds.startChooseVersion.volume = 0.6;
@@ -2690,6 +2692,12 @@ function gameTick() {
           player.vy = 0;
           player.onGround = true;
           player.jumpsLeft = 2;
+          
+          // Play land sound if landing after dropping
+          if(player.isDropping) {
+            playSound('land');
+          }
+          
           player.isDropping = false; // Stop dropping when landing
           spawnParticlesEarly(player.x + player.width/2, player.y + player.height, "land", runtime.effects.walkEffectMul);
           
