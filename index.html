@@ -205,6 +205,47 @@
     transform: scale(0.98);
     box-shadow: 0 0 5px var(--accent-glow);
   }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .version-select {
+    width: 100%;
+    max-width: 300px;
+    padding: 14px 24px;
+    background: transparent;
+    border: 3px solid var(--accent);
+    color: var(--accent);
+    font-family: "Press Start 2P", monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    transition: all 0.2s ease;
+    margin-bottom: 12px;
+  }
+
+  .version-select:hover {
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .version-select:focus {
+    outline: none;
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .version-select option {
+    background: var(--panel);
+    color: var(--accent);
+    padding: 10px;
+  }
   
   #scoreHUD { 
     position: fixed; 
@@ -299,26 +340,33 @@
   <div id="menu" role="dialog" aria-label="start menu">
     <h1>SELECT VERSION</h1>
 
-    <button onclick="enableSoundAndNavigate('V1.2.4/')" class="btn">V1.2.4</button>
-    <button onclick="enableSoundAndNavigate('V1.2.3/')" class="btn">V1.2.3</button>
-    <button onclick="window.location.href='V1.2.2/'" class="btn">V1.2.2</button>
-    <button onclick="window.location.href='V1.2.1/'" class="btn">V1.2.1</button>
-    <button onclick="window.location.href='V1.2.0/'" class="btn">V1.2.0 Release</button>
-    <button onclick="window.location.href='V1.1.4/'" class="btn">V1.1.4</button>
-    <button onclick="window.location.href='V1.1.3/'" class="btn">V1.1.3</button>
-    <button onclick="window.location.href='V1.1.2/'" class="btn">V1.1.2</button>
-    <button onclick="window.location.href='V1.1.1/'" class="btn">V1.1.1</button>
-    <button onclick="window.location.href='V1.1.0/'" class="btn">V1.1.0 Release</button>
-    <hr>
-    <h3>Early Snapshots</h3>
-    <button onclick="window.location.href='V1.0.0/'" class="btn">V1.0.0</button>
-    <button onclick="window.location.href='V0.0.0/'" class="btn">V0.0.0</button>
+    <select id="majorVersion" class="version-select">
+      <option value="">Choose Version</option>
+      <option value="V1.2">V1.2</option>
+      <option value="V1.1">V1.1</option>
+      <option value="V1.0">V1.0</option>
+      <option value="V0.0">V0.0</option>
+    </select>
+
+    <select id="subVersion" class="version-select" style="display: none;">
+      <option value="">Choose</option>
+    </select>
+
+    <button id="playBtn" class="btn" disabled>PLAY</button>
     <hr>
     <button id="installBtn" class="btn">INSTALL APP</button>
   </div>
 
   <script>
-    // Function to enable sound and navigate to V1.2.3
+    // Version data structure
+    const versions = {
+      'V1.2': ['V1.2.4', 'V1.2.3', 'V1.2.2', 'V1.2.1', 'V1.2.0'],
+      'V1.1': ['V1.1.4', 'V1.1.3', 'V1.1.2', 'V1.1.1', 'V1.1.0'],
+      'V1.0': ['V1.0.0'],
+      'V0.0': [] // No sub-versions, direct play
+    };
+
+    // Function to enable sound and navigate
     function enableSoundAndNavigate(path) {
       // Enable audio by creating and playing a silent sound
       // This unlocks audio for the browser's autoplay policy
@@ -339,9 +387,76 @@
       // Store flag that sound is enabled
       localStorage.setItem('soundEnabled', 'true');
       
-      // Navigate to V1.2.3
+      // Navigate to the selected version
       window.location.href = path;
     }
+
+    // Handle major version selection
+    const majorVersionSelect = document.getElementById('majorVersion');
+    const subVersionSelect = document.getElementById('subVersion');
+    const playBtn = document.getElementById('playBtn');
+
+    majorVersionSelect.addEventListener('change', function() {
+      const majorVersion = this.value;
+      const subVersions = versions[majorVersion] || [];
+
+      // Clear and hide sub-version dropdown
+      subVersionSelect.innerHTML = '<option value="">Choose</option>';
+      subVersionSelect.style.display = 'none';
+      playBtn.disabled = true;
+
+      if (majorVersion && subVersions.length > 0) {
+        // Populate sub-version dropdown
+        subVersions.forEach(version => {
+          const option = document.createElement('option');
+          option.value = version + '/';
+          option.textContent = version;
+          subVersionSelect.appendChild(option);
+        });
+        subVersionSelect.style.display = 'block';
+      } else if (majorVersion && subVersions.length === 0) {
+        // No sub-versions, enable play button directly
+        playBtn.disabled = false;
+      }
+    });
+
+    // Handle sub-version selection
+    subVersionSelect.addEventListener('change', function() {
+      if (this.value) {
+        playBtn.disabled = false;
+      } else {
+        playBtn.disabled = true;
+      }
+    });
+
+    // Handle play button click
+    playBtn.addEventListener('click', function() {
+      const majorVersion = majorVersionSelect.value;
+      const subVersion = subVersionSelect.value;
+      
+      if (!majorVersion) return;
+
+      let path;
+      if (subVersion) {
+        // Has sub-version selected
+        path = subVersion;
+      } else {
+        // No sub-version dropdown (only V0.0)
+        if (majorVersion === 'V0.0') {
+          path = 'V0.0.0/';
+        } else {
+          return; // Should not happen - other versions should have sub-version selected
+        }
+      }
+
+      // Check if this version has sound (V1.2.3 or V1.2.4)
+      if (path === 'V1.2.3/' || path === 'V1.2.4/') {
+        enableSoundAndNavigate(path);
+      } else {
+        // Regular navigation for versions without sound
+        window.location.href = path;
+      }
+    });
 
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
