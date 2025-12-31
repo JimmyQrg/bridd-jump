@@ -20,18 +20,63 @@ const sounds = {
 
 // Set background music to loop
 sounds.background.loop = true;
-sounds.background.volume = 0.5; // Set background music volume
 
-// Set volumes for sound effects
-sounds.firstJump.volume = 0.7;
-sounds.secondJump.volume = 0.7;
-sounds.triggerDrop.volume = 0.6;
-sounds.land.volume = 0.6;
-sounds.die.volume = 0.8;
-sounds.collectGem.volume = 0.7;
-sounds.startChooseVersion.volume = 0.6;
-sounds.applySave.volume = 0.6;
-sounds.menuClick.volume = 0.5;
+// Base volumes (0-1 range, will be multiplied by master and specific volume settings)
+const baseVolumes = {
+  background: 0.5,
+  firstJump: 0.7,
+  secondJump: 0.7,
+  triggerDrop: 0.6,
+  land: 0.6,
+  die: 0.8,
+  collectGem: 0.7,
+  startChooseVersion: 0.6,
+  applySave: 0.6,
+  menuClick: 0.5
+};
+
+// Function to update all sound volumes based on settings
+function updateSoundVolumes() {
+  const savedSettings = localStorage.getItem('briddSettings');
+  let audioSettings = {
+    masterVolume: 100,
+    musicVolume: 50,
+    soundEffectsVolume: 70
+  };
+  
+  if (savedSettings) {
+    try {
+      const settings = JSON.parse(savedSettings);
+      if (settings.audio) {
+        audioSettings = settings.audio;
+      }
+    } catch(e) {
+      console.log('Error parsing audio settings:', e);
+    }
+  }
+  
+  // Convert percentage to 0-1 range
+  const masterVol = audioSettings.masterVolume / 100;
+  const musicVol = audioSettings.musicVolume / 100;
+  const sfxVol = audioSettings.soundEffectsVolume / 100;
+  
+  // Apply volumes: base volume * master volume * specific volume
+  sounds.background.volume = baseVolumes.background * masterVol * musicVol;
+  
+  // Apply to all sound effects
+  sounds.firstJump.volume = baseVolumes.firstJump * masterVol * sfxVol;
+  sounds.secondJump.volume = baseVolumes.secondJump * masterVol * sfxVol;
+  sounds.triggerDrop.volume = baseVolumes.triggerDrop * masterVol * sfxVol;
+  sounds.land.volume = baseVolumes.land * masterVol * sfxVol;
+  sounds.die.volume = baseVolumes.die * masterVol * sfxVol;
+  sounds.collectGem.volume = baseVolumes.collectGem * masterVol * sfxVol;
+  sounds.startChooseVersion.volume = baseVolumes.startChooseVersion * masterVol * sfxVol;
+  sounds.applySave.volume = baseVolumes.applySave * masterVol * sfxVol;
+  sounds.menuClick.volume = baseVolumes.menuClick * masterVol * sfxVol;
+}
+
+// Initialize volumes
+updateSoundVolumes();
 
 // Check if sound is enabled (set by the button that opens V1.2.3)
 const soundEnabled = localStorage.getItem('soundEnabled') === 'true';
@@ -141,7 +186,8 @@ let player = {
   x: 100, y: 0, width: 50, height: 50, vy: 0, speed: 11,
   color: "#0ff", hitboxScale: 0.6, jumpsLeft: 2, onGround:false, visible:true,
   horizMultiplier:1, vertMultiplier:1, accountEmail: "player@example.com",
-  isDropping: false // Track if player is actively dropping
+  isDropping: false, // Track if player is actively dropping
+  dropPressedOnGround: false // Track if drop was pressed while on ground
 };
 
 /* world arrays - EXPANDED WITH 20+ NEW EFFECTS */
@@ -493,6 +539,8 @@ let runtime = {
 
 function applySettings(s){
   settings = s || settings;
+  // Update sound volumes when settings are applied
+  updateSoundVolumes();
   // FPS
   if(!settings.maxFPS || settings.maxFPS === 0 || settings.maxFPS === "Unlimited"){
     runtime.minFrameTime = 0;
@@ -645,6 +693,7 @@ function resetWorld(){
   player.visible = true;
   player.horizMultiplier = 1; player.vertMultiplier = 1;
   player.isDropping = false; // Reset drop state
+  player.dropPressedOnGround = false; // Reset flag
   playerDeathY = null; // Reset death position
 
   // Reset input flags
@@ -2395,6 +2444,7 @@ function jump(){
   if(cheats.infiniteJump || player.jumpsLeft > 0){
     player.vy = JUMP_SPEED;
     player.isDropping = false; // Stop dropping when jumping
+    player.dropPressedOnGround = false; // Reset flag when jumping
     spawnParticlesEarly(player.x + player.width/2, player.y + player.height, 
                        player.jumpsLeft === 2 ? "jump" : "double", 
                        runtime.effects.jumpEffectMul);
@@ -2427,8 +2477,14 @@ function jump(){
 function drop(){
   if(!player.visible) return;
   if(!player.isDropping) {
-    // Only play sound when starting to drop, not continuously
-    playSound('triggerDrop');
+    // Only play trigger-drop sound when starting to drop AND player is NOT on ground
+    if(!player.onGround) {
+      playSound('triggerDrop');
+      player.dropPressedOnGround = false; // Reset flag since we're dropping in air
+    } else {
+      // Drop was pressed while on ground - set flag to prevent land sound
+      player.dropPressedOnGround = true;
+    }
   }
   player.isDropping = true;
   // Set downward velocity for fast drop (calculated as (player.speed/2)*5)
@@ -2693,12 +2749,14 @@ function gameTick() {
           player.onGround = true;
           player.jumpsLeft = 2;
           
-          // Play land sound if landing after dropping
-          if(player.isDropping) {
+          // Play land sound if landing while dropping AND drop was not pressed while on ground
+          if(player.isDropping && !player.dropPressedOnGround) {
             playSound('land');
           }
           
+          // Reset flags when landing
           player.isDropping = false; // Stop dropping when landing
+          player.dropPressedOnGround = false; // Reset flag
           spawnParticlesEarly(player.x + player.width/2, player.y + player.height, "land", runtime.effects.walkEffectMul);
           
           // Create impact wave on landing

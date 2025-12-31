@@ -4,4 +4,5 @@
 <p>Updates:</p>
 <ol>
     <li>More settings</li>
+    <li>Fix sounds</li>
 </ol>

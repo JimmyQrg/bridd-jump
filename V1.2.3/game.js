@@ -3353,13 +3353,13 @@ function mainLoop(now){
   // When FPS is lower than 60, run multiple ticks to catch up
   // Only run ticks if not paused
   if(!isPaused) {
-    const maxTicksPerFrame = 5; // Prevent spiral of death
-    let ticksThisFrame = 0;
-    
-    while(tickAccumulator >= TICK_INTERVAL && ticksThisFrame < maxTicksPerFrame) {
-      gameTick();
-      tickAccumulator -= TICK_INTERVAL;
-      ticksThisFrame++;
+  const maxTicksPerFrame = 5; // Prevent spiral of death
+  let ticksThisFrame = 0;
+  
+  while(tickAccumulator >= TICK_INTERVAL && ticksThisFrame < maxTicksPerFrame) {
+    gameTick();
+    tickAccumulator -= TICK_INTERVAL;
+    ticksThisFrame++;
     }
   }
   
