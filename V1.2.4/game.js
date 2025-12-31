@@ -227,6 +227,7 @@ let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseI
 let gameRunning = false;
 let isPaused = false;
 let cameraX = 0, cameraY = 0;
+let playerDeathY = null; // Store death position for crash piece cleanup
 
 /* Tick system */
 let tickAccumulator = 0;
