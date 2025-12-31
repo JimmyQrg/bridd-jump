@@ -312,7 +312,7 @@
     <button onclick="window.location.href='V1.0.0/'" class="btn">V1.0.0</button>
     <button onclick="window.location.href='V0.0.0/'" class="btn">V0.0.0</button>
     <hr>
-    <button id="installBtn" class="btn" style="display: none;">INSTALL APP</button>
+    <button id="installBtn" class="btn">INSTALL APP</button>
   </div>
 
   <script>
@@ -333,13 +333,22 @@
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
 
+    // Check if app is already installed (on iOS, check standalone mode)
+    // Hide button if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches || 
+        window.navigator.standalone === true) {
+      if (installBtn) {
+        installBtn.style.display = 'none';
+      }
+    }
+
     // Show install button when app can be installed
     window.addEventListener('beforeinstallprompt', (e) => {
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
       // Stash the event so it can be triggered later
       deferredPrompt = e;
-      // Show the install button
+      // Show the install button (make sure it's visible)
       if (installBtn) {
         installBtn.style.display = 'block';
       }
@@ -349,8 +358,14 @@
     if (installBtn) {
       installBtn.addEventListener('click', async () => {
         if (!deferredPrompt) {
-          // If the prompt isn't available, the app might already be installed
-          alert('The app is already installed or cannot be installed on this device.');
+          // If the prompt isn't available, try to show instructions
+          if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
+            alert('To install on iOS:\n1. Tap the Share button\n2. Select "Add to Home Screen"');
+          } else if (navigator.userAgent.match(/Android/i)) {
+            alert('To install on Android:\n1. Tap the menu (3 dots)\n2. Select "Install app" or "Add to Home screen"');
+          } else {
+            alert('Installation is not available. The app may already be installed or your browser does not support PWA installation.');
+          }
           return;
         }
 
@@ -368,8 +383,10 @@
 
         // Clear the deferredPrompt variable
         deferredPrompt = null;
-        // Hide the install button
-        installBtn.style.display = 'none';
+        // Hide the install button after installation attempt
+        if (installBtn) {
+          installBtn.style.display = 'none';
+        }
       });
     }
 
@@ -381,14 +398,6 @@
       }
       deferredPrompt = null;
     });
-
-    // Check if app is already installed (on iOS, check standalone mode)
-    if (window.matchMedia('(display-mode: standalone)').matches || 
-        window.navigator.standalone === true) {
-      if (installBtn) {
-        installBtn.style.display = 'none';
-      }
-    }
   </script>
 </body>
 </html>
