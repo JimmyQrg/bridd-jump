@@ -55,30 +55,33 @@ function updateSoundVolumes() {
     }
   }
   
-  // Convert percentage to 0-1 range
-  const masterVol = audioSettings.masterVolume / 100;
-  const musicVol = audioSettings.musicVolume / 100;
-  const sfxVol = audioSettings.soundEffectsVolume / 100;
+  // Convert percentage to 0-1 range, ensure values are valid numbers
+  const masterVol = Math.max(0, Math.min(1, (audioSettings.masterVolume || 100) / 100));
+  const musicVol = Math.max(0, Math.min(1, (audioSettings.musicVolume || 50) / 100));
+  const sfxVol = Math.max(0, Math.min(1, (audioSettings.soundEffectsVolume || 70) / 100));
   
   // Apply volumes: base volume * master volume * specific volume
-  sounds.background.volume = baseVolumes.background * masterVol * musicVol;
+  // Ensure volume is between 0 and 1
+  if (sounds.background) {
+    sounds.background.volume = Math.max(0, Math.min(1, baseVolumes.background * masterVol * musicVol));
+  }
   
   // Apply to all sound effects
-  sounds.firstJump.volume = baseVolumes.firstJump * masterVol * sfxVol;
-  sounds.secondJump.volume = baseVolumes.secondJump * masterVol * sfxVol;
-  sounds.triggerDrop.volume = baseVolumes.triggerDrop * masterVol * sfxVol;
-  sounds.land.volume = baseVolumes.land * masterVol * sfxVol;
-  sounds.die.volume = baseVolumes.die * masterVol * sfxVol;
-  sounds.collectGem.volume = baseVolumes.collectGem * masterVol * sfxVol;
-  sounds.startChooseVersion.volume = baseVolumes.startChooseVersion * masterVol * sfxVol;
-  sounds.applySave.volume = baseVolumes.applySave * masterVol * sfxVol;
-  sounds.menuClick.volume = baseVolumes.menuClick * masterVol * sfxVol;
+  if (sounds.firstJump) sounds.firstJump.volume = Math.max(0, Math.min(1, baseVolumes.firstJump * masterVol * sfxVol));
+  if (sounds.secondJump) sounds.secondJump.volume = Math.max(0, Math.min(1, baseVolumes.secondJump * masterVol * sfxVol));
+  if (sounds.triggerDrop) sounds.triggerDrop.volume = Math.max(0, Math.min(1, baseVolumes.triggerDrop * masterVol * sfxVol));
+  if (sounds.land) sounds.land.volume = Math.max(0, Math.min(1, baseVolumes.land * masterVol * sfxVol));
+  if (sounds.die) sounds.die.volume = Math.max(0, Math.min(1, baseVolumes.die * masterVol * sfxVol));
+  if (sounds.collectGem) sounds.collectGem.volume = Math.max(0, Math.min(1, baseVolumes.collectGem * masterVol * sfxVol));
+  if (sounds.startChooseVersion) sounds.startChooseVersion.volume = Math.max(0, Math.min(1, baseVolumes.startChooseVersion * masterVol * sfxVol));
+  if (sounds.applySave) sounds.applySave.volume = Math.max(0, Math.min(1, baseVolumes.applySave * masterVol * sfxVol));
+  if (sounds.menuClick) sounds.menuClick.volume = Math.max(0, Math.min(1, baseVolumes.menuClick * masterVol * sfxVol));
 }
 
 // Initialize volumes
 updateSoundVolumes();
 
-// Check if sound is enabled (set by the button that opens V1.2.3)
+// Check if sound is enabled (set by the button that opens V1.2.3 or V1.2.4)
 const soundEnabled = localStorage.getItem('soundEnabled') === 'true';
 
 // Function to enable audio context (called on user interaction)
