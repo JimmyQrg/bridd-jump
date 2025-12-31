@@ -229,9 +229,21 @@ let isPaused = false;
 let cameraX = 0, cameraY = 0;
 let playerDeathY = null; // Store death position for crash piece cleanup
 
+/* Input tracking */
+let jumpKeyPressed = false;
+let dropKeyPressed = false;
+let mousePressed = false;
+let touchPressed = false;
+let touchStartY = null;
+let touchStartTime = null;
+let isDraggingDown = false;
+
 /* Tick system */
 let tickAccumulator = 0;
 let lastFpsUpdateTime = performance.now();
+let lastLoopTime = performance.now();
+let accumulated = 0;
+let timeScale = 1;
 
 /* color cycling */
 let baseColors = [
@@ -2022,7 +2034,7 @@ function applyDepthOfField(){
 }
 
 /* 19. TIME DILATION - Slow motion effect on special events */
-let timeScale = 1;
+// timeScale is declared above with other tick system variables
 function applyTimeDilation(){
   if(!runtime.timeDilationEnabled || runtime.advanced.timeDilationMul < 0.1) return;
   
@@ -2372,16 +2384,7 @@ function addLine(){
 }
 
 /* ---------- Input handling ---------- */
-// Track touch position for drag detection
-let touchStartY = null;
-let touchStartTime = null;
-let isDraggingDown = false;
-
-// Track if keys/touches are currently pressed to prevent re-triggering
-let jumpKeyPressed = false;
-let dropKeyPressed = false;
-let mousePressed = false;
-let touchPressed = false;
+// Variables are declared above with other game state variables
 
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
@@ -3395,8 +3398,7 @@ function draw(){
 }
 
 /* ---------- Main loop with proper FPS limiting ---------- */
-let lastLoopTime = performance.now();
-let accumulated = 0;
+// lastLoopTime and accumulated are declared above with other tick system variables
 
 function mainLoop(now){
   requestAnimationFrame(mainLoop);
