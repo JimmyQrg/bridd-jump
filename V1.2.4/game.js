@@ -3575,20 +3575,32 @@ window.addEventListener('keydown', function(e){
 });
 
 // Mobile command button
-document.getElementById('mobileCommandBtn').addEventListener('click', openCommandPrompt);
+const mobileCommandBtn = document.getElementById('mobileCommandBtn');
+if (mobileCommandBtn) {
+  mobileCommandBtn.addEventListener('click', openCommandPrompt);
+}
 
 // How to Play button
-document.getElementById('howToPlayBtn').addEventListener('click', () => {
-  playSound('menuClick');
-  document.getElementById('howToPlayModal').classList.add('show');
-});
+const howToPlayBtn = document.getElementById('howToPlayBtn');
+if (howToPlayBtn) {
+  howToPlayBtn.addEventListener('click', () => {
+    playSound('menuClick');
+    const howToPlayModal = document.getElementById('howToPlayModal');
+    if (howToPlayModal) {
+      howToPlayModal.classList.add('show');
+    }
+  });
+}
 
 // Close modal when clicking outside (optional)
-document.getElementById('howToPlayModal').addEventListener('click', (e) => {
-  if(e.target.id === 'howToPlayModal') {
-    document.getElementById('howToPlayModal').classList.remove('show');
-  }
-});
+const howToPlayModal = document.getElementById('howToPlayModal');
+if (howToPlayModal) {
+  howToPlayModal.addEventListener('click', (e) => {
+    if(e.target.id === 'howToPlayModal') {
+      howToPlayModal.classList.remove('show');
+    }
+  });
+}
 
 /* ---------- Pause Screen Functions ---------- */
 function pauseGame() {
@@ -3624,8 +3636,14 @@ function goToMainMenu() {
 }
 
 // Pause screen button handlers
-document.getElementById('continueBtn').addEventListener('click', unpauseGame);
-document.getElementById('mainMenuBtn').addEventListener('click', goToMainMenu);
+const continueBtn = document.getElementById('continueBtn');
+if (continueBtn) {
+  continueBtn.addEventListener('click', unpauseGame);
+}
+const mainMenuBtn = document.getElementById('mainMenuBtn');
+if (mainMenuBtn) {
+  mainMenuBtn.addEventListener('click', goToMainMenu);
+}
 
 // ESC key to pause/unpause
 window.addEventListener('keydown', (e) => {
@@ -3662,31 +3680,37 @@ function startGame(){
   playSound('background');
 }
 
-document.getElementById('startBtn').addEventListener('click', startGame);
+const startBtn = document.getElementById('startBtn');
+if (startBtn) {
+  startBtn.addEventListener('click', startGame);
+}
 
 /* ---------- Fullscreen button ---------- */
-document.getElementById('fullscreenBtn').addEventListener('click', () => {
-  playSound('menuClick');
-  if (!document.fullscreenElement) {
-    // Enter fullscreen
-    if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen();
-    } else if (document.documentElement.webkitRequestFullscreen) {
-      document.documentElement.webkitRequestFullscreen();
-    } else if (document.documentElement.msRequestFullscreen) {
-      document.documentElement.msRequestFullscreen();
+const fullscreenBtn = document.getElementById('fullscreenBtn');
+if (fullscreenBtn) {
+  fullscreenBtn.addEventListener('click', () => {
+    playSound('menuClick');
+    if (!document.fullscreenElement) {
+      // Enter fullscreen
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen();
+      } else if (document.documentElement.webkitRequestFullscreen) {
+        document.documentElement.webkitRequestFullscreen();
+      } else if (document.documentElement.msRequestFullscreen) {
+        document.documentElement.msRequestFullscreen();
+      }
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
     }
-  } else {
-    // Exit fullscreen
-    if (document.exitFullscreen) {
-      document.exitFullscreen();
-    } else if (document.webkitExitFullscreen) {
-      document.webkitExitFullscreen();
-    } else if (document.msExitFullscreen) {
-      document.msExitFullscreen();
-    }
-  }
-});
+  });
+}
 
 // Update button text based on fullscreen state
 document.addEventListener('fullscreenchange', updateFullscreenButton);
@@ -3705,18 +3729,21 @@ function updateFullscreenButton() {
 }
 
 /* ---------- Settings button ---------- */
-document.getElementById('settingsBtn').addEventListener('click', () => {
-  playSound('menuClick');
-  fetch('settings.html', { method: 'HEAD' }).then(resp => {
-    if(resp.ok) {
-      window.location.href = 'settings.html';
-    } else {
+const settingsBtn = document.getElementById('settingsBtn');
+if (settingsBtn) {
+  settingsBtn.addEventListener('click', () => {
+    playSound('menuClick');
+    fetch('settings.html', { method: 'HEAD' }).then(resp => {
+      if(resp.ok) {
+        window.location.href = 'settings.html';
+      } else {
+        alert('settings.html not found');
+      }
+    }).catch(()=> {
       alert('settings.html not found');
-    }
-  }).catch(()=> {
-    alert('settings.html not found');
+    });
   });
-});
+}
 
 // Detect if device has keyboard
 function hasKeyboard() {
