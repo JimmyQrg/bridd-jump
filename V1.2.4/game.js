@@ -37,49 +37,66 @@ const baseVolumes = {
 
 // Function to update all sound volumes based on settings
 function updateSoundVolumes() {
-  const savedSettings = localStorage.getItem('briddSettings');
-  let audioSettings = {
-    masterVolume: 100,
-    musicVolume: 50,
-    soundEffectsVolume: 70
-  };
-  
-  if (savedSettings) {
-    try {
-      const settings = JSON.parse(savedSettings);
-      if (settings.audio) {
-        audioSettings = settings.audio;
-      }
-    } catch(e) {
-      console.log('Error parsing audio settings:', e);
+  try {
+    // Safety check: ensure sounds and baseVolumes exist
+    if (typeof sounds === 'undefined' || typeof baseVolumes === 'undefined') {
+      console.warn('Sounds or baseVolumes not defined, skipping volume update');
+      return;
     }
+
+    const savedSettings = localStorage.getItem('briddSettings');
+    let audioSettings = {
+      masterVolume: 100,
+      musicVolume: 50,
+      soundEffectsVolume: 70
+    };
+    
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        if (settings && settings.audio) {
+          audioSettings = settings.audio;
+        }
+      } catch(e) {
+        console.log('Error parsing audio settings:', e);
+      }
+    }
+    
+    // Convert percentage to 0-1 range, ensure values are valid numbers
+    const masterVol = Math.max(0, Math.min(1, (Number(audioSettings.masterVolume) || 100) / 100));
+    const musicVol = Math.max(0, Math.min(1, (Number(audioSettings.musicVolume) || 50) / 100));
+    const sfxVol = Math.max(0, Math.min(1, (Number(audioSettings.soundEffectsVolume) || 70) / 100));
+    
+    // Apply volumes: base volume * master volume * specific volume
+    // Ensure volume is between 0 and 1
+    if (sounds && sounds.background && baseVolumes.background !== undefined) {
+      sounds.background.volume = Math.max(0, Math.min(1, baseVolumes.background * masterVol * musicVol));
+    }
+    
+    // Apply to all sound effects
+    if (sounds) {
+      if (sounds.firstJump && baseVolumes.firstJump !== undefined) sounds.firstJump.volume = Math.max(0, Math.min(1, baseVolumes.firstJump * masterVol * sfxVol));
+      if (sounds.secondJump && baseVolumes.secondJump !== undefined) sounds.secondJump.volume = Math.max(0, Math.min(1, baseVolumes.secondJump * masterVol * sfxVol));
+      if (sounds.triggerDrop && baseVolumes.triggerDrop !== undefined) sounds.triggerDrop.volume = Math.max(0, Math.min(1, baseVolumes.triggerDrop * masterVol * sfxVol));
+      if (sounds.land && baseVolumes.land !== undefined) sounds.land.volume = Math.max(0, Math.min(1, baseVolumes.land * masterVol * sfxVol));
+      if (sounds.die && baseVolumes.die !== undefined) sounds.die.volume = Math.max(0, Math.min(1, baseVolumes.die * masterVol * sfxVol));
+      if (sounds.collectGem && baseVolumes.collectGem !== undefined) sounds.collectGem.volume = Math.max(0, Math.min(1, baseVolumes.collectGem * masterVol * sfxVol));
+      if (sounds.startChooseVersion && baseVolumes.startChooseVersion !== undefined) sounds.startChooseVersion.volume = Math.max(0, Math.min(1, baseVolumes.startChooseVersion * masterVol * sfxVol));
+      if (sounds.applySave && baseVolumes.applySave !== undefined) sounds.applySave.volume = Math.max(0, Math.min(1, baseVolumes.applySave * masterVol * sfxVol));
+      if (sounds.menuClick && baseVolumes.menuClick !== undefined) sounds.menuClick.volume = Math.max(0, Math.min(1, baseVolumes.menuClick * masterVol * sfxVol));
+    }
+  } catch(err) {
+    console.error('Error in updateSoundVolumes:', err);
+    // Don't break the script if volume update fails
   }
-  
-  // Convert percentage to 0-1 range, ensure values are valid numbers
-  const masterVol = Math.max(0, Math.min(1, (audioSettings.masterVolume || 100) / 100));
-  const musicVol = Math.max(0, Math.min(1, (audioSettings.musicVolume || 50) / 100));
-  const sfxVol = Math.max(0, Math.min(1, (audioSettings.soundEffectsVolume || 70) / 100));
-  
-  // Apply volumes: base volume * master volume * specific volume
-  // Ensure volume is between 0 and 1
-  if (sounds.background) {
-    sounds.background.volume = Math.max(0, Math.min(1, baseVolumes.background * masterVol * musicVol));
-  }
-  
-  // Apply to all sound effects
-  if (sounds.firstJump) sounds.firstJump.volume = Math.max(0, Math.min(1, baseVolumes.firstJump * masterVol * sfxVol));
-  if (sounds.secondJump) sounds.secondJump.volume = Math.max(0, Math.min(1, baseVolumes.secondJump * masterVol * sfxVol));
-  if (sounds.triggerDrop) sounds.triggerDrop.volume = Math.max(0, Math.min(1, baseVolumes.triggerDrop * masterVol * sfxVol));
-  if (sounds.land) sounds.land.volume = Math.max(0, Math.min(1, baseVolumes.land * masterVol * sfxVol));
-  if (sounds.die) sounds.die.volume = Math.max(0, Math.min(1, baseVolumes.die * masterVol * sfxVol));
-  if (sounds.collectGem) sounds.collectGem.volume = Math.max(0, Math.min(1, baseVolumes.collectGem * masterVol * sfxVol));
-  if (sounds.startChooseVersion) sounds.startChooseVersion.volume = Math.max(0, Math.min(1, baseVolumes.startChooseVersion * masterVol * sfxVol));
-  if (sounds.applySave) sounds.applySave.volume = Math.max(0, Math.min(1, baseVolumes.applySave * masterVol * sfxVol));
-  if (sounds.menuClick) sounds.menuClick.volume = Math.max(0, Math.min(1, baseVolumes.menuClick * masterVol * sfxVol));
 }
 
-// Initialize volumes
-updateSoundVolumes();
+// Initialize volumes (wrapped in try-catch to prevent script breaking)
+try {
+  updateSoundVolumes();
+} catch(err) {
+  console.error('Error initializing sound volumes:', err);
+}
 
 // Check if sound is enabled (set by the button that opens V1.2.3 or V1.2.4)
 const soundEnabled = localStorage.getItem('soundEnabled') === 'true';
@@ -543,7 +560,11 @@ let runtime = {
 function applySettings(s){
   settings = s || settings;
   // Update sound volumes when settings are applied
-  updateSoundVolumes();
+  try {
+    updateSoundVolumes();
+  } catch(err) {
+    console.error('Error updating sound volumes in applySettings:', err);
+  }
   // FPS
   if(!settings.maxFPS || settings.maxFPS === 0 || settings.maxFPS === "Unlimited"){
     runtime.minFrameTime = 0;
