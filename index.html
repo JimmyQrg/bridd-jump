@@ -151,13 +151,6 @@
     text-align: center;
   }
   
-  #bestScore { 
-    font-size: 11px; 
-    color: var(--muted);
-    margin-top: 4px;
-    text-shadow: 0 0 5px rgba(136, 247, 255, 0.5);
-  }
-  
   .btn {
     appearance: none;
     border: 3px solid var(--accent);
@@ -206,63 +199,65 @@
     box-shadow: 0 0 5px var(--accent-glow);
   }
   
-  #scoreHUD { 
-    position: fixed; 
-    left: 16px; 
-    top: 16px; 
-    z-index: 1100; 
-    font-size: 12px; 
-    color: var(--accent);
-    text-shadow: 
-      0 0 8px var(--accent-glow),
-      0 0 16px rgba(0, 255, 255, 0.4);
-    pointer-events: none;
-    font-family: "Press Start 2P", monospace;
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
   
-  #fpsLabel { 
-    position: fixed; 
-    left: 16px; 
-    top: 40px; 
-    z-index: 1100; 
-    font-size: 10px; 
-    color: var(--muted);
-    text-shadow: 0 0 5px rgba(136, 247, 255, 0.3);
-    pointer-events: none;
-    font-family: "Press Start 2P", monospace;
+  .btn:disabled:hover::before {
+    width: 0;
   }
   
-  #debugToast { 
-    position: fixed; 
-    left: 50%; 
-    transform: translateX(-50%); 
-    bottom: 24px; 
-    z-index: 1300; 
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    border: 3px solid var(--accent);
     background: var(--panel);
-    border: 2px solid var(--accent);
     color: var(--accent);
-    padding: 10px 16px;
+    padding: 14px 24px;
     border-radius: 0;
-    display: none;
-    font-size: 10px;
+    font-size: 11px;
     font-family: "Press Start 2P", monospace;
-    pointer-events: none;
-    box-shadow: 
-      0 0 15px var(--accent-glow),
-      inset 0 0 10px rgba(0, 255, 255, 0.1);
-    animation: toastSlideUp 0.3s ease-out;
-    text-transform: uppercase;
+    width: 100%;
+    max-width: 300px;
+    text-align: center;
+    text-align-last: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2300ffff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 12px;
+    padding-right: 40px;
   }
   
-  @keyframes toastSlideUp {
-    from {
-      opacity: 0;
-      transform: translateX(-50%) translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
+  select:hover {
+    box-shadow: 
+      0 0 20px var(--accent-glow),
+      inset 0 0 20px rgba(0, 255, 255, 0.1);
+  }
+  
+  select:focus {
+    outline: none;
+    box-shadow: 
+      0 0 20px var(--accent-glow),
+      inset 0 0 20px rgba(0, 255, 255, 0.2);
+  }
+  
+  select option {
+    background: var(--panel);
+    color: var(--accent);
+    padding: 10px;
+  }
+  
+  #subVersionSelect {
+    display: none;
+  }
+  
+  #subVersionSelect.show {
+    display: block;
   }
   
   @media (max-width: 560px) {
@@ -270,7 +265,7 @@
       width: 92vw; 
       padding: 24px 20px; 
     }
-    .btn { 
+    .btn, select { 
       width: 100%; 
       font-size: 10px; 
       padding: 12px 20px;
@@ -282,14 +277,6 @@
     #menu h3 {
       font-size: 12px;
     }
-    #scoreHUD, #fpsLabel {
-      left: 12px;
-      font-size: 10px;
-    }
-    #fpsLabel {
-      top: 36px;
-      font-size: 9px;
-    }
   }
 </style>
 </head>
@@ -297,50 +284,124 @@
   <canvas id="gameCanvas"></canvas>
 
   <div id="menu" role="dialog" aria-label="start menu">
-    <h1>SELECT VERSION</h1>
+    <h1>BRIDD JUMP</h1>
 
-    <button onclick="enableSoundAndNavigate('V1.2.3/')" class="btn">V1.2.3</button>
-    <button onclick="window.location.href='V1.2.2/'" class="btn">V1.2.2</button>
-    <button onclick="window.location.href='V1.2.1/'" class="btn">V1.2.1</button>
-    <button onclick="window.location.href='V1.2.0/'" class="btn">V1.2.0 Release</button>
-    <button onclick="window.location.href='V1.1.4/'" class="btn">V1.1.4</button>
-    <button onclick="window.location.href='V1.1.3/'" class="btn">V1.1.3</button>
-    <button onclick="window.location.href='V1.1.2/'" class="btn">V1.1.2</button>
-    <button onclick="window.location.href='V1.1.1/'" class="btn">V1.1.1</button>
-    <button onclick="window.location.href='V1.1.0/'" class="btn">V1.1.0 Release</button>
-    <hr>
-    <h3>Early Snapshots</h3>
-    <button onclick="window.location.href='V1.0.0/'" class="btn">V1.0.0</button>
-    <button onclick="window.location.href='V0.0.0/'" class="btn">V0.0.0</button>
+    <select id="versionSelect">
+      <option value="">Choose Version</option>
+      <option value="V1.2">V1.2</option>
+      <option value="V1.1">V1.1</option>
+      <option value="V1.0">V1.0</option>
+      <option value="V0.0">V0.0</option>
+    </select>
+
+    <select id="subVersionSelect">
+      <option value="">Choose</option>
+    </select>
+
+    <button id="playBtn" class="btn" disabled>PLAY</button>
     <hr>
     <button id="installBtn" class="btn">INSTALL APP</button>
   </div>
 
   <script>
-    // Function to enable sound and navigate to V1.2.3
+    // Version structure with sub-versions
+    const versionStructure = {
+      'V1.2': ['V1.2.4', 'V1.2.3', 'V1.2.2', 'V1.2.1', 'V1.2.0'],
+      'V1.1': ['V1.1.4', 'V1.1.3', 'V1.1.2', 'V1.1.1', 'V1.1.0'],
+      'V1.0': ['V1.0.0'],
+      'V0.0': [] // No sub-versions
+    };
+
+    const versionSelect = document.getElementById('versionSelect');
+    const subVersionSelect = document.getElementById('subVersionSelect');
+    const playBtn = document.getElementById('playBtn');
+
+    // Function to enable sound and navigate (for V1.2.3)
     function enableSoundAndNavigate(path) {
       // Enable audio by creating and playing a silent sound
-      // This unlocks audio for the browser's autoplay policy
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
+      gainNode.gain.value = 0; // Silent
       
-      // Set volume to 0 (silent)
-      gainNode.gain.value = 0;
-      
-      // Play for a very short time to unlock audio
       oscillator.start();
       oscillator.stop(audioContext.currentTime + 0.001);
       
       // Store flag that sound is enabled
       localStorage.setItem('soundEnabled', 'true');
       
-      // Navigate to V1.2.3
+      // Navigate to version
       window.location.href = path;
     }
+
+    // Handle version selection
+    versionSelect.addEventListener('change', function() {
+      const selectedVersion = this.value;
+      
+      // Clear sub-version select
+      subVersionSelect.innerHTML = '<option value="">Choose</option>';
+      subVersionSelect.classList.remove('show');
+      playBtn.disabled = true;
+      
+      if (!selectedVersion) {
+        return;
+      }
+      
+      const subVersions = versionStructure[selectedVersion];
+      
+      // If version has sub-versions, show sub-version select
+      if (subVersions && subVersions.length > 0) {
+        subVersions.forEach(subVersion => {
+          const option = document.createElement('option');
+          option.value = subVersion;
+          option.textContent = subVersion;
+          subVersionSelect.appendChild(option);
+        });
+        subVersionSelect.classList.add('show');
+      } else {
+        // No sub-versions, enable play button directly
+        playBtn.disabled = false;
+      }
+    });
+
+    // Handle sub-version selection
+    subVersionSelect.addEventListener('change', function() {
+      const selectedSubVersion = this.value;
+      playBtn.disabled = !selectedSubVersion;
+    });
+
+    // Handle play button click
+    playBtn.addEventListener('click', function() {
+      const selectedVersion = versionSelect.value;
+      const selectedSubVersion = subVersionSelect.value;
+      
+      if (!selectedVersion) {
+        return;
+      }
+      
+      let path = '';
+      
+      // Determine path based on selection
+      if (selectedSubVersion) {
+        // Sub-version selected
+        path = selectedSubVersion + '/';
+        
+        // Special handling for V1.2.3 (has sound)
+        if (selectedSubVersion === 'V1.2.3') {
+          enableSoundAndNavigate(path);
+          return;
+        }
+      } else {
+        // No sub-versions, use main version
+        path = selectedVersion + '/';
+      }
+      
+      // Navigate to selected version
+      window.location.href = path;
+    });
 
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
@@ -360,7 +421,6 @@
     const installBtn = document.getElementById('installBtn');
 
     // Check if app is already installed (on iOS, check standalone mode)
-    // Hide button if already installed
     if (window.matchMedia('(display-mode: standalone)').matches || 
         window.navigator.standalone === true) {
       if (installBtn) {
@@ -370,11 +430,8 @@
 
     // Show install button when app can be installed
     window.addEventListener('beforeinstallprompt', (e) => {
-      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
-      // Stash the event so it can be triggered later
       deferredPrompt = e;
-      // Show the install button (make sure it's visible)
       if (installBtn) {
         installBtn.style.display = 'block';
       }
@@ -384,7 +441,6 @@
     if (installBtn) {
       installBtn.addEventListener('click', async () => {
         if (!deferredPrompt) {
-          // If the prompt isn't available, try to show instructions
           if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
             alert('To install on iOS:\n1. Tap the Share button\n2. Select "Add to Home Screen"');
           } else if (navigator.userAgent.match(/Android/i)) {
@@ -395,10 +451,7 @@
           return;
         }
 
-        // Show the install prompt
         deferredPrompt.prompt();
-
-        // Wait for the user to respond to the prompt
         const { outcome } = await deferredPrompt.userChoice;
 
         if (outcome === 'accepted') {
@@ -407,9 +460,7 @@
           console.log('User dismissed the install prompt');
         }
 
-        // Clear the deferredPrompt variable
         deferredPrompt = null;
-        // Hide the install button after installation attempt
         if (installBtn) {
           installBtn.style.display = 'none';
         }
