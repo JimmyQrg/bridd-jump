@@ -5,4 +5,6 @@
 <ol>
     <li>Add HP</li>
     <li>Lock game enlargement</li>
+    <li>Modify UI</li>
+    <li>Fix continue game lag</li>
 </ol>
