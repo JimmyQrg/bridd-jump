@@ -2763,16 +2763,33 @@ function cleanupOffScreenObjects() {
 
 /* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
 function gameTick() {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2765',message:'gameTick entry',data:{isPaused,gameRunning,player_visible:player.visible},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   // Skip if paused
-  if(isPaused) return;
+  if(isPaused) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2767',message:'gameTick early return paused',data:{isPaused},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+    return;
+  }
   
   // Continue running effects even when gameRunning is false (for death animations)
   // Only skip if game hasn't started yet
   if(!gameRunning && crashPieces.length === 0 && deathImplosions.length === 0 && 
-     deathGlitches.length === 0 && deathVapors.length === 0) return;
+     deathGlitches.length === 0 && deathVapors.length === 0) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2772',message:'gameTick early return not running',data:{gameRunning},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+    return;
+  }
   
   // Continue running effects even when player is dead, but skip player physics
   if(player.visible && gameRunning) {
+    // #region agent log
+    const playerXBefore = player.x;
+    const playerSpeedBefore = player.speed;
+    // #endregion
     player.speed += 0.002;
 
     // color cycling
@@ -2797,6 +2814,9 @@ function gameTick() {
     }
     
     player.x += player.speed * player.horizMultiplier;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2799',message:'player.x updated',data:{playerX_before:playerXBefore,playerX_after:player.x,playerSpeed:player.speed,horizMultiplier:player.horizMultiplier},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
 
     // platform collision
     player.onGround = false;
@@ -3435,6 +3455,9 @@ function draw(){
 // lastLoopTime and accumulated are declared above with other tick system variables
 
 function mainLoop(now){
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3437',message:'mainLoop entry',data:{gameRunning,isPaused,tickAccumulator,TICK_INTERVAL},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   requestAnimationFrame(mainLoop);
   if(!now) now = performance.now();
   
@@ -3460,7 +3483,12 @@ function mainLoop(now){
   // FPS limiting for rendering
   if(runtime.minFrameTime > 0){
     accumulated += cappedDeltaMs;
-    if(accumulated < runtime.minFrameTime) return;
+    if(accumulated < runtime.minFrameTime) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3463',message:'mainLoop early return FPS limit',data:{accumulated,runtime_minFrameTime:runtime.minFrameTime},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      return;
+    }
     accumulated = 0;
   }
 
@@ -3469,6 +3497,9 @@ function mainLoop(now){
   // Only accumulate ticks if game is running
   if(gameRunning) {
     tickAccumulator += cappedDeltaMs;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3471',message:'tickAccumulator after add',data:{tickAccumulator,cappedDeltaMs,TICK_INTERVAL},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
   }
   
   // Run exactly one game tick per frame when FPS is 60 or higher
@@ -3477,12 +3508,24 @@ function mainLoop(now){
   if(!isPaused && gameRunning) {
     const maxTicksPerFrame = 5; // Prevent spiral of death
     let ticksThisFrame = 0;
+    // Use epsilon comparison to handle floating point precision issues
+    const EPSILON = 0.001;
     
-    while(tickAccumulator >= TICK_INTERVAL && ticksThisFrame < maxTicksPerFrame) {
+    while(tickAccumulator >= (TICK_INTERVAL - EPSILON) && ticksThisFrame < maxTicksPerFrame) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3512',message:'calling gameTick',data:{tickAccumulator,TICK_INTERVAL,ticksThisFrame},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       gameTick();
       tickAccumulator -= TICK_INTERVAL;
       ticksThisFrame++;
     }
+    // #region agent log
+    if(ticksThisFrame === 0) fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3520',message:'no ticks this frame',data:{tickAccumulator,TICK_INTERVAL,isPaused,gameRunning},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+  } else {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3523',message:'tick condition failed',data:{isPaused,gameRunning},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
   }
   
   // If we're running behind, reset accumulator to prevent lag buildup
@@ -3493,17 +3536,24 @@ function mainLoop(now){
   // Camera smoothing - use actual delta time for smoothness
   // When player is dead, smoothly stop camera movement instead of following
   if(player.visible) {
+    const cameraXBefore = cameraX;
     const targetCamX = player.x - 150;
     const targetCamY = player.y - canvas.height/2 + player.height*1.5;
     const smoothingFactor = 0.1 * (cappedDeltaMs / 16.67); // Adjust for frame rate
     cameraX = cameraX * (1 - smoothingFactor) + targetCamX * smoothingFactor;
     cameraY = cameraY * (1 - smoothingFactor) + targetCamY * smoothingFactor;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3499',message:'camera updated',data:{cameraX_before:cameraXBefore,cameraX_after:cameraX,playerX:player.x,targetCamX},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
   } else {
     // Gradually stop camera movement when player is dead (keep current position)
     // Camera stays where it is, no further movement
   }
 
   // Draw (rendering at monitor refresh rate)
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3507',message:'calling draw',data:{gameRunning},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
   draw();
 }
 
@@ -3732,6 +3782,9 @@ window.addEventListener('focus', () => {
 
 /* ---------- Start / Reset Game ---------- */
 function startGame(){
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3734',message:'startGame entry',data:{TICK_INTERVAL},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+  // #endregion
   // Enable audio on first user interaction (start button click)
   enableAudio();
   
@@ -3745,6 +3798,9 @@ function startGame(){
   lastLoopTime = performance.now();
   // Initialize tick accumulator with enough time to run multiple ticks immediately
   tickAccumulator = TICK_INTERVAL * 3; // Initialize with enough time for immediate ticks
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3747',message:'startGame after init',data:{gameRunning,isPaused,player_visible:player.visible,tickAccumulator,TICK_INTERVAL,playerX:player.x,playerSpeed:player.speed},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
   // Start background music
   playSound('background');
   // Run first few ticks immediately to ensure game starts properly
@@ -3755,6 +3811,9 @@ function startGame(){
       tickAccumulator -= TICK_INTERVAL;
       initialTicks++;
     }
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3756',message:'startGame after initial ticks',data:{initialTicks,playerX:player.x},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
   }
 }
 
