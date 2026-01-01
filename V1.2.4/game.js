@@ -3460,12 +3460,15 @@ function mainLoop(now){
 
   // Fixed tick system: always run at 60 TPS regardless of FPS
   // Use cappedDeltaMs to prevent large time jumps
-  tickAccumulator += cappedDeltaMs;
+  // Only accumulate ticks if game is running
+  if(gameRunning) {
+    tickAccumulator += cappedDeltaMs;
+  }
   
   // Run exactly one game tick per frame when FPS is 60 or higher
   // When FPS is lower than 60, run multiple ticks to catch up
-  // Only run ticks if not paused
-  if(!isPaused) {
+  // Only run ticks if not paused and game is running
+  if(!isPaused && gameRunning) {
     const maxTicksPerFrame = 5; // Prevent spiral of death
     let ticksThisFrame = 0;
     
@@ -3732,10 +3735,16 @@ function startGame(){
   gameRunning = true;
   isPaused = false; // Ensure not paused when starting
   player.visible = true;
-  tickAccumulator = 0; // Reset tick accumulator on restart
-  lastLoopTime = performance.now(); // Reset time tracking
+  // Don't reset lastLoopTime - let it continue from current time to avoid tiny first delta
+  // Initialize tick accumulator to ensure first tick runs immediately
+  tickAccumulator = TICK_INTERVAL * 2; // Initialize to trigger first tick immediately
   // Start background music
   playSound('background');
+  // Run first tick immediately to ensure game starts properly
+  if(!isPaused && gameRunning) {
+    gameTick();
+    tickAccumulator -= TICK_INTERVAL;
+  }
 }
 
 const startBtn = document.getElementById('startBtn');
