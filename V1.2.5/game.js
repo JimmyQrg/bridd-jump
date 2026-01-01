@@ -51,7 +51,7 @@ function updateSoundVolumes() {
   
   // Update background music (update even if already playing)
   if(sounds.background) {
-    sounds.background.volume = baseVolumes.background * masterMul * musicMul;
+  sounds.background.volume = baseVolumes.background * masterMul * musicMul;
   }
   
   // Update all sound effects (update even if already playing)
@@ -3632,7 +3632,7 @@ function draw(){
     ctx.shadowBlur = 0;
     ctx.restore();
   }
-  
+
   // player
   if(player.visible){
     // Flash effect during immunity - opacity jumps from 0% to 100%

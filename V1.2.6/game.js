@@ -237,12 +237,18 @@ let voidPauseDuration = 3 * TICKS_PER_SECOND; // 3 seconds in ticks
 let shouldExtendImmunity = false; // Whether to extend immunity after void pause ends
 
 // Bobble spawning timers (in seconds)
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:240',message:'initializing bobble spawn timers',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+// #endregion
 let bobbleSpawnTimer = 0; // Current timer for regular bobbles
 let bobbleSpawnTarget = 20 + Math.random() * 30; // Target time (20-50 seconds) for regular bobbles
 let speedUpSpawnTimer = 0; // Current timer for speedUp bobbles
 let speedUpSpawnTarget = 10 + Math.random() * 40; // Target time (10-50 seconds) for speedUp bobbles
 let minusSpawnTimer = 0; // Current timer for minus bobbles
 let minusSpawnTarget = 10 + Math.random() * 40; // Target time (10-50 seconds) for minus bobbles
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:246',message:'bobble spawn timers initialized',data:{bobbleSpawnTarget:bobbleSpawnTarget,speedUpSpawnTarget:speedUpSpawnTarget,minusSpawnTarget:minusSpawnTarget},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+// #endregion
 
 /* Tick system */
 let tickAccumulator = 0;
@@ -959,30 +965,68 @@ function generateBlockPlatform(lastX, lastY){
   }
   
   // bobbles are now spawned time-based in gameTick(), not per-platform
+  
+  return { x: x + blockCount*BLOCK_SIZE, y };
 }
 
 /* ---------- Bobble spawning function ---------- */
 function spawnBobble(types) {
-  if(platforms.length === 0) return;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:965',message:'spawnBobble called',data:{types:types,platformsLength:platforms.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  
+  if(platforms.length === 0) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:970',message:'spawnBobble early return - no platforms',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    return;
+  }
   
   // Choose a random platform
   const plat = platforms[Math.floor(Math.random() * platforms.length)];
-  if(!plat) return;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:984',message:'spawnBobble - plat selected',data:{platExists:plat !== undefined,platIsNull:plat === null,platHasX:plat && plat.x !== undefined,platformsLength:platforms.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
+  if(!plat || plat.x === undefined || plat.width === undefined || plat.y === undefined) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:990',message:'spawnBobble early return - plat invalid',data:{plat:plat,hasX:plat && plat.x !== undefined,hasWidth:plat && plat.width !== undefined,hasY:plat && plat.y !== undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    return;
+  }
   
   // Choose random type from allowed types
   const type = types[Math.floor(Math.random() * types.length)];
   
   // Calculate spawn position (above the platform)
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:998',message:'spawnBobble - before accessing plat.x',data:{platX:plat.x,platWidth:plat.width,platY:plat.y},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
   const bobbleX = plat.x + Math.random() * plat.width;
   const bobbleY = plat.y - BLOCK_SIZE * 1.5;
   
   // Check if position is safe (not on spikes or gems)
   let safe = true;
-  for(let s of spikes) { 
-    if(Math.abs(bobbleX - s.x) < BLOCK_SIZE * 2) safe = false; 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1005',message:'spawnBobble - checking spikes',data:{spikesLength:spikes.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
+  for(let s of spikes) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1007',message:'spawnBobble - checking spike',data:{sExists:s !== undefined,sHasX:s && s.x !== undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+    if(s && s.x !== undefined) {
+      if(Math.abs(bobbleX - s.x) < BLOCK_SIZE * 2) safe = false;
+    }
   }
-  for(let g of gems) { 
-    if(Math.abs(bobbleX - g.x) < BLOCK_SIZE && Math.abs(bobbleY - g.y) < BLOCK_SIZE) safe = false; 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1013',message:'spawnBobble - checking gems',data:{gemsLength:gems.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
+  for(let g of gems) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1015',message:'spawnBobble - checking gem',data:{gExists:g !== undefined,gHasX:g && g.x !== undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+    if(g && g.x !== undefined && g.y !== undefined) {
+      if(Math.abs(bobbleX - g.x) < BLOCK_SIZE && Math.abs(bobbleY - g.y) < BLOCK_SIZE) safe = false;
+    }
   }
   
   if(safe) {
@@ -996,9 +1040,14 @@ function spawnBobble(types) {
       rotation: Math.random() * Math.PI * 2,
       rotationSpeed: (Math.random() - 0.5) * 0.1
     });
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1000',message:'spawnBobble - bobble created',data:{type:type,x:bobbleX,y:bobbleY},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
   }
-
-  return { x: x + blockCount*BLOCK_SIZE, y };
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1025',message:'spawnBobble - function exit',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 }
 
 /* ---------- Collision helpers ---------- */
@@ -3025,6 +3074,9 @@ function gameTick() {
   
   // Update bobble spawn timers (increment in seconds)
   if(gameRunning && player.visible) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3020',message:'updating bobble timers',data:{gameRunning:gameRunning,playerVisible:player.visible,TICKS_PER_SECOND:TICKS_PER_SECOND},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     bobbleSpawnTimer += 1 / TICKS_PER_SECOND;
     speedUpSpawnTimer += 1 / TICKS_PER_SECOND;
     minusSpawnTimer += 1 / TICKS_PER_SECOND;
@@ -4361,7 +4413,7 @@ function goToMainMenu() {
   
   // If no new high score or modal not available, proceed normally
   proceedToMainMenu();
-}
+    }
 
 function proceedToMainMenu() {
   isPaused = false;
@@ -4546,3 +4598,12 @@ initKeyboardVisualization();
 
 // start the RAF loop
 requestAnimationFrame(mainLoop);
+
+// #region agent log - Global error handlers
+window.addEventListener('error', function(e) {
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:4578',message:'GLOBAL ERROR CAUGHT',data:{message:e.message,filename:e.filename,lineno:e.lineno,error:String(e.error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+});
+window.addEventListener('unhandledrejection', function(e) {
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:4583',message:'UNHANDLED PROMISE REJECTION',data:{reason:String(e.reason)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+});
+// #endregion
