@@ -49,19 +49,21 @@ function updateSoundVolumes() {
   // Sound effects volume multiplier (0-1)
   const soundEffectsMul = volumeSettings.soundEffects / 100;
   
-  // Update background music
-  sounds.background.volume = baseVolumes.background * masterMul * musicMul;
+  // Update background music (update even if already playing)
+  if(sounds.background) {
+    sounds.background.volume = baseVolumes.background * masterMul * musicMul;
+  }
   
-  // Update all sound effects
-  sounds.firstJump.volume = baseVolumes.firstJump * masterMul * soundEffectsMul;
-  sounds.secondJump.volume = baseVolumes.secondJump * masterMul * soundEffectsMul;
-  sounds.triggerDrop.volume = baseVolumes.triggerDrop * masterMul * soundEffectsMul;
-  sounds.land.volume = baseVolumes.land * masterMul * soundEffectsMul;
-  sounds.die.volume = baseVolumes.die * masterMul * soundEffectsMul;
-  sounds.collectGem.volume = baseVolumes.collectGem * masterMul * soundEffectsMul;
-  sounds.startChooseVersion.volume = baseVolumes.startChooseVersion * masterMul * soundEffectsMul;
-  sounds.applySave.volume = baseVolumes.applySave * masterMul * soundEffectsMul;
-  sounds.menuClick.volume = baseVolumes.menuClick * masterMul * soundEffectsMul;
+  // Update all sound effects (update even if already playing)
+  if(sounds.firstJump) sounds.firstJump.volume = baseVolumes.firstJump * masterMul * soundEffectsMul;
+  if(sounds.secondJump) sounds.secondJump.volume = baseVolumes.secondJump * masterMul * soundEffectsMul;
+  if(sounds.triggerDrop) sounds.triggerDrop.volume = baseVolumes.triggerDrop * masterMul * soundEffectsMul;
+  if(sounds.land) sounds.land.volume = baseVolumes.land * masterMul * soundEffectsMul;
+  if(sounds.die) sounds.die.volume = baseVolumes.die * masterMul * soundEffectsMul;
+  if(sounds.collectGem) sounds.collectGem.volume = baseVolumes.collectGem * masterMul * soundEffectsMul;
+  if(sounds.startChooseVersion) sounds.startChooseVersion.volume = baseVolumes.startChooseVersion * masterMul * soundEffectsMul;
+  if(sounds.applySave) sounds.applySave.volume = baseVolumes.applySave * masterMul * soundEffectsMul;
+  if(sounds.menuClick) sounds.menuClick.volume = baseVolumes.menuClick * masterMul * soundEffectsMul;
 }
 
 // Initialize volumes - called after settings initialization (see line 3716)
@@ -93,6 +95,9 @@ function enableAudio() {
 // Function to play sound with error handling
 function playSound(soundName) {
   if (!soundEnabled) return; // Don't play sounds if not enabled
+  
+  // Update volumes before playing to ensure they're current
+  updateSoundVolumes();
   
   try {
     const sound = sounds[soundName];
@@ -2698,6 +2703,15 @@ function gameTick() {
   
   // Continue running effects even when player is dead, but skip player physics
   if(player.visible && gameRunning) {
+    // Update background music volume periodically to ensure it stays current
+    if(sounds.background && !sounds.background.paused) {
+      const currentSettings = readSettings();
+      const volumeSettings = currentSettings.volume || { master: 100, music: 50, soundEffects: 100 };
+      const masterMul = volumeSettings.master / 100;
+      const musicMul = volumeSettings.music / 100;
+      sounds.background.volume = baseVolumes.background * masterMul * musicMul;
+    }
+    
     player.speed += 0.002;
 
     // color cycling
@@ -3575,6 +3589,16 @@ function unpauseGame() {
 function goToMainMenu() {
   playSound('menuClick');
   stopSound('background'); // Stop background music when going to menu
+  
+  // Check if current score is higher than best score
+  if(score > bestScore) {
+    const shouldSave = confirm(`New High Score: ${Math.floor(score)}!\n\nWould you like to save this as your best score?`);
+    if(shouldSave) {
+      bestScore = Math.floor(score);
+      localStorage.setItem('bestScore', bestScore);
+    }
+  }
+  
   isPaused = false;
   gameRunning = false;
   const pauseScreen = document.getElementById('pauseScreen');
@@ -3582,6 +3606,7 @@ function goToMainMenu() {
     pauseScreen.classList.remove('show');
   }
   document.getElementById('menu').style.display = 'flex';
+  document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
   resetWorld();
 }
 

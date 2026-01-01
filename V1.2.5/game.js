@@ -49,19 +49,21 @@ function updateSoundVolumes() {
   // Sound effects volume multiplier (0-1)
   const soundEffectsMul = volumeSettings.soundEffects / 100;
   
-  // Update background music
-  sounds.background.volume = baseVolumes.background * masterMul * musicMul;
+  // Update background music (update even if already playing)
+  if(sounds.background) {
+    sounds.background.volume = baseVolumes.background * masterMul * musicMul;
+  }
   
-  // Update all sound effects
-  sounds.firstJump.volume = baseVolumes.firstJump * masterMul * soundEffectsMul;
-  sounds.secondJump.volume = baseVolumes.secondJump * masterMul * soundEffectsMul;
-  sounds.triggerDrop.volume = baseVolumes.triggerDrop * masterMul * soundEffectsMul;
-  sounds.land.volume = baseVolumes.land * masterMul * soundEffectsMul;
-  sounds.die.volume = baseVolumes.die * masterMul * soundEffectsMul;
-  sounds.collectGem.volume = baseVolumes.collectGem * masterMul * soundEffectsMul;
-  sounds.startChooseVersion.volume = baseVolumes.startChooseVersion * masterMul * soundEffectsMul;
-  sounds.applySave.volume = baseVolumes.applySave * masterMul * soundEffectsMul;
-  sounds.menuClick.volume = baseVolumes.menuClick * masterMul * soundEffectsMul;
+  // Update all sound effects (update even if already playing)
+  if(sounds.firstJump) sounds.firstJump.volume = baseVolumes.firstJump * masterMul * soundEffectsMul;
+  if(sounds.secondJump) sounds.secondJump.volume = baseVolumes.secondJump * masterMul * soundEffectsMul;
+  if(sounds.triggerDrop) sounds.triggerDrop.volume = baseVolumes.triggerDrop * masterMul * soundEffectsMul;
+  if(sounds.land) sounds.land.volume = baseVolumes.land * masterMul * soundEffectsMul;
+  if(sounds.die) sounds.die.volume = baseVolumes.die * masterMul * soundEffectsMul;
+  if(sounds.collectGem) sounds.collectGem.volume = baseVolumes.collectGem * masterMul * soundEffectsMul;
+  if(sounds.startChooseVersion) sounds.startChooseVersion.volume = baseVolumes.startChooseVersion * masterMul * soundEffectsMul;
+  if(sounds.applySave) sounds.applySave.volume = baseVolumes.applySave * masterMul * soundEffectsMul;
+  if(sounds.menuClick) sounds.menuClick.volume = baseVolumes.menuClick * masterMul * soundEffectsMul;
 }
 
 // Initialize volumes - called after settings initialization (see line 3716)
@@ -93,6 +95,9 @@ function enableAudio() {
 // Function to play sound with error handling
 function playSound(soundName) {
   if (!soundEnabled) return; // Don't play sounds if not enabled
+  
+  // Update volumes before playing to ensure they're current
+  updateSoundVolumes();
   
   try {
     const sound = sounds[soundName];
@@ -148,8 +153,8 @@ const ctx = canvas.getContext('2d');
 
 // Fixed canvas size - doesn't scale with window
 // UI will scale but game canvas stays fixed
-const fixedWidth = 1600; // Fixed game width
-const fixedHeight = 900; // Fixed game height
+const fixedWidth = 1450; // Fixed game width
+const fixedHeight = 812.5; // Fixed game heigh
 
 function resize(){
   canvas.width = fixedWidth;
@@ -214,6 +219,7 @@ let gravityWaves = [], energyRipples = [], pixelDisplacements = [];
 let starRush = [], nebulaDust = [], warpTunnels = [], boostFlares = [], contrailJets = [];
 let edgeLightnings = [], compressionRings = [];
 let deathImplosions = [], deathGlitches = [], deathVapors = [];
+let respawnParticles = []; // Particles for respawn effect during pause
 
 /* gameplay */
 let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
@@ -296,7 +302,8 @@ const defaultSettings = {
     compressionRings: 100,
     deathImplode: 100,
     deathGlitch: 100,
-    deathVaporize: 100
+    deathVaporize: 100,
+    respawnEffect: 100
   }
 };
 
@@ -310,7 +317,7 @@ const qualityPresets = {
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
     gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0,
     starRush:0, nebulaDust:0, warpTunnel:0, boostFlash:0, contrailJets:0, edgeLightning:0, compressionRings:0,
-    deathImplode:0, deathGlitch:0, deathVaporize:0
+    deathImplode:0, deathGlitch:0, deathVaporize:0, respawnEffect:0
   },
   "Low": {
     blockTexture:1, jumpEffect:5, walkEffect:0, dieEffect:0, horizontalLines:0, trail:0, glow:0, lines:false,
@@ -321,7 +328,7 @@ const qualityPresets = {
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
     gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0,
     starRush:10, nebulaDust:5, warpTunnel:0, boostFlash:0, contrailJets:10, edgeLightning:0, compressionRings:0,
-    deathImplode:5, deathGlitch:5, deathVaporize:5
+    deathImplode:5, deathGlitch:5, deathVaporize:5, respawnEffect:5
   },
   "Medium": {
     blockTexture:1, jumpEffect:10, walkEffect:0, dieEffect:10, horizontalLines:0, trail:0, glow:0, lines:false,
@@ -332,7 +339,7 @@ const qualityPresets = {
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
     gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0,
     starRush:25, nebulaDust:15, warpTunnel:10, boostFlash:10, contrailJets:25, edgeLightning:10, compressionRings:10,
-    deathImplode:15, deathGlitch:15, deathVaporize:15
+    deathImplode:15, deathGlitch:15, deathVaporize:15, respawnEffect:15
   },
   "Medium+": {
     blockTexture:1, jumpEffect:15, walkEffect:15, dieEffect:15, horizontalLines:0, trail:0, glow:0, lines:false,
@@ -343,7 +350,7 @@ const qualityPresets = {
     screenTear:0, dynamicFog:10, heatDistortion:10, starbursts:10, afterImages:10,
     gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:10, radialBlur:10,
     starRush:50, nebulaDust:35, warpTunnel:25, boostFlash:25, contrailJets:50, edgeLightning:25, compressionRings:25,
-    deathImplode:25, deathGlitch:25, deathVaporize:25
+    deathImplode:25, deathGlitch:25, deathVaporize:25, respawnEffect:25
   },
   "High": {
     blockTexture:1, jumpEffect:15, walkEffect:15, dieEffect:15, horizontalLines:15, trail:0, glow:0, lines:true,
@@ -354,7 +361,7 @@ const qualityPresets = {
     screenTear:10, dynamicFog:25, heatDistortion:25, starbursts:25, afterImages:25,
     gravityWaves:10, energyRipples:10, pixelDisplacement:10, ambientOcclusion:25, radialBlur:25,
     starRush:75, nebulaDust:50, warpTunnel:50, boostFlash:50, contrailJets:75, edgeLightning:50, compressionRings:50,
-    deathImplode:50, deathGlitch:50, deathVaporize:50
+    deathImplode:50, deathGlitch:50, deathVaporize:50, respawnEffect:50
   },
   "High+": {
     blockTexture:1, jumpEffect:33, walkEffect:33, dieEffect:33, horizontalLines:33, trail:0, glow:0, lines:true,
@@ -365,7 +372,7 @@ const qualityPresets = {
     screenTear:25, dynamicFog:50, heatDistortion:50, starbursts:50, afterImages:50,
     gravityWaves:25, energyRipples:25, pixelDisplacement:25, ambientOcclusion:50, radialBlur:50,
     starRush:100, nebulaDust:75, warpTunnel:75, boostFlash:75, contrailJets:100, edgeLightning:75, compressionRings:75,
-    deathImplode:75, deathGlitch:75, deathVaporize:75
+    deathImplode:75, deathGlitch:75, deathVaporize:75, respawnEffect:75
   },
   "Extreme": {
     blockTexture:1, jumpEffect:60, walkEffect:60, dieEffect:60, horizontalLines:60, trail:0, glow:0, lines:true,
@@ -376,7 +383,7 @@ const qualityPresets = {
     screenTear:50, dynamicFog:75, heatDistortion:75, starbursts:75, afterImages:75,
     gravityWaves:50, energyRipples:50, pixelDisplacement:50, ambientOcclusion:75, radialBlur:75,
     starRush:125, nebulaDust:100, warpTunnel:100, boostFlash:100, contrailJets:125, edgeLightning:100, compressionRings:100,
-    deathImplode:100, deathGlitch:100, deathVaporize:100
+    deathImplode:100, deathGlitch:100, deathVaporize:100, respawnEffect:100
   },
   "Extreme+": {
     blockTexture:1, jumpEffect:64, walkEffect:64, dieEffect:64, horizontalLines:64, trail:1, glow:1, lines:true,
@@ -387,7 +394,7 @@ const qualityPresets = {
     screenTear:75, dynamicFog:100, heatDistortion:100, starbursts:100, afterImages:100,
     gravityWaves:75, energyRipples:75, pixelDisplacement:75, ambientOcclusion:100, radialBlur:100,
     starRush:150, nebulaDust:125, warpTunnel:125, boostFlash:125, contrailJets:150, edgeLightning:125, compressionRings:125,
-    deathImplode:125, deathGlitch:125, deathVaporize:125
+    deathImplode:125, deathGlitch:125, deathVaporize:125, respawnEffect:125
   },
   "Ultra": {
     blockTexture:1, jumpEffect:100, walkEffect:100, dieEffect:100, horizontalLines:100, trail:0, glow:1, lines:true,
@@ -398,7 +405,7 @@ const qualityPresets = {
     screenTear:100, dynamicFog:125, heatDistortion:125, starbursts:125, afterImages:125,
     gravityWaves:100, energyRipples:100, pixelDisplacement:100, ambientOcclusion:125, radialBlur:125,
     starRush:175, nebulaDust:150, warpTunnel:150, boostFlash:150, contrailJets:175, edgeLightning:150, compressionRings:150,
-    deathImplode:150, deathGlitch:150, deathVaporize:150
+    deathImplode:150, deathGlitch:150, deathVaporize:150, respawnEffect:150
   },
   "Ultra+": {
     blockTexture:1, jumpEffect:120, walkEffect:120, dieEffect:120, horizontalLines:120, trail:1, glow:1, lines:true,
@@ -409,7 +416,7 @@ const qualityPresets = {
     screenTear:125, dynamicFog:150, heatDistortion:150, starbursts:150, afterImages:150,
     gravityWaves:125, energyRipples:125, pixelDisplacement:125, ambientOcclusion:150, radialBlur:150,
     starRush:200, nebulaDust:175, warpTunnel:175, boostFlash:175, contrailJets:200, edgeLightning:175, compressionRings:175,
-    deathImplode:175, deathGlitch:175, deathVaporize:175
+    deathImplode:175, deathGlitch:175, deathVaporize:175, respawnEffect:175
   },
   "Ultra++": {
     blockTexture:1, jumpEffect:200, walkEffect:200, dieEffect:200, horizontalLines:200, trail:1, glow:1.5, lines:true,
@@ -420,7 +427,7 @@ const qualityPresets = {
     screenTear:150, dynamicFog:175, heatDistortion:175, starbursts:175, afterImages:175,
     gravityWaves:150, energyRipples:150, pixelDisplacement:150, ambientOcclusion:175, radialBlur:175,
     starRush:225, nebulaDust:200, warpTunnel:200, boostFlash:200, contrailJets:225, edgeLightning:200, compressionRings:200,
-    deathImplode:200, deathGlitch:200, deathVaporize:200
+    deathImplode:200, deathGlitch:200, deathVaporize:200, respawnEffect:200
   },
   "Highest": {
     blockTexture:1, jumpEffect:200, walkEffect:200, dieEffect:200, horizontalLines:200, trail:1, glow:2, lines:true,
@@ -431,7 +438,7 @@ const qualityPresets = {
     screenTear:200, dynamicFog:200, heatDistortion:200, starbursts:200, afterImages:200,
     gravityWaves:200, energyRipples:200, pixelDisplacement:200, ambientOcclusion:200, radialBlur:200,
     starRush:250, nebulaDust:225, warpTunnel:225, boostFlash:225, contrailJets:250, edgeLightning:225, compressionRings:225,
-    deathImplode:225, deathGlitch:225, deathVaporize:225
+    deathImplode:225, deathGlitch:225, deathVaporize:225, respawnEffect:225
   }
 };
 
@@ -629,6 +636,7 @@ function applySettings(s){
   runtime.advanced.deathImplodeMul = pct(settings.advanced.deathImplode) || (preset.deathImplode ? preset.deathImplode/100 : 0);
   runtime.advanced.deathGlitchMul = pct(settings.advanced.deathGlitch) || (preset.deathGlitch ? preset.deathGlitch/100 : 0);
   runtime.advanced.deathVaporizeMul = pct(settings.advanced.deathVaporize) || (preset.deathVaporize ? preset.deathVaporize/100 : 0);
+  runtime.advanced.respawnEffectMul = pct(settings.advanced.respawnEffect) || (preset.respawnEffect ? preset.respawnEffect/100 : 0);
 
   // Enable/disable based on settings
   runtime.glowEnabled = (settings.quality && settings.quality.glow !== undefined) ? (settings.quality.glow > 0) : (preset.glow !== undefined ? preset.glow > 0 : true);
@@ -697,6 +705,7 @@ function resetWorld(){
   pixelDisplacements = []; starRush = []; nebulaDust = []; warpTunnels = []; boostFlares = [];
   contrailJets = []; edgeLightnings = []; compressionRings = [];
   deathImplosions = []; deathGlitches = []; deathVapors = [];
+  respawnParticles = []; // Clear respawn particles
   
   screenShake = 0;
   screenFlash = 0;
@@ -2727,16 +2736,59 @@ function cleanupOffScreenObjects() {
 function gameTick() {
   // Skip if paused (regular pause) or void damage pause
   if(isPaused || voidDamagePause) {
-    // Update void pause timer
+    // Update void pause timer and respawn effect
     if(voidDamagePause) {
       voidPauseTimer--;
+      
+      // Create respawn particles during pause (if respawn effect is enabled)
+      if(player.visible && voidPauseTimer > 0 && runtime.advanced.respawnEffectMul > 0) {
+        const centerX = player.x + player.width / 2;
+        const centerY = player.y + player.height / 2;
+        const progress = 1 - (voidPauseTimer / voidPauseDuration); // 0 to 1
+        const radius = 30 + progress * 50; // Expanding radius
+        
+        // Spawn particles in a circle around player (intensity based on setting)
+        const spawnChance = 0.3 * runtime.advanced.respawnEffectMul; // Scale by setting
+        if(Math.random() < spawnChance) {
+          const particleCount = Math.max(1, Math.floor(3 * runtime.advanced.respawnEffectMul)); // More particles at higher settings
+          for(let i = 0; i < particleCount; i++) {
+            const angle = (Math.PI * 2 * i / particleCount) + (progress * Math.PI * 2);
+            respawnParticles.push({
+              x: centerX + Math.cos(angle) * radius,
+              y: centerY + Math.sin(angle) * radius,
+              vx: Math.cos(angle) * 2 * runtime.advanced.respawnEffectMul,
+              vy: Math.sin(angle) * 2 * runtime.advanced.respawnEffectMul,
+              life: 30,
+              maxLife: 30,
+              size: 4 * runtime.advanced.respawnEffectMul,
+              color: player.color
+            });
+          }
+        }
+      }
+      
+      // Update respawn particles
+      for(let i = respawnParticles.length - 1; i >= 0; i--) {
+        const p = respawnParticles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.95;
+        p.vy *= 0.95;
+        p.life--;
+        if(p.life <= 0) {
+          respawnParticles.splice(i, 1);
+        }
+      }
+      
       if(voidPauseTimer <= 0) {
         voidDamagePause = false;
+        respawnParticles = []; // Clear respawn particles when pause ends
         // Start immunity after pause ends only if shouldExtendImmunity is true
         if(shouldExtendImmunity) {
           player.immunityTime = 3 * TICKS_PER_SECOND; // 3 seconds
           player.isImmune = true;
           player.flashTimer = 0;
+          trail = []; // Clear all trails when entering immunity
         }
         shouldExtendImmunity = false; // Reset flag
       }
@@ -2764,6 +2816,15 @@ function gameTick() {
   
   // Continue running effects even when player is dead, but skip player physics
   if(player.visible && gameRunning) {
+    // Update background music volume periodically to ensure it stays current
+    if(sounds.background && !sounds.background.paused) {
+      const currentSettings = readSettings();
+      const volumeSettings = currentSettings.volume || { master: 100, music: 50, soundEffects: 100 };
+      const masterMul = volumeSettings.master / 100;
+      const musicMul = volumeSettings.music / 100;
+      sounds.background.volume = baseVolumes.background * masterMul * musicMul;
+    }
+    
     player.speed += 0.002;
 
     // color cycling
@@ -3096,10 +3157,12 @@ function takeSpikeDamage(spike) {
   // Reduce HP
   player.currentHP -= 1;
   
-  // Give 3 seconds of immunity (void doesn't harm during this)
-  player.immunityTime = 3 * TICKS_PER_SECOND; // 3 seconds
-  player.isImmune = true;
-  player.flashTimer = 0;
+  // Start pause timer (3 seconds)
+  voidDamagePause = true;
+  voidPauseTimer = voidPauseDuration; // 3 seconds
+  shouldExtendImmunity = true; // Will start immunity after pause ends
+  
+  // Don't start immunity immediately - it will start after pause ends
 }
 
 // Function to handle void damage
@@ -3107,7 +3170,7 @@ function takeVoidDamage() {
   if(!player.visible) return;
   if(cheats.invincible) return;
   
-  // If player is immune (from spike damage), teleport/pause/reset but don't extend immunity
+  // If player is immune (from spike or void damage), teleport/pause/reset but don't extend immunity
   if(player.isImmune) {
     // Teleport to nearest safe ground
     const safeGround = findNearestSafeGround();
@@ -3400,8 +3463,8 @@ function draw(){
   drawAfterImages();
 
   /* ---------- TRAIL EFFECT ---------- */
-  if(player.visible && runtime.trailEnabled){
-    // Add new trail position
+  if(player.visible && runtime.trailEnabled && !player.isImmune){
+    // Add new trail position (don't generate trails during immunity)
     trail.push({ 
       x: player.x, 
       y: player.y, 
@@ -3461,7 +3524,8 @@ function draw(){
       ctx.restore();
     }
     ctx.globalAlpha = 1;
-  } else {
+  } else if(player.isImmune) {
+    // Clear all trails during immunity
     trail = [];
   }
 
@@ -3551,6 +3615,24 @@ function draw(){
   // Apply radial blur effect
   applyRadialBlur();
 
+  // Draw respawn particles (during pause)
+  if(respawnParticles.length > 0) {
+    ctx.save();
+    for(let p of respawnParticles) {
+      const alpha = p.life / p.maxLife;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      if(runtime.glowEnabled) {
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 10;
+      }
+      ctx.fillRect(p.x - cameraX - p.size/2, p.y - cameraY - p.size/2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+  
   // player
   if(player.visible){
     // Flash effect during immunity - opacity jumps from 0% to 100%
@@ -3589,6 +3671,12 @@ function draw(){
     hpDisplay.appendChild(square);
   }
   
+  // Score Display
+  const scoreDisplay = document.getElementById('scoreDisplay');
+  if(scoreDisplay) {
+    scoreDisplay.textContent = Math.floor(score).toString();
+  }
+  
   // Pause Timer Display
   const pauseTimer = document.getElementById('pauseTimer');
   if(voidDamagePause && voidPauseTimer > 0) {
@@ -3625,7 +3713,13 @@ function mainLoop(now){
   if(now - lastFpsDisplayUpdate > 500){
     const fpsLabel = document.getElementById('fpsLabel');
     const maxFPSText = settings.maxFPS === 0 ? 'Unlimited' : settings.maxFPS;
-    fpsLabel.innerText = `FPS: ${Math.round(fps)} / ${maxFPSText} — Quality: ${settings.qualityPreset}`;
+    fpsLabel.innerText = `FPS: ${Math.round(fps)} / ${maxFPSText}`;
+    
+    // Update score display
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    if(scoreDisplay) {
+      scoreDisplay.innerText = Math.floor(score).toString();
+    }
     lastFpsDisplayUpdate = now;
     frameCount = 0;
   }
@@ -3814,6 +3908,12 @@ function unpauseGame() {
   if(!isPaused) return; // Don't unpause if not paused
   playSound('menuClick');
   isPaused = false;
+  
+  // Reset time tracking to prevent lag when resuming
+  lastLoopTime = performance.now();
+  accumulated = 0;
+  tickAccumulator = 0;
+  
   const pauseScreen = document.getElementById('pauseScreen');
   if(pauseScreen) {
     pauseScreen.classList.remove('show');
@@ -3823,6 +3923,16 @@ function unpauseGame() {
 function goToMainMenu() {
   playSound('menuClick');
   stopSound('background'); // Stop background music when going to menu
+  
+  // Check if current score is higher than best score
+  if(score > bestScore) {
+    const shouldSave = confirm(`New High Score: ${Math.floor(score)}!\n\nWould you like to save this as your best score?`);
+    if(shouldSave) {
+      bestScore = Math.floor(score);
+      localStorage.setItem('bestScore', bestScore);
+    }
+  }
+  
   isPaused = false;
   gameRunning = false;
   const pauseScreen = document.getElementById('pauseScreen');
@@ -3830,6 +3940,7 @@ function goToMainMenu() {
     pauseScreen.classList.remove('show');
   }
   document.getElementById('menu').style.display = 'flex';
+  document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
   resetWorld();
 }
 
@@ -3852,6 +3963,11 @@ window.addEventListener('keydown', (e) => {
 document.addEventListener('visibilitychange', () => {
   if(document.hidden && gameRunning && !isPaused) {
     pauseGame();
+  } else if(!document.hidden && isPaused) {
+    // Reset time tracking when tab becomes visible to prevent lag
+    lastLoopTime = performance.now();
+    accumulated = 0;
+    tickAccumulator = 0;
   }
 });
 

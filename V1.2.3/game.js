@@ -3531,6 +3531,16 @@ function unpauseGame() {
 function goToMainMenu() {
   playSound('menuClick');
   stopSound('background'); // Stop background music when going to menu
+  
+  // Check if current score is higher than best score
+  if(score > bestScore) {
+    const shouldSave = confirm(`New High Score: ${Math.floor(score)}!\n\nWould you like to save this as your best score?`);
+    if(shouldSave) {
+      bestScore = Math.floor(score);
+      localStorage.setItem('bestScore', bestScore);
+    }
+  }
+  
   isPaused = false;
   gameRunning = false;
   const pauseScreen = document.getElementById('pauseScreen');
@@ -3538,6 +3548,7 @@ function goToMainMenu() {
     pauseScreen.classList.remove('show');
   }
   document.getElementById('menu').style.display = 'flex';
+  document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
   resetWorld();
 }
 

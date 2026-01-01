@@ -504,6 +504,10 @@
         <label>Death Vaporize</label>
         <input type="range" id="deathVaporize" min="0" max="250" value="100">
         <div class="range-value" id="deathVaporizeVal">100%</div>
+
+        <label>Respawn Effect</label>
+        <input type="range" id="respawnEffect" min="0" max="250" value="100">
+        <div class="range-value" id="respawnEffectVal">100%</div>
       </div>
     </div>
 
@@ -795,6 +799,7 @@
           document.getElementById("deathImplode").value = settings.advanced.deathImplode !== undefined ? settings.advanced.deathImplode : 100;
           document.getElementById("deathGlitch").value = settings.advanced.deathGlitch !== undefined ? settings.advanced.deathGlitch : 100;
           document.getElementById("deathVaporize").value = settings.advanced.deathVaporize !== undefined ? settings.advanced.deathVaporize : 100;
+          document.getElementById("respawnEffect").value = settings.advanced.respawnEffect !== undefined ? settings.advanced.respawnEffect : 100;
         } else {
           // Set defaults if advanced settings don't exist
           document.getElementById("shockwaves").value = 100;
@@ -837,6 +842,7 @@
           document.getElementById("deathImplode").value = 100;
           document.getElementById("deathGlitch").value = 100;
           document.getElementById("deathVaporize").value = 100;
+          document.getElementById("respawnEffect").value = 100;
         }
         
         // Update all range value displays
@@ -871,7 +877,7 @@
         "energyRipples", "pixelDisplacement", "ambientOcclusion",
         
         // Death animations
-        "deathImplode", "deathGlitch", "deathVaporize"
+        "deathImplode", "deathGlitch", "deathVaporize", "respawnEffect"
       ];
       
       rangeIds.forEach(id => {
@@ -931,7 +937,7 @@
           ambientOcclusion: 0,
           starRush: 0, nebulaDust: 0, warpTunnel: 0, boostFlash: 0,
           contrailJets: 0, edgeLightning: 0, compressionRings: 0,
-          deathImplode: 0, deathGlitch: 0, deathVaporize: 0
+          deathImplode: 0, deathGlitch: 0, deathVaporize: 0, respawnEffect: 0
         }
       },
       "Low": {
@@ -953,7 +959,7 @@
           ambientOcclusion: 0,
           starRush: 10, nebulaDust: 5, warpTunnel: 0, boostFlash: 0,
           contrailJets: 10, edgeLightning: 0, compressionRings: 0,
-          deathImplode: 5, deathGlitch: 5, deathVaporize: 5
+          deathImplode: 5, deathGlitch: 5, deathVaporize: 5, respawnEffect: 5
         }
       },
       "Medium": {
@@ -975,7 +981,7 @@
           ambientOcclusion: 0,
           starRush: 25, nebulaDust: 15, warpTunnel: 10, boostFlash: 10,
           contrailJets: 25, edgeLightning: 10, compressionRings: 10,
-          deathImplode: 15, deathGlitch: 15, deathVaporize: 15
+          deathImplode: 15, deathGlitch: 15, deathVaporize: 15, respawnEffect: 15
         }
       },
       "Medium+": {
@@ -997,7 +1003,7 @@
           ambientOcclusion: 10,
           starRush: 50, nebulaDust: 35, warpTunnel: 25, boostFlash: 25,
           contrailJets: 50, edgeLightning: 25, compressionRings: 25,
-          deathImplode: 25, deathGlitch: 25, deathVaporize: 25
+          deathImplode: 25, deathGlitch: 25, deathVaporize: 25, respawnEffect: 25
         }
       },
       "High": {
@@ -1019,7 +1025,7 @@
           ambientOcclusion: 25,
           starRush: 75, nebulaDust: 50, warpTunnel: 50, boostFlash: 50,
           contrailJets: 75, edgeLightning: 50, compressionRings: 50,
-          deathImplode: 50, deathGlitch: 50, deathVaporize: 50
+          deathImplode: 50, deathGlitch: 50, deathVaporize: 50, respawnEffect: 50
         }
       },
       "High+": {
@@ -1041,7 +1047,7 @@
           ambientOcclusion: 50,
           starRush: 100, nebulaDust: 75, warpTunnel: 75, boostFlash: 75,
           contrailJets: 100, edgeLightning: 75, compressionRings: 75,
-          deathImplode: 75, deathGlitch: 75, deathVaporize: 75
+          deathImplode: 75, deathGlitch: 75, deathVaporize: 75, respawnEffect: 75
         }
       },
       "Extreme": {
@@ -1063,7 +1069,7 @@
           ambientOcclusion: 75,
           starRush: 125, nebulaDust: 100, warpTunnel: 100, boostFlash: 100,
           contrailJets: 125, edgeLightning: 100, compressionRings: 100,
-          deathImplode: 100, deathGlitch: 100, deathVaporize: 100
+          deathImplode: 100, deathGlitch: 100, deathVaporize: 100, respawnEffect: 100
         }
       },
       "Extreme+": {
@@ -1085,7 +1091,7 @@
           ambientOcclusion: 100,
           starRush: 150, nebulaDust: 125, warpTunnel: 125, boostFlash: 125,
           contrailJets: 150, edgeLightning: 125, compressionRings: 125,
-          deathImplode: 125, deathGlitch: 125, deathVaporize: 125
+          deathImplode: 125, deathGlitch: 125, deathVaporize: 125, respawnEffect: 125
         }
       },
       "Ultra": {
@@ -1107,7 +1113,7 @@
           ambientOcclusion: 125,
           starRush: 175, nebulaDust: 150, warpTunnel: 150, boostFlash: 150,
           contrailJets: 175, edgeLightning: 150, compressionRings: 150,
-          deathImplode: 150, deathGlitch: 150, deathVaporize: 150
+          deathImplode: 150, deathGlitch: 150, deathVaporize: 150, respawnEffect: 150
         }
       },
       "Ultra+": {
@@ -1129,7 +1135,7 @@
           ambientOcclusion: 150,
           starRush: 200, nebulaDust: 175, warpTunnel: 175, boostFlash: 175,
           contrailJets: 200, edgeLightning: 175, compressionRings: 175,
-          deathImplode: 175, deathGlitch: 175, deathVaporize: 175
+          deathImplode: 175, deathGlitch: 175, deathVaporize: 175, respawnEffect: 175
         }
       },
       "Ultra++": {
@@ -1151,7 +1157,7 @@
           ambientOcclusion: 175,
           starRush: 225, nebulaDust: 200, warpTunnel: 200, boostFlash: 200,
           contrailJets: 225, edgeLightning: 200, compressionRings: 200,
-          deathImplode: 200, deathGlitch: 200, deathVaporize: 200
+          deathImplode: 200, deathGlitch: 200, deathVaporize: 200, respawnEffect: 200
         }
       },
       "Highest": {
@@ -1173,7 +1179,7 @@
           ambientOcclusion: 200,
           starRush: 250, nebulaDust: 225, warpTunnel: 225, boostFlash: 225,
           contrailJets: 250, edgeLightning: 225, compressionRings: 225,
-          deathImplode: 225, deathGlitch: 225, deathVaporize: 225
+          deathImplode: 225, deathGlitch: 225, deathVaporize: 225, respawnEffect: 225
         }
       }
     };
@@ -1201,7 +1207,7 @@
         "energyRipples", "pixelDisplacement", "ambientOcclusion",
         
         // Death animations
-        "deathImplode", "deathGlitch", "deathVaporize"
+        "deathImplode", "deathGlitch", "deathVaporize", "respawnEffect"
     ];
 
     allRangeIds.forEach(id => {
@@ -1384,7 +1390,8 @@
           // Death animations
           deathImplode: parseInt(document.getElementById("deathImplode").value) || 0,
           deathGlitch: parseInt(document.getElementById("deathGlitch").value) || 0,
-          deathVaporize: parseInt(document.getElementById("deathVaporize").value) || 0
+          deathVaporize: parseInt(document.getElementById("deathVaporize").value) || 0,
+          respawnEffect: parseInt(document.getElementById("respawnEffect").value) || 0
         }
       };
       

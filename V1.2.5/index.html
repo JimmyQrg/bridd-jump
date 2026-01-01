@@ -204,10 +204,10 @@
   }
   
   .hpSquare {
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--accent);
-    box-shadow: 0 0 5px var(--accent-glow);
+    width: 30px;
+    height: 30px;
+    border: 3px solid var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
   }
   
   .hpSquare.full {
@@ -223,14 +223,29 @@
     right: 16px; 
     top: 16px; 
     z-index: 1100; 
-    font-size: 10px; 
+    font-size: 14px; 
     color: var(--muted);
-    text-shadow: 0 0 5px rgba(136, 247, 255, 0.3);
+    text-shadow: 0 0 8px rgba(136, 247, 255, 0.3);
     pointer-events: none;
     font-family: "Press Start 2P", monospace;
-    padding: 8px 12px;
+    padding: 12px 18px;
     background: rgba(0, 0, 0, 0.6);
-    border: 2px solid var(--accent);
+  }
+  
+  #scoreDisplay {
+    margin-top: 32px;
+    position: fixed;
+    left: 50%;
+    top: 16px;
+    transform: translateX(-50%);
+    z-index: 1100;
+    font-size: 48px;
+    color: var(--accent);
+    text-shadow: 
+      0 0 10px var(--accent-glow),
+      0 0 20px var(--accent-glow);
+    pointer-events: none;
+    font-family: "Press Start 2P", monospace;
   }
   
   #pauseTimer {
@@ -239,11 +254,11 @@
     top: 50%;
     transform: translate(-50%, -50%);
     z-index: 1200;
-    font-size: 48px;
+    font-size: 72px;
     color: var(--accent);
     text-shadow: 
-      0 0 20px var(--accent-glow),
-      0 0 40px var(--accent-glow);
+      0 0 30px var(--accent-glow),
+      0 0 60px var(--accent-glow);
     font-family: "Press Start 2P", monospace;
     display: none;
     pointer-events: none;
@@ -256,17 +271,17 @@
     bottom: 24px; 
     z-index: 1300; 
     background: var(--panel);
-    border: 2px solid var(--accent);
+    border: 3px solid var(--accent);
     color: var(--accent);
-    padding: 10px 16px;
+    padding: 15px 24px;
     border-radius: 0;
     display: none;
-    font-size: 10px;
+    font-size: 14px;
     font-family: "Press Start 2P", monospace;
     pointer-events: none;
     box-shadow: 
-      0 0 15px var(--accent-glow),
-      inset 0 0 10px rgba(0, 255, 255, 0.1);
+      0 0 20px var(--accent-glow),
+      inset 0 0 15px rgba(0, 255, 255, 0.1);
     animation: toastSlideUp 0.3s ease-out;
     text-transform: uppercase;
   }
@@ -654,14 +669,14 @@
     border: none;
     color: var(--accent);
     font-family: "Press Start 2P", monospace;
-    font-size: 14px;
+    font-size: 20px;
     cursor: pointer;
-    padding: 16px 32px;
+    padding: 20px 40px;
     text-transform: uppercase;
     letter-spacing: 2px;
     text-shadow: 
-      0 0 10px var(--accent-glow),
-      0 0 20px var(--accent-glow);
+      0 0 15px var(--accent-glow),
+      0 0 30px var(--accent-glow);
     transition: all 0.2s ease;
   }
 
@@ -696,17 +711,24 @@
       top: 12px;
     }
     .hpSquare {
-      width: 16px;
-      height: 16px;
+      width: 24px;
+      height: 24px;
+    }
+    #scoreDisplay {
+      font-size: 24px;
     }
     #fpsLabel {
       right: 12px;
       top: 12px;
-      font-size: 9px;
-      padding: 6px 10px;
+      font-size: 12px;
+      padding: 10px 14px;
     }
     #pauseTimer {
-      font-size: 36px;
+      font-size: 54px;
+    }
+    .pauseBtn {
+      font-size: 16px;
+      padding: 16px 32px;
     }
     #codeEditorModal {
       padding: 10px;
@@ -810,6 +832,7 @@
   </div> -->
 
   <div id="hpDisplay"></div>
+  <div id="scoreDisplay">0</div>
   <div id="fpsLabel">FPS: -- / --</div>
   <div id="pauseTimer">3</div>
   <div id="debugToast"></div>
