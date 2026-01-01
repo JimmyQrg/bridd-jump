@@ -37,68 +37,48 @@ const baseVolumes = {
 
 // Function to update all sound volumes based on settings
 function updateSoundVolumes() {
-  try {
-    // Safety check: ensure sounds and baseVolumes exist
-    if (typeof sounds === 'undefined' || typeof baseVolumes === 'undefined') {
-      console.warn('Sounds or baseVolumes not defined, skipping volume update');
-      return;
-    }
-
-    const savedSettings = localStorage.getItem('briddSettings');
-    let audioSettings = {
-      masterVolume: 100,
-      musicVolume: 50,
-      soundEffectsVolume: 70
-    };
-    
-    if (savedSettings) {
-      try {
-        const settings = JSON.parse(savedSettings);
-        if (settings && settings.audio) {
-          audioSettings = settings.audio;
-        }
-      } catch(e) {
-        console.log('Error parsing audio settings:', e);
+  const savedSettings = localStorage.getItem('briddSettings');
+  let audioSettings = {
+    masterVolume: 100,
+    musicVolume: 50,
+    soundEffectsVolume: 70
+  };
+  
+  if (savedSettings) {
+    try {
+      const settings = JSON.parse(savedSettings);
+      if (settings.audio) {
+        audioSettings = settings.audio;
       }
+    } catch(e) {
+      console.log('Error parsing audio settings:', e);
     }
-    
-    // Convert percentage to 0-1 range, ensure values are valid numbers
-    const masterVol = Math.max(0, Math.min(1, (Number(audioSettings.masterVolume) || 100) / 100));
-    const musicVol = Math.max(0, Math.min(1, (Number(audioSettings.musicVolume) || 50) / 100));
-    const sfxVol = Math.max(0, Math.min(1, (Number(audioSettings.soundEffectsVolume) || 70) / 100));
-    
-    // Apply volumes: base volume * master volume * specific volume
-    // Ensure volume is between 0 and 1
-    if (sounds && sounds.background && baseVolumes.background !== undefined) {
-      sounds.background.volume = Math.max(0, Math.min(1, baseVolumes.background * masterVol * musicVol));
-    }
-    
-    // Apply to all sound effects
-    if (sounds) {
-      if (sounds.firstJump && baseVolumes.firstJump !== undefined) sounds.firstJump.volume = Math.max(0, Math.min(1, baseVolumes.firstJump * masterVol * sfxVol));
-      if (sounds.secondJump && baseVolumes.secondJump !== undefined) sounds.secondJump.volume = Math.max(0, Math.min(1, baseVolumes.secondJump * masterVol * sfxVol));
-      if (sounds.triggerDrop && baseVolumes.triggerDrop !== undefined) sounds.triggerDrop.volume = Math.max(0, Math.min(1, baseVolumes.triggerDrop * masterVol * sfxVol));
-      if (sounds.land && baseVolumes.land !== undefined) sounds.land.volume = Math.max(0, Math.min(1, baseVolumes.land * masterVol * sfxVol));
-      if (sounds.die && baseVolumes.die !== undefined) sounds.die.volume = Math.max(0, Math.min(1, baseVolumes.die * masterVol * sfxVol));
-      if (sounds.collectGem && baseVolumes.collectGem !== undefined) sounds.collectGem.volume = Math.max(0, Math.min(1, baseVolumes.collectGem * masterVol * sfxVol));
-      if (sounds.startChooseVersion && baseVolumes.startChooseVersion !== undefined) sounds.startChooseVersion.volume = Math.max(0, Math.min(1, baseVolumes.startChooseVersion * masterVol * sfxVol));
-      if (sounds.applySave && baseVolumes.applySave !== undefined) sounds.applySave.volume = Math.max(0, Math.min(1, baseVolumes.applySave * masterVol * sfxVol));
-      if (sounds.menuClick && baseVolumes.menuClick !== undefined) sounds.menuClick.volume = Math.max(0, Math.min(1, baseVolumes.menuClick * masterVol * sfxVol));
-    }
-  } catch(err) {
-    console.error('Error in updateSoundVolumes:', err);
-    // Don't break the script if volume update fails
   }
+  
+  // Convert percentage to 0-1 range
+  const masterVol = audioSettings.masterVolume / 100;
+  const musicVol = audioSettings.musicVolume / 100;
+  const sfxVol = audioSettings.soundEffectsVolume / 100;
+  
+  // Apply volumes: base volume * master volume * specific volume
+  sounds.background.volume = baseVolumes.background * masterVol * musicVol;
+  
+  // Apply to all sound effects
+  sounds.firstJump.volume = baseVolumes.firstJump * masterVol * sfxVol;
+  sounds.secondJump.volume = baseVolumes.secondJump * masterVol * sfxVol;
+  sounds.triggerDrop.volume = baseVolumes.triggerDrop * masterVol * sfxVol;
+  sounds.land.volume = baseVolumes.land * masterVol * sfxVol;
+  sounds.die.volume = baseVolumes.die * masterVol * sfxVol;
+  sounds.collectGem.volume = baseVolumes.collectGem * masterVol * sfxVol;
+  sounds.startChooseVersion.volume = baseVolumes.startChooseVersion * masterVol * sfxVol;
+  sounds.applySave.volume = baseVolumes.applySave * masterVol * sfxVol;
+  sounds.menuClick.volume = baseVolumes.menuClick * masterVol * sfxVol;
 }
 
-// Initialize volumes (wrapped in try-catch to prevent script breaking)
-try {
-  updateSoundVolumes();
-} catch(err) {
-  console.error('Error initializing sound volumes:', err);
-}
+// Initialize volumes
+updateSoundVolumes();
 
-// Check if sound is enabled (set by the button that opens V1.2.3 or V1.2.4)
+// Check if sound is enabled (set by the button that opens V1.2.3)
 const soundEnabled = localStorage.getItem('soundEnabled') === 'true';
 
 // Function to enable audio context (called on user interaction)
@@ -154,34 +134,6 @@ function stopSound(soundName) {
     }
   } catch(err) {
     console.log('Error stopping sound:', err);
-  }
-}
-
-// Function to pause all sounds
-function pauseAllSounds() {
-  try {
-    for (const soundName in sounds) {
-      const sound = sounds[soundName];
-      if(sound && !sound.paused) {
-        sound.pause();
-      }
-    }
-  } catch(err) {
-    console.log('Error pausing all sounds:', err);
-  }
-}
-
-// Function to resume all sounds (for unpause)
-function resumeAllSounds() {
-  try {
-    // Only resume background music if game is running
-    if (gameRunning && sounds.background) {
-      sounds.background.play().catch(err => {
-        console.log('Error resuming background music:', err);
-      });
-    }
-  } catch(err) {
-    console.log('Error resuming sounds:', err);
   }
 }
 
@@ -255,23 +207,10 @@ let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseI
 let gameRunning = false;
 let isPaused = false;
 let cameraX = 0, cameraY = 0;
-let playerDeathY = null; // Store death position for crash piece cleanup
-
-/* Input tracking */
-let jumpKeyPressed = false;
-let dropKeyPressed = false;
-let mousePressed = false;
-let touchPressed = false;
-let touchStartY = null;
-let touchStartTime = null;
-let isDraggingDown = false;
 
 /* Tick system */
 let tickAccumulator = 0;
 let lastFpsUpdateTime = performance.now();
-let lastLoopTime = performance.now();
-let accumulated = 0;
-let timeScale = 1;
 
 /* color cycling */
 let baseColors = [
@@ -601,11 +540,7 @@ let runtime = {
 function applySettings(s){
   settings = s || settings;
   // Update sound volumes when settings are applied
-  try {
-    updateSoundVolumes();
-  } catch(err) {
-    console.error('Error updating sound volumes in applySettings:', err);
-  }
+  updateSoundVolumes();
   // FPS
   if(!settings.maxFPS || settings.maxFPS === 0 || settings.maxFPS === "Unlimited"){
     runtime.minFrameTime = 0;
@@ -759,6 +694,9 @@ function resetWorld(){
   player.horizMultiplier = 1; player.vertMultiplier = 1;
   player.isDropping = false; // Reset drop state
   player.dropPressedOnGround = false; // Reset flag
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:696',message:'resetWorld() initialized dropPressedOnGround',data:{dropPressedOnGround:player.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
   playerDeathY = null; // Reset death position
 
   // Reset input flags
@@ -974,13 +912,7 @@ function checkSpikeCollision(spike){
 function initializeParallaxLayers(){
   if(!runtime.parallaxEnabled) return;
   
-  // Safety check: ensure parallaxLayersMul is a valid number and not infinite
-  const mul = runtime.advanced.parallaxLayersMul || 0;
-  const layerCount = Math.floor(5 * mul);
-  // Limit to reasonable maximum to prevent infinite loops
-  const maxLayers = Math.min(layerCount, 50);
-  
-  for(let i = 0; i < maxLayers; i++){
+  for(let i = 0; i < Math.floor(5 * runtime.advanced.parallaxLayersMul); i++){
     const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
     const sizeSpeedFactor = Math.random() * 0.9 + 0.1; // Random value between 0.1~1.0 (lower = larger/faster)
     const baseWidth = 200; // Base width
@@ -2068,7 +2000,7 @@ function applyDepthOfField(){
 }
 
 /* 19. TIME DILATION - Slow motion effect on special events */
-// timeScale is declared above with other tick system variables
+let timeScale = 1;
 function applyTimeDilation(){
   if(!runtime.timeDilationEnabled || runtime.advanced.timeDilationMul < 0.1) return;
   
@@ -2418,7 +2350,16 @@ function addLine(){
 }
 
 /* ---------- Input handling ---------- */
-// Variables are declared above with other game state variables
+// Track touch position for drag detection
+let touchStartY = null;
+let touchStartTime = null;
+let isDraggingDown = false;
+
+// Track if keys/touches are currently pressed to prevent re-triggering
+let jumpKeyPressed = false;
+let dropKeyPressed = false;
+let mousePressed = false;
+let touchPressed = false;
 
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
@@ -2502,11 +2443,17 @@ window.addEventListener('touchend', () => {
 });
 
 function jump(){
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2442',message:'jump() entry',data:{player_exists:typeof player !== 'undefined',player_visible:player?.visible,player_dropPressedOnGround:player?.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   if(!player.visible) return;
   if(cheats.infiniteJump || player.jumpsLeft > 0){
     player.vy = JUMP_SPEED;
     player.isDropping = false; // Stop dropping when jumping
     player.dropPressedOnGround = false; // Reset flag when jumping
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2447',message:'jump() reset flags',data:{dropPressedOnGround:player.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     spawnParticlesEarly(player.x + player.width/2, player.y + player.height, 
                        player.jumpsLeft === 2 ? "jump" : "double", 
                        runtime.effects.jumpEffectMul);
@@ -2537,23 +2484,42 @@ function jump(){
 }
 
 function drop(){
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2477',message:'drop() entry',data:{player_exists:typeof player !== 'undefined',player_visible:player?.visible,player_onGround:player?.onGround,player_isDropping:player?.isDropping,player_dropPressedOnGround:player?.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   if(!player.visible) return;
-  if(!player.isDropping) {
-    // Only play trigger-drop sound when starting to drop AND player is NOT on ground
-    if(!player.onGround) {
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2481',message:'drop() before condition check',data:{isDropping:player.isDropping,onGround:player.onGround,dropPressedOnGround:player.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+  
+  // Only play trigger-drop sound when player is NOT on ground
+  if(!player.isDropping && !player.onGround) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2482',message:'drop() branch: dropping in air',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     playSound('triggerDrop');
-      player.dropPressedOnGround = false; // Reset flag since we're dropping in air
-    } else {
-      // Drop was pressed while on ground - set flag to prevent land sound
-      player.dropPressedOnGround = true;
-    }
+    player.dropPressedOnGround = false; // Reset flag since we're dropping in air
+  } else if(player.onGround) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2485',message:'drop() branch: on ground',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    // Drop was pressed while on ground - set flag to prevent land sound
+    player.dropPressedOnGround = true;
   }
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2489',message:'drop() setting isDropping',data:{dropPressedOnGround:player.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   player.isDropping = true;
   // Set downward velocity for fast drop (calculated as (player.speed/2)*5)
   const DROP_SPEED = (player.speed / 2) * 5;
   if(player.vy < DROP_SPEED) {
     player.vy = DROP_SPEED;
   }
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2495',message:'drop() exit',data:{isDropping:player.isDropping,dropPressedOnGround:player.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 }
 
 function stopDrop(){
@@ -2763,33 +2729,16 @@ function cleanupOffScreenObjects() {
 
 /* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
 function gameTick() {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2765',message:'gameTick entry',data:{isPaused,gameRunning,player_visible:player.visible},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
   // Skip if paused
-  if(isPaused) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2767',message:'gameTick early return paused',data:{isPaused},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
-    return;
-  }
+  if(isPaused) return;
   
   // Continue running effects even when gameRunning is false (for death animations)
   // Only skip if game hasn't started yet
   if(!gameRunning && crashPieces.length === 0 && deathImplosions.length === 0 && 
-     deathGlitches.length === 0 && deathVapors.length === 0) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2772',message:'gameTick early return not running',data:{gameRunning},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
-    return;
-  }
+     deathGlitches.length === 0 && deathVapors.length === 0) return;
   
   // Continue running effects even when player is dead, but skip player physics
   if(player.visible && gameRunning) {
-    // #region agent log
-    const playerXBefore = player.x;
-    const playerSpeedBefore = player.speed;
-    // #endregion
     player.speed += 0.002;
 
     // color cycling
@@ -2814,9 +2763,6 @@ function gameTick() {
     }
     
     player.x += player.speed * player.horizMultiplier;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2799',message:'player.x updated',data:{playerX_before:playerXBefore,playerX_after:player.x,playerSpeed:player.speed,horizMultiplier:player.horizMultiplier},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
 
     // platform collision
     player.onGround = false;
@@ -2831,14 +2777,24 @@ function gameTick() {
           player.onGround = true;
           player.jumpsLeft = 2;
           
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2752',message:'landing collision',data:{isDropping:player.isDropping,dropPressedOnGround:player.dropPressedOnGround,hasProperty:player.hasOwnProperty('dropPressedOnGround')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
+          
           // Play land sound if landing while dropping AND drop was not pressed while on ground
           if(player.isDropping && !player.dropPressedOnGround) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2754',message:'playing land sound',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
             playSound('land');
           }
           
           // Reset flags when landing
           player.isDropping = false; // Stop dropping when landing
           player.dropPressedOnGround = false; // Reset flag
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2760',message:'landing flags reset',data:{dropPressedOnGround:player.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
           spawnParticlesEarly(player.x + player.width/2, player.y + player.height, "land", runtime.effects.walkEffectMul);
           
           // Create impact wave on landing
@@ -3452,12 +3408,10 @@ function draw(){
 }
 
 /* ---------- Main loop with proper FPS limiting ---------- */
-// lastLoopTime and accumulated are declared above with other tick system variables
+let lastLoopTime = performance.now();
+let accumulated = 0;
 
 function mainLoop(now){
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3437',message:'mainLoop entry',data:{gameRunning,isPaused,tickAccumulator,TICK_INTERVAL},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   requestAnimationFrame(mainLoop);
   if(!now) now = performance.now();
   
@@ -3483,77 +3437,47 @@ function mainLoop(now){
   // FPS limiting for rendering
   if(runtime.minFrameTime > 0){
     accumulated += cappedDeltaMs;
-    if(accumulated < runtime.minFrameTime) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3463',message:'mainLoop early return FPS limit',data:{accumulated,runtime_minFrameTime:runtime.minFrameTime},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      return;
-    }
+    if(accumulated < runtime.minFrameTime) return;
     accumulated = 0;
   }
 
   // Fixed tick system: always run at 60 TPS regardless of FPS
   // Use cappedDeltaMs to prevent large time jumps
-  // Only accumulate ticks if game is running
-  if(gameRunning) {
-    tickAccumulator += cappedDeltaMs;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3471',message:'tickAccumulator after add',data:{tickAccumulator,cappedDeltaMs,TICK_INTERVAL},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-  }
+  tickAccumulator += cappedDeltaMs;
   
   // Run exactly one game tick per frame when FPS is 60 or higher
   // When FPS is lower than 60, run multiple ticks to catch up
-  // Only run ticks if not paused and game is running
-  if(!isPaused && gameRunning) {
+  // Only run ticks if not paused
+  if(!isPaused) {
     const maxTicksPerFrame = 5; // Prevent spiral of death
     let ticksThisFrame = 0;
-    // Use epsilon comparison to handle floating point precision issues
-    const EPSILON = 0.001;
     
-    while(tickAccumulator >= (TICK_INTERVAL - EPSILON) && ticksThisFrame < maxTicksPerFrame) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3512',message:'calling gameTick',data:{tickAccumulator,TICK_INTERVAL,ticksThisFrame},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
+    while(tickAccumulator >= TICK_INTERVAL && ticksThisFrame < maxTicksPerFrame) {
       gameTick();
       tickAccumulator -= TICK_INTERVAL;
       ticksThisFrame++;
     }
-    // #region agent log
-    if(ticksThisFrame === 0) fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3520',message:'no ticks this frame',data:{tickAccumulator,TICK_INTERVAL,isPaused,gameRunning},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-  } else {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3523',message:'tick condition failed',data:{isPaused,gameRunning},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
   }
   
   // If we're running behind, reset accumulator to prevent lag buildup
-  if(gameRunning && tickAccumulator > TICK_INTERVAL * 10) {
+  if(tickAccumulator > TICK_INTERVAL * 10) {
     tickAccumulator = TICK_INTERVAL; // Keep some buffer
   }
 
   // Camera smoothing - use actual delta time for smoothness
   // When player is dead, smoothly stop camera movement instead of following
   if(player.visible) {
-    const cameraXBefore = cameraX;
     const targetCamX = player.x - 150;
     const targetCamY = player.y - canvas.height/2 + player.height*1.5;
     const smoothingFactor = 0.1 * (cappedDeltaMs / 16.67); // Adjust for frame rate
     cameraX = cameraX * (1 - smoothingFactor) + targetCamX * smoothingFactor;
     cameraY = cameraY * (1 - smoothingFactor) + targetCamY * smoothingFactor;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3499',message:'camera updated',data:{cameraX_before:cameraXBefore,cameraX_after:cameraX,playerX:player.x,targetCamX},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
   } else {
     // Gradually stop camera movement when player is dead (keep current position)
     // Camera stays where it is, no further movement
   }
 
   // Draw (rendering at monitor refresh rate)
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3507',message:'calling draw',data:{gameRunning},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-  // #endregion
   draw();
 }
 
@@ -3665,39 +3589,25 @@ window.addEventListener('keydown', function(e){
 });
 
 // Mobile command button
-const mobileCommandBtn = document.getElementById('mobileCommandBtn');
-if (mobileCommandBtn) {
-  mobileCommandBtn.addEventListener('click', openCommandPrompt);
-}
+document.getElementById('mobileCommandBtn').addEventListener('click', openCommandPrompt);
 
 // How to Play button
-const howToPlayBtn = document.getElementById('howToPlayBtn');
-if (howToPlayBtn) {
-  howToPlayBtn.addEventListener('click', () => {
+document.getElementById('howToPlayBtn').addEventListener('click', () => {
   playSound('menuClick');
-    const howToPlayModal = document.getElementById('howToPlayModal');
-    if (howToPlayModal) {
-      howToPlayModal.classList.add('show');
-    }
+  document.getElementById('howToPlayModal').classList.add('show');
 });
-}
 
 // Close modal when clicking outside (optional)
-const howToPlayModal = document.getElementById('howToPlayModal');
-if (howToPlayModal) {
-  howToPlayModal.addEventListener('click', (e) => {
-    if(e.target.id === 'howToPlayModal') {
-      playSound('menuClick');
-      howToPlayModal.classList.remove('show');
-    }
-  });
-}
+document.getElementById('howToPlayModal').addEventListener('click', (e) => {
+  if(e.target.id === 'howToPlayModal') {
+    document.getElementById('howToPlayModal').classList.remove('show');
+  }
+});
 
 /* ---------- Pause Screen Functions ---------- */
 function pauseGame() {
   if(!gameRunning || isPaused) return; // Don't pause if game isn't running or already paused
   isPaused = true;
-  pauseAllSounds(); // Pause all sounds when pausing
   const pauseScreen = document.getElementById('pauseScreen');
   if(pauseScreen) {
     pauseScreen.classList.add('show');
@@ -3708,7 +3618,6 @@ function unpauseGame() {
   if(!isPaused) return; // Don't unpause if not paused
   playSound('menuClick');
   isPaused = false;
-  resumeAllSounds(); // Resume sounds when unpausing
   const pauseScreen = document.getElementById('pauseScreen');
   if(pauseScreen) {
     pauseScreen.classList.remove('show');
@@ -3729,14 +3638,8 @@ function goToMainMenu() {
 }
 
 // Pause screen button handlers
-const continueBtn = document.getElementById('continueBtn');
-if (continueBtn) {
-  continueBtn.addEventListener('click', unpauseGame);
-}
-const mainMenuBtn = document.getElementById('mainMenuBtn');
-if (mainMenuBtn) {
-  mainMenuBtn.addEventListener('click', goToMainMenu);
-}
+document.getElementById('continueBtn').addEventListener('click', unpauseGame);
+document.getElementById('mainMenuBtn').addEventListener('click', goToMainMenu);
 
 // ESC key to pause/unpause
 window.addEventListener('keydown', (e) => {
@@ -3754,37 +3657,10 @@ document.addEventListener('visibilitychange', () => {
   if(document.hidden && gameRunning && !isPaused) {
     pauseGame();
   }
-  // When page becomes visible again, ensure pause screen is shown if game was paused
-  if(!document.hidden && gameRunning && isPaused) {
-    const pauseScreen = document.getElementById('pauseScreen');
-    if(pauseScreen) {
-      pauseScreen.classList.add('show');
-    }
-  }
-});
-
-// Also pause on window blur (when user switches to another window)
-window.addEventListener('blur', () => {
-  if(gameRunning && !isPaused) {
-    pauseGame();
-  }
-});
-
-// When window regains focus, show pause screen if game is paused
-window.addEventListener('focus', () => {
-  if(gameRunning && isPaused) {
-    const pauseScreen = document.getElementById('pauseScreen');
-    if(pauseScreen) {
-      pauseScreen.classList.add('show');
-    }
-  }
 });
 
 /* ---------- Start / Reset Game ---------- */
 function startGame(){
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3734',message:'startGame entry',data:{TICK_INTERVAL},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-  // #endregion
   // Enable audio on first user interaction (start button click)
   enableAudio();
   
@@ -3794,38 +3670,16 @@ function startGame(){
   gameRunning = true;
   isPaused = false; // Ensure not paused when starting
   player.visible = true;
-  // Reset lastLoopTime to current time to ensure proper delta calculation
-  lastLoopTime = performance.now();
-  // Initialize tick accumulator with enough time to run multiple ticks immediately
-  tickAccumulator = TICK_INTERVAL * 3; // Initialize with enough time for immediate ticks
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3747',message:'startGame after init',data:{gameRunning,isPaused,player_visible:player.visible,tickAccumulator,TICK_INTERVAL,playerX:player.x,playerSpeed:player.speed},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-  // #endregion
+  tickAccumulator = 0; // Reset tick accumulator on restart
+  lastLoopTime = performance.now(); // Reset time tracking
   // Start background music
   playSound('background');
-  // Run first few ticks immediately to ensure game starts properly
-  if(!isPaused && gameRunning) {
-    let initialTicks = 0;
-    while(tickAccumulator >= TICK_INTERVAL && initialTicks < 3) {
-      gameTick();
-      tickAccumulator -= TICK_INTERVAL;
-      initialTicks++;
-    }
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3756',message:'startGame after initial ticks',data:{initialTicks,playerX:player.x},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-  }
 }
 
-const startBtn = document.getElementById('startBtn');
-if (startBtn) {
-  startBtn.addEventListener('click', startGame);
-}
+document.getElementById('startBtn').addEventListener('click', startGame);
 
 /* ---------- Fullscreen button ---------- */
-const fullscreenBtn = document.getElementById('fullscreenBtn');
-if (fullscreenBtn) {
-  fullscreenBtn.addEventListener('click', () => {
+document.getElementById('fullscreenBtn').addEventListener('click', () => {
   playSound('menuClick');
   if (!document.fullscreenElement) {
     // Enter fullscreen
@@ -3847,7 +3701,6 @@ if (fullscreenBtn) {
     }
   }
 });
-}
 
 // Update button text based on fullscreen state
 document.addEventListener('fullscreenchange', updateFullscreenButton);
@@ -3866,9 +3719,7 @@ function updateFullscreenButton() {
 }
 
 /* ---------- Settings button ---------- */
-const settingsBtn = document.getElementById('settingsBtn');
-if (settingsBtn) {
-  settingsBtn.addEventListener('click', () => {
+document.getElementById('settingsBtn').addEventListener('click', () => {
   playSound('menuClick');
   fetch('settings.html', { method: 'HEAD' }).then(resp => {
     if(resp.ok) {
@@ -3880,7 +3731,6 @@ if (settingsBtn) {
     alert('settings.html not found');
   });
 });
-}
 
 // Detect if device has keyboard
 function hasKeyboard() {
@@ -3932,6 +3782,22 @@ stopSound('background');
 
 // Initialize keyboard visualization
 initKeyboardVisualization();
+
+// Global error handler to catch script breaks
+window.addEventListener('error', (e) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:error-handler',message:'Global error caught',data:{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno,error:e.error?.toString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'ALL'})}).catch(()=>{});
+  // #endregion
+  console.error('Script error:', e);
+});
+
+// Unhandled promise rejection handler
+window.addEventListener('unhandledrejection', (e) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:rejection-handler',message:'Unhandled promise rejection',data:{reason:e.reason?.toString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'ALL'})}).catch(()=>{});
+  // #endregion
+  console.error('Unhandled promise rejection:', e.reason);
+});
 
 // start the RAF loop
 requestAnimationFrame(mainLoop);
