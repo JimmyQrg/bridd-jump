@@ -35,7 +35,7 @@
     if (icon) icon.href = 'infinite-campus.ico';
   } else {
     // Set Bridd Jump branding
-    document.title = 'V1.2.3 | Bridd Jump';
+    document.title = 'V1.2.5 | Bridd Jump';
     let icon = document.querySelector('link[rel="icon"]');
     if (!icon) {
       icon = document.createElement('link');
@@ -193,30 +193,60 @@
     box-shadow: 0 0 5px var(--accent-glow);
   }
   
-  #scoreHUD { 
-    position: fixed; 
-    left: 16px; 
-    top: 16px; 
-    z-index: 1100; 
-    font-size: 12px; 
-    color: var(--accent);
-    text-shadow: 
-      0 0 8px var(--accent-glow),
-      0 0 16px rgba(0, 255, 255, 0.4);
+  #hpDisplay {
+    position: fixed;
+    left: 16px;
+    top: 16px;
+    z-index: 1100;
+    display: flex;
+    gap: 4px;
     pointer-events: none;
-    font-family: "Press Start 2P", monospace;
+  }
+  
+  .hpSquare {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 5px var(--accent-glow);
+  }
+  
+  .hpSquare.full {
+    background-color: var(--accent);
+  }
+  
+  .hpSquare.empty {
+    background-color: #000;
   }
   
   #fpsLabel { 
     position: fixed; 
-    left: 16px; 
-    top: 40px; 
+    right: 16px; 
+    top: 16px; 
     z-index: 1100; 
     font-size: 10px; 
     color: var(--muted);
     text-shadow: 0 0 5px rgba(136, 247, 255, 0.3);
     pointer-events: none;
     font-family: "Press Start 2P", monospace;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid var(--accent);
+  }
+  
+  #pauseTimer {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1200;
+    font-size: 48px;
+    color: var(--accent);
+    text-shadow: 
+      0 0 20px var(--accent-glow),
+      0 0 40px var(--accent-glow);
+    font-family: "Press Start 2P", monospace;
+    display: none;
+    pointer-events: none;
   }
   
   #debugToast { 
@@ -597,7 +627,7 @@
   
   #codeEditor::-webkit-scrollbar-thumb:hover {
     background: var(--muted);
-  }
+  } */
   
   /* Pause Screen */
   #pauseScreen {
@@ -646,7 +676,7 @@
   .pauseBtn:active {
     transform: scale(0.95);
   }
-  
+
   @media (max-width: 560px) {
     #menu { 
       width: 92vw; 
@@ -661,13 +691,22 @@
     #menu h1 { 
       font-size: 22px; 
     }
-    #scoreHUD, #fpsLabel {
+    #hpDisplay {
       left: 12px;
-      font-size: 10px;
+      top: 12px;
+    }
+    .hpSquare {
+      width: 16px;
+      height: 16px;
     }
     #fpsLabel {
-      top: 36px;
+      right: 12px;
+      top: 12px;
       font-size: 9px;
+      padding: 6px 10px;
+    }
+    #pauseTimer {
+      font-size: 36px;
     }
     #codeEditorModal {
       padding: 10px;
@@ -739,7 +778,7 @@
   </div>
 
   <!-- Code Editor Modal -->
-  <div id="codeEditorModal">
+  <!-- <div id="codeEditorModal">
     <div id="codeEditorContainer">
       <div id="codeEditorHeader">
         <h2>CODE EDITOR</h2>
@@ -768,10 +807,11 @@
         <textarea id="codeEditor" spellcheck="false"></textarea>
       </div>
     </div>
-  </div>
+  </div> -->
 
-  <div id="scoreHUD">Score: 0</div>
+  <div id="hpDisplay"></div>
   <div id="fpsLabel">FPS: -- / --</div>
+  <div id="pauseTimer">3</div>
   <div id="debugToast"></div>
   <div id="mobileCommandBtn" title="Open Command (Ctrl+Shift+A)"></div>
   
