@@ -157,6 +157,34 @@ function stopSound(soundName) {
   }
 }
 
+// Function to pause all sounds
+function pauseAllSounds() {
+  try {
+    for (const soundName in sounds) {
+      const sound = sounds[soundName];
+      if(sound && !sound.paused) {
+        sound.pause();
+      }
+    }
+  } catch(err) {
+    console.log('Error pausing all sounds:', err);
+  }
+}
+
+// Function to resume all sounds (for unpause)
+function resumeAllSounds() {
+  try {
+    // Only resume background music if game is running
+    if (gameRunning && sounds.background) {
+      sounds.background.play().catch(err => {
+        console.log('Error resuming background music:', err);
+      });
+    }
+  } catch(err) {
+    console.log('Error resuming sounds:', err);
+  }
+}
+
 /* ---------- Utilities ---------- */
 function showToast(msg, ms=1200){
   const d = document.getElementById('debugToast');
@@ -2507,7 +2535,7 @@ function drop(){
   if(!player.isDropping) {
     // Only play trigger-drop sound when starting to drop AND player is NOT on ground
     if(!player.onGround) {
-      playSound('triggerDrop');
+    playSound('triggerDrop');
       player.dropPressedOnGround = false; // Reset flag since we're dropping in air
     } else {
       // Drop was pressed while on ground - set flag to prevent land sound
@@ -3587,12 +3615,12 @@ if (mobileCommandBtn) {
 const howToPlayBtn = document.getElementById('howToPlayBtn');
 if (howToPlayBtn) {
   howToPlayBtn.addEventListener('click', () => {
-    playSound('menuClick');
+  playSound('menuClick');
     const howToPlayModal = document.getElementById('howToPlayModal');
     if (howToPlayModal) {
       howToPlayModal.classList.add('show');
     }
-  });
+});
 }
 
 // Close modal when clicking outside (optional)
@@ -3600,6 +3628,7 @@ const howToPlayModal = document.getElementById('howToPlayModal');
 if (howToPlayModal) {
   howToPlayModal.addEventListener('click', (e) => {
     if(e.target.id === 'howToPlayModal') {
+      playSound('menuClick');
       howToPlayModal.classList.remove('show');
     }
   });
@@ -3609,6 +3638,7 @@ if (howToPlayModal) {
 function pauseGame() {
   if(!gameRunning || isPaused) return; // Don't pause if game isn't running or already paused
   isPaused = true;
+  pauseAllSounds(); // Pause all sounds when pausing
   const pauseScreen = document.getElementById('pauseScreen');
   if(pauseScreen) {
     pauseScreen.classList.add('show');
@@ -3619,6 +3649,7 @@ function unpauseGame() {
   if(!isPaused) return; // Don't unpause if not paused
   playSound('menuClick');
   isPaused = false;
+  resumeAllSounds(); // Resume sounds when unpausing
   const pauseScreen = document.getElementById('pauseScreen');
   if(pauseScreen) {
     pauseScreen.classList.remove('show');
@@ -3664,6 +3695,30 @@ document.addEventListener('visibilitychange', () => {
   if(document.hidden && gameRunning && !isPaused) {
     pauseGame();
   }
+  // When page becomes visible again, ensure pause screen is shown if game was paused
+  if(!document.hidden && gameRunning && isPaused) {
+    const pauseScreen = document.getElementById('pauseScreen');
+    if(pauseScreen) {
+      pauseScreen.classList.add('show');
+    }
+  }
+});
+
+// Also pause on window blur (when user switches to another window)
+window.addEventListener('blur', () => {
+  if(gameRunning && !isPaused) {
+    pauseGame();
+  }
+});
+
+// When window regains focus, show pause screen if game is paused
+window.addEventListener('focus', () => {
+  if(gameRunning && isPaused) {
+    const pauseScreen = document.getElementById('pauseScreen');
+    if(pauseScreen) {
+      pauseScreen.classList.add('show');
+    }
+  }
 });
 
 /* ---------- Start / Reset Game ---------- */
@@ -3692,27 +3747,27 @@ if (startBtn) {
 const fullscreenBtn = document.getElementById('fullscreenBtn');
 if (fullscreenBtn) {
   fullscreenBtn.addEventListener('click', () => {
-    playSound('menuClick');
-    if (!document.fullscreenElement) {
-      // Enter fullscreen
-      if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen();
-      } else if (document.documentElement.webkitRequestFullscreen) {
-        document.documentElement.webkitRequestFullscreen();
-      } else if (document.documentElement.msRequestFullscreen) {
-        document.documentElement.msRequestFullscreen();
-      }
-    } else {
-      // Exit fullscreen
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      } else if (document.webkitExitFullscreen) {
-        document.webkitExitFullscreen();
-      } else if (document.msExitFullscreen) {
-        document.msExitFullscreen();
-      }
+  playSound('menuClick');
+  if (!document.fullscreenElement) {
+    // Enter fullscreen
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen();
+    } else if (document.documentElement.webkitRequestFullscreen) {
+      document.documentElement.webkitRequestFullscreen();
+    } else if (document.documentElement.msRequestFullscreen) {
+      document.documentElement.msRequestFullscreen();
     }
-  });
+  } else {
+    // Exit fullscreen
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
+  }
+});
 }
 
 // Update button text based on fullscreen state
@@ -3735,17 +3790,17 @@ function updateFullscreenButton() {
 const settingsBtn = document.getElementById('settingsBtn');
 if (settingsBtn) {
   settingsBtn.addEventListener('click', () => {
-    playSound('menuClick');
-    fetch('settings.html', { method: 'HEAD' }).then(resp => {
-      if(resp.ok) {
-        window.location.href = 'settings.html';
-      } else {
-        alert('settings.html not found');
-      }
-    }).catch(()=> {
+  playSound('menuClick');
+  fetch('settings.html', { method: 'HEAD' }).then(resp => {
+    if(resp.ok) {
+      window.location.href = 'settings.html';
+    } else {
       alert('settings.html not found');
-    });
+    }
+  }).catch(()=> {
+    alert('settings.html not found');
   });
+});
 }
 
 // Detect if device has keyboard
