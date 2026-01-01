@@ -684,6 +684,24 @@
         // Set quality preset
         document.getElementById("quality").value = settings.qualityPreset || "Extreme+";
         
+        // Set volume settings
+        if (settings.volume) {
+          document.getElementById("masterVolume").value = settings.volume.master || 100;
+          document.getElementById("masterVolumeValue").textContent = (settings.volume.master || 100) + "%";
+          document.getElementById("musicVolume").value = settings.volume.music || 50;
+          document.getElementById("musicVolumeValue").textContent = (settings.volume.music || 50) + "%";
+          document.getElementById("soundEffectsVolume").value = settings.volume.soundEffects || 100;
+          document.getElementById("soundEffectsVolumeValue").textContent = (settings.volume.soundEffects || 100) + "%";
+        } else {
+          // Default values if volume settings don't exist
+          document.getElementById("masterVolume").value = 100;
+          document.getElementById("masterVolumeValue").textContent = "100%";
+          document.getElementById("musicVolume").value = 50;
+          document.getElementById("musicVolumeValue").textContent = "50%";
+          document.getElementById("soundEffectsVolume").value = 100;
+          document.getElementById("soundEffectsVolumeValue").textContent = "100%";
+        }
+        
         // Show keyboard checkbox (only show if device has keyboard)
         function hasKeyboard() {
           if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
@@ -706,68 +724,119 @@
         if (settings.quality) {
           // Block texture is now a checkbox - convert numeric to boolean
           // In game.js: 0 = off, 1 or more = on
-          const blockTextureValue = settings.quality.blockTexture || 100;
+          const blockTextureValue = settings.quality.blockTexture !== undefined ? settings.quality.blockTexture : 100;
           document.getElementById("blockTexture").checked = blockTextureValue >= 1;
           
-          document.getElementById("jumpEffect").value = settings.quality.jumpEffect || 100;
-          document.getElementById("walkEffect").value = settings.quality.walkEffect || 100;
-          document.getElementById("dieEffect").value = settings.quality.dieEffect || 100;
-          document.getElementById("horizontalLines").value = settings.quality.horizontalLines || 100;
-          document.getElementById("trail").value = settings.quality.trail || 100;
-          document.getElementById("glow").value = settings.quality.glow || 100;
+          document.getElementById("jumpEffect").value = settings.quality.jumpEffect !== undefined ? settings.quality.jumpEffect : 100;
+          document.getElementById("walkEffect").value = settings.quality.walkEffect !== undefined ? settings.quality.walkEffect : 100;
+          document.getElementById("dieEffect").value = settings.quality.dieEffect !== undefined ? settings.quality.dieEffect : 100;
+          document.getElementById("horizontalLines").value = settings.quality.horizontalLines !== undefined ? settings.quality.horizontalLines : 100;
+          document.getElementById("trail").value = settings.quality.trail !== undefined ? settings.quality.trail : 100;
+          document.getElementById("glow").value = settings.quality.glow !== undefined ? settings.quality.glow : 100;
+        } else {
+          // Set defaults if quality settings don't exist
+          document.getElementById("blockTexture").checked = true;
+          document.getElementById("jumpEffect").value = 100;
+          document.getElementById("walkEffect").value = 100;
+          document.getElementById("dieEffect").value = 100;
+          document.getElementById("horizontalLines").value = 100;
+          document.getElementById("trail").value = 100;
+          document.getElementById("glow").value = 100;
         }
         
         // Set advanced effects if they exist
         if (settings.advanced) {
           // Original advanced effects
-          document.getElementById("shockwaves").value = settings.advanced.shockwaves || 100;
-          document.getElementById("screenShake").value = settings.advanced.screenShake || 100;
-          document.getElementById("bloomParticles").value = settings.advanced.bloomParticles || 100;
-          document.getElementById("particleTrails").value = settings.advanced.particleTrails || 100;
-          document.getElementById("screenDistortion").value = settings.advanced.screenDistortion || 100;
+          document.getElementById("shockwaves").value = settings.advanced.shockwaves !== undefined ? settings.advanced.shockwaves : 100;
+          document.getElementById("screenShake").value = settings.advanced.screenShake !== undefined ? settings.advanced.screenShake : 100;
+          document.getElementById("bloomParticles").value = settings.advanced.bloomParticles !== undefined ? settings.advanced.bloomParticles : 100;
+          document.getElementById("particleTrails").value = settings.advanced.particleTrails !== undefined ? settings.advanced.particleTrails : 100;
+          document.getElementById("screenDistortion").value = settings.advanced.screenDistortion !== undefined ? settings.advanced.screenDistortion : 100;
           
           // New advanced effects
-          document.getElementById("particleCount").value = settings.advanced.particleCount || 100;
-          document.getElementById("trailLength").value = settings.advanced.trailLength || 100;
-          document.getElementById("screenReflections").value = settings.advanced.screenReflections || 100;
+          document.getElementById("particleCount").value = settings.advanced.particleCount !== undefined ? settings.advanced.particleCount : 100;
+          document.getElementById("trailLength").value = settings.advanced.trailLength !== undefined ? settings.advanced.trailLength : 100;
+          document.getElementById("screenReflections").value = settings.advanced.screenReflections !== undefined ? settings.advanced.screenReflections : 100;
           document.getElementById("motionBlur").value = settings.advanced.motionBlur !== undefined ? settings.advanced.motionBlur : 0;
-          document.getElementById("lightRays").value = settings.advanced.lightRays || 100;
+          document.getElementById("lightRays").value = settings.advanced.lightRays !== undefined ? settings.advanced.lightRays : 100;
           
           // Forward motion effects
-          document.getElementById("parallaxLayers").value = settings.advanced.parallaxLayers || 100;
-          document.getElementById("velocityStreaks").value = settings.advanced.velocityStreaks || 100;
-          document.getElementById("windParticles").value = settings.advanced.windParticles || 100;
-          document.getElementById("speedLines").value = settings.advanced.speedLines || 100;
-          document.getElementById("radialBlur").value = settings.advanced.radialBlur || 100;
-          document.getElementById("starRush").value = settings.advanced.starRush || 100;
-          document.getElementById("nebulaDust").value = settings.advanced.nebulaDust || 100;
-          document.getElementById("warpTunnel").value = settings.advanced.warpTunnel || 100;
-          document.getElementById("boostFlash").value = settings.advanced.boostFlash || 100;
-          document.getElementById("contrailJets").value = settings.advanced.contrailJets || 100;
-          document.getElementById("edgeLightning").value = settings.advanced.edgeLightning || 100;
-          document.getElementById("compressionRings").value = settings.advanced.compressionRings || 100;
+          document.getElementById("parallaxLayers").value = settings.advanced.parallaxLayers !== undefined ? settings.advanced.parallaxLayers : 100;
+          document.getElementById("velocityStreaks").value = settings.advanced.velocityStreaks !== undefined ? settings.advanced.velocityStreaks : 100;
+          document.getElementById("windParticles").value = settings.advanced.windParticles !== undefined ? settings.advanced.windParticles : 100;
+          document.getElementById("speedLines").value = settings.advanced.speedLines !== undefined ? settings.advanced.speedLines : 100;
+          document.getElementById("radialBlur").value = settings.advanced.radialBlur !== undefined ? settings.advanced.radialBlur : 100;
+          document.getElementById("starRush").value = settings.advanced.starRush !== undefined ? settings.advanced.starRush : 100;
+          document.getElementById("nebulaDust").value = settings.advanced.nebulaDust !== undefined ? settings.advanced.nebulaDust : 100;
+          document.getElementById("warpTunnel").value = settings.advanced.warpTunnel !== undefined ? settings.advanced.warpTunnel : 100;
+          document.getElementById("boostFlash").value = settings.advanced.boostFlash !== undefined ? settings.advanced.boostFlash : 100;
+          document.getElementById("contrailJets").value = settings.advanced.contrailJets !== undefined ? settings.advanced.contrailJets : 100;
+          document.getElementById("edgeLightning").value = settings.advanced.edgeLightning !== undefined ? settings.advanced.edgeLightning : 100;
+          document.getElementById("compressionRings").value = settings.advanced.compressionRings !== undefined ? settings.advanced.compressionRings : 100;
           
           // Visual enhancement effects
-          document.getElementById("platformPulse").value = settings.advanced.platformPulse || 100;
-          document.getElementById("impactWaves").value = settings.advanced.impactWaves || 100;
-          document.getElementById("colorBleed").value = settings.advanced.colorBleed || 100;
-          document.getElementById("depthOfField").value = settings.advanced.depthOfField || 100;
-          document.getElementById("timeDilation").value = settings.advanced.timeDilation || 100;
-          document.getElementById("lensFlare").value = settings.advanced.lensFlare || 100;
-          document.getElementById("screenTear").value = settings.advanced.screenTear || 100;
-          document.getElementById("dynamicFog").value = settings.advanced.dynamicFog || 100;
-          document.getElementById("heatDistortion").value = settings.advanced.heatDistortion || 100;
-          document.getElementById("starbursts").value = settings.advanced.starbursts || 100;
-          document.getElementById("afterImages").value = settings.advanced.afterImages || 100;
-          document.getElementById("gravityWaves").value = settings.advanced.gravityWaves || 100;
-          document.getElementById("energyRipples").value = settings.advanced.energyRipples || 100;
-          document.getElementById("pixelDisplacement").value = settings.advanced.pixelDisplacement || 100;
-          document.getElementById("ambientOcclusion").value = settings.advanced.ambientOcclusion || 100;
+          document.getElementById("platformPulse").value = settings.advanced.platformPulse !== undefined ? settings.advanced.platformPulse : 100;
+          document.getElementById("impactWaves").value = settings.advanced.impactWaves !== undefined ? settings.advanced.impactWaves : 100;
+          document.getElementById("colorBleed").value = settings.advanced.colorBleed !== undefined ? settings.advanced.colorBleed : 100;
+          document.getElementById("depthOfField").value = settings.advanced.depthOfField !== undefined ? settings.advanced.depthOfField : 100;
+          document.getElementById("timeDilation").value = settings.advanced.timeDilation !== undefined ? settings.advanced.timeDilation : 100;
+          document.getElementById("lensFlare").value = settings.advanced.lensFlare !== undefined ? settings.advanced.lensFlare : 100;
+          document.getElementById("screenTear").value = settings.advanced.screenTear !== undefined ? settings.advanced.screenTear : 100;
+          document.getElementById("dynamicFog").value = settings.advanced.dynamicFog !== undefined ? settings.advanced.dynamicFog : 100;
+          document.getElementById("heatDistortion").value = settings.advanced.heatDistortion !== undefined ? settings.advanced.heatDistortion : 100;
+          document.getElementById("starbursts").value = settings.advanced.starbursts !== undefined ? settings.advanced.starbursts : 100;
+          document.getElementById("afterImages").value = settings.advanced.afterImages !== undefined ? settings.advanced.afterImages : 100;
+          document.getElementById("gravityWaves").value = settings.advanced.gravityWaves !== undefined ? settings.advanced.gravityWaves : 100;
+          document.getElementById("energyRipples").value = settings.advanced.energyRipples !== undefined ? settings.advanced.energyRipples : 100;
+          document.getElementById("pixelDisplacement").value = settings.advanced.pixelDisplacement !== undefined ? settings.advanced.pixelDisplacement : 100;
+          document.getElementById("ambientOcclusion").value = settings.advanced.ambientOcclusion !== undefined ? settings.advanced.ambientOcclusion : 100;
           
           // Death animations
-          document.getElementById("deathImplode").value = settings.advanced.deathImplode || 100;
-          document.getElementById("deathGlitch").value = settings.advanced.deathGlitch || 100;
-          document.getElementById("deathVaporize").value = settings.advanced.deathVaporize || 100;
+          document.getElementById("deathImplode").value = settings.advanced.deathImplode !== undefined ? settings.advanced.deathImplode : 100;
+          document.getElementById("deathGlitch").value = settings.advanced.deathGlitch !== undefined ? settings.advanced.deathGlitch : 100;
+          document.getElementById("deathVaporize").value = settings.advanced.deathVaporize !== undefined ? settings.advanced.deathVaporize : 100;
+        } else {
+          // Set defaults if advanced settings don't exist
+          document.getElementById("shockwaves").value = 100;
+          document.getElementById("screenShake").value = 100;
+          document.getElementById("bloomParticles").value = 100;
+          document.getElementById("particleTrails").value = 100;
+          document.getElementById("screenDistortion").value = 100;
+          document.getElementById("particleCount").value = 100;
+          document.getElementById("trailLength").value = 100;
+          document.getElementById("screenReflections").value = 100;
+          document.getElementById("motionBlur").value = 0;
+          document.getElementById("lightRays").value = 100;
+          document.getElementById("parallaxLayers").value = 100;
+          document.getElementById("velocityStreaks").value = 100;
+          document.getElementById("windParticles").value = 100;
+          document.getElementById("speedLines").value = 100;
+          document.getElementById("radialBlur").value = 100;
+          document.getElementById("starRush").value = 100;
+          document.getElementById("nebulaDust").value = 100;
+          document.getElementById("warpTunnel").value = 100;
+          document.getElementById("boostFlash").value = 100;
+          document.getElementById("contrailJets").value = 100;
+          document.getElementById("edgeLightning").value = 100;
+          document.getElementById("compressionRings").value = 100;
+          document.getElementById("platformPulse").value = 100;
+          document.getElementById("impactWaves").value = 100;
+          document.getElementById("colorBleed").value = 100;
+          document.getElementById("depthOfField").value = 100;
+          document.getElementById("timeDilation").value = 100;
+          document.getElementById("lensFlare").value = 100;
+          document.getElementById("screenTear").value = 100;
+          document.getElementById("dynamicFog").value = 100;
+          document.getElementById("heatDistortion").value = 100;
+          document.getElementById("starbursts").value = 100;
+          document.getElementById("afterImages").value = 100;
+          document.getElementById("gravityWaves").value = 100;
+          document.getElementById("energyRipples").value = 100;
+          document.getElementById("pixelDisplacement").value = 100;
+          document.getElementById("ambientOcclusion").value = 100;
+          document.getElementById("deathImplode").value = 100;
+          document.getElementById("deathGlitch").value = 100;
+          document.getElementById("deathVaporize").value = 100;
         }
         
         // Update all range value displays
@@ -1242,13 +1311,7 @@
           }
         }
         
-          // Auto-expand sections for high presets
-          if (["Ultra", "Ultra+", "Ultra++", "Highest"].includes(this.value)) {
-            const adv = document.getElementById("advancedSettings");
-            const advToggle = document.getElementById("toggleAdvanced");
-            adv.style.display = "block";
-            advToggle.textContent = "Advanced Settings ▲";
-          }
+          // Keep advanced settings hidden by default (don't auto-expand)
       }
     });
 
@@ -1376,14 +1439,7 @@
             toggle.textContent = "General Effects Settings ▲";
           }
           
-          // Auto-expand advanced for high presets
-          const preset = settings.qualityPreset;
-          if (["Ultra", "Ultra+", "Ultra++", "Highest"].includes(preset)) {
-            const adv = document.getElementById("advancedSettings");
-            const advToggle = document.getElementById("toggleAdvanced");
-            adv.style.display = "block";
-            advToggle.textContent = "Advanced Settings ▲";
-          }
+          // Keep advanced settings hidden by default (don't auto-expand)
         } catch (e) {
           console.error("Error checking settings:", e);
         }

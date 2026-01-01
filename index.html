@@ -304,7 +304,7 @@
   </div>
 
   <script>
-    // Version structure with sub-versions
+    // Version structure with sub-versions (ordered from highest to lowest)
     const versionStructure = {
       'V1.2': ['V1.2.4', 'V1.2.3', 'V1.2.2', 'V1.2.1', 'V1.2.0'],
       'V1.1': ['V1.1.4', 'V1.1.3', 'V1.1.2', 'V1.1.1', 'V1.1.0'],
@@ -315,6 +315,12 @@
     const versionSelect = document.getElementById('versionSelect');
     const subVersionSelect = document.getElementById('subVersionSelect');
     const playBtn = document.getElementById('playBtn');
+
+    // Auto-select highest version (V1.2) on page load
+    window.addEventListener('DOMContentLoaded', function() {
+      versionSelect.value = 'V1.2';
+      versionSelect.dispatchEvent(new Event('change'));
+    });
 
     // Function to enable sound and navigate (for V1.2.3)
     function enableSoundAndNavigate(path) {
@@ -344,6 +350,7 @@
       // Clear sub-version select
       subVersionSelect.innerHTML = '<option value="">Choose</option>';
       subVersionSelect.classList.remove('show');
+      delete subVersionSelect.dataset.autoSelected;
       playBtn.disabled = true;
       
       if (!selectedVersion) {
@@ -352,15 +359,28 @@
       
       const subVersions = versionStructure[selectedVersion];
       
-      // If version has sub-versions, show sub-version select
+      // If version has sub-versions
       if (subVersions && subVersions.length > 0) {
-        subVersions.forEach(subVersion => {
-          const option = document.createElement('option');
-          option.value = subVersion;
-          option.textContent = subVersion;
-          subVersionSelect.appendChild(option);
-        });
-        subVersionSelect.classList.add('show');
+        // Only show second dropdown if there are multiple sub-versions
+        if (subVersions.length > 1) {
+          subVersions.forEach(subVersion => {
+            const option = document.createElement('option');
+            option.value = subVersion;
+            option.textContent = subVersion;
+            subVersionSelect.appendChild(option);
+          });
+          subVersionSelect.classList.add('show');
+          // Auto-select the lowest sub-version (last in array, e.g., V1.2.0)
+          const lowestSubVersion = subVersions[subVersions.length - 1];
+          subVersionSelect.value = lowestSubVersion;
+          playBtn.disabled = false;
+        } else {
+          // Only one sub-version (e.g., V1.0.0), don't show dropdown, auto-select it
+          const singleSubVersion = subVersions[0];
+          playBtn.disabled = false;
+          // Store the single sub-version for play button
+          subVersionSelect.dataset.autoSelected = singleSubVersion;
+        }
       } else {
         // No sub-versions, enable play button directly
         playBtn.disabled = false;
@@ -376,10 +396,15 @@
     // Handle play button click
     playBtn.addEventListener('click', function() {
       const selectedVersion = versionSelect.value;
-      const selectedSubVersion = subVersionSelect.value;
+      let selectedSubVersion = subVersionSelect.value;
       
       if (!selectedVersion) {
         return;
+      }
+      
+      // If sub-version select is hidden but has auto-selected value (single sub-version case)
+      if (!selectedSubVersion && subVersionSelect.dataset.autoSelected) {
+        selectedSubVersion = subVersionSelect.dataset.autoSelected;
       }
       
       let path = '';
