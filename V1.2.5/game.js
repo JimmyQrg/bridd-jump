@@ -148,8 +148,8 @@ const ctx = canvas.getContext('2d');
 
 // Fixed canvas size - doesn't scale with window
 // UI will scale but game canvas stays fixed
-const fixedWidth = 2560; // Fixed game width (enlarged)
-const fixedHeight = 1440; // Fixed game height (enlarged)
+const fixedWidth = 1600; // Fixed game width
+const fixedHeight = 900; // Fixed game height
 
 function resize(){
   canvas.width = fixedWidth;
