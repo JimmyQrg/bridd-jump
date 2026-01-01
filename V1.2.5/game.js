@@ -148,8 +148,8 @@ const ctx = canvas.getContext('2d');
 
 // Fixed canvas size - doesn't scale with window
 // UI will scale but game canvas stays fixed
-const fixedWidth = 1920; // Fixed game width
-const fixedHeight = 1080; // Fixed game height
+const fixedWidth = 2560; // Fixed game width (enlarged)
+const fixedHeight = 1440; // Fixed game height (enlarged)
 
 function resize(){
   canvas.width = fixedWidth;
@@ -223,6 +223,7 @@ let cameraX = 0, cameraY = 0;
 let voidDamagePause = false; // Pause state for void damage
 let voidPauseTimer = 0; // Timer for void damage pause (in ticks)
 let voidPauseDuration = 3 * TICKS_PER_SECOND; // 3 seconds in ticks
+let shouldExtendImmunity = false; // Whether to extend immunity after void pause ends
 
 /* Tick system */
 let tickAccumulator = 0;
@@ -720,6 +721,7 @@ function resetWorld(){
   player.startingSpeed = 11; // Store starting speed
   voidDamagePause = false; // Reset void pause
   voidPauseTimer = 0; // Reset void pause timer
+  shouldExtendImmunity = false; // Reset immunity extension flag
 
   // Reset input flags
   jumpKeyPressed = false;
@@ -2730,10 +2732,13 @@ function gameTick() {
       voidPauseTimer--;
       if(voidPauseTimer <= 0) {
         voidDamagePause = false;
-        // Start immunity after pause ends
-        player.immunityTime = 3 * TICKS_PER_SECOND; // 3 seconds
-        player.isImmune = true;
-        player.flashTimer = 0;
+        // Start immunity after pause ends only if shouldExtendImmunity is true
+        if(shouldExtendImmunity) {
+          player.immunityTime = 3 * TICKS_PER_SECOND; // 3 seconds
+          player.isImmune = true;
+          player.flashTimer = 0;
+        }
+        shouldExtendImmunity = false; // Reset flag
       }
     }
     return;
@@ -3061,19 +3066,8 @@ function takeSpikeDamage(spike) {
   if(cheats.invincible) return;
   if(player.isImmune) return; // Immune during immunity period
   
-  // Clear all spikes
-  spikes = [];
-  
-  // Reduce HP
-  player.currentHP -= 1;
-  
-  // Give 3 seconds of immunity (void doesn't harm during this)
-  player.immunityTime = 3 * TICKS_PER_SECOND; // 3 seconds
-  player.isImmune = true;
-  player.flashTimer = 0;
-  
-  // Check if player died
-  if(player.currentHP <= 0) {
+  // If player has only 1 HP left, just die immediately
+  if(player.currentHP === 1) {
     player.visible = false;
     playerDeathY = player.y;
     if(spike) spike.hit = false;
@@ -3093,14 +3087,76 @@ function takeSpikeDamage(spike) {
       document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
       stopSound('background');
     }, 1200);
+    return;
   }
+  
+  // Clear all spikes
+  spikes = [];
+  
+  // Reduce HP
+  player.currentHP -= 1;
+  
+  // Give 3 seconds of immunity (void doesn't harm during this)
+  player.immunityTime = 3 * TICKS_PER_SECOND; // 3 seconds
+  player.isImmune = true;
+  player.flashTimer = 0;
 }
 
 // Function to handle void damage
 function takeVoidDamage() {
   if(!player.visible) return;
   if(cheats.invincible) return;
-  if(player.isImmune) return; // Immune during immunity period
+  
+  // If player is immune (from spike damage), teleport/pause/reset but don't extend immunity
+  if(player.isImmune) {
+    // Teleport to nearest safe ground
+    const safeGround = findNearestSafeGround();
+    if(safeGround) {
+      player.x = safeGround.x + safeGround.width / 2 - player.width / 2;
+      player.y = safeGround.y - player.height;
+      player.vy = 0;
+      player.onGround = true;
+      player.jumpsLeft = 2;
+    } else {
+      // If no safe ground found, reset to starting position
+      player.x = 100;
+      player.y = canvas.height/2 - player.height;
+      player.vy = 0;
+    }
+    
+    // Reset speed to starting speed
+    player.speed = player.startingSpeed;
+    
+    // Start pause timer (3 seconds) but don't extend immunity
+    voidDamagePause = true;
+    voidPauseTimer = voidPauseDuration; // 3 seconds
+    shouldExtendImmunity = false; // Don't extend immunity
+    
+    return;
+  }
+  
+  // If player has only 1 HP left, just die immediately
+  if(player.currentHP === 1) {
+    player.visible = false;
+    playerDeathY = player.y;
+    playSound('die');
+    stopSound('background');
+    createCrashEarly(runtime.effects.dieEffectMul);
+    createDeathImplosion(runtime.advanced.deathImplodeMul);
+    createDeathGlitch(runtime.advanced.deathGlitchMul);
+    createDeathVaporize(runtime.advanced.deathVaporizeMul);
+    gameRunning = false;
+    if(score > bestScore){
+      bestScore = Math.floor(score);
+      localStorage.setItem('bestScore', bestScore);
+    }
+    setTimeout(()=> {
+      document.getElementById('menu').style.display = 'flex';
+      document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
+      stopSound('background');
+    }, 1200);
+    return;
+  }
   
   // Reduce HP
   player.currentHP -= 1;
@@ -3129,32 +3185,7 @@ function takeVoidDamage() {
   // Start pause timer (3 seconds)
   voidDamagePause = true;
   voidPauseTimer = voidPauseDuration; // 3 seconds
-  
-  // Give 3 seconds of immunity (starts after pause ends)
-  // This will be set after pause ends
-  
-  // Check if player died
-  if(player.currentHP <= 0) {
-    player.visible = false;
-    playerDeathY = player.y;
-    playSound('die');
-    stopSound('background');
-    createCrashEarly(runtime.effects.dieEffectMul);
-    createDeathImplosion(runtime.advanced.deathImplodeMul);
-    createDeathGlitch(runtime.advanced.deathGlitchMul);
-    createDeathVaporize(runtime.advanced.deathVaporizeMul);
-    gameRunning = false;
-    voidDamagePause = false; // Cancel pause if dead
-    if(score > bestScore){
-      bestScore = Math.floor(score);
-      localStorage.setItem('bestScore', bestScore);
-    }
-    setTimeout(()=> {
-      document.getElementById('menu').style.display = 'flex';
-      document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
-      stopSound('background');
-    }, 1200);
-  }
+  shouldExtendImmunity = true; // Will extend immunity after pause ends
 }
 
 // Legacy function for compatibility (now uses HP system)
@@ -3522,10 +3553,10 @@ function draw(){
 
   // player
   if(player.visible){
-    // Flash effect during immunity
+    // Flash effect during immunity - opacity jumps from 0% to 100%
     if(player.isImmune) {
       // Flash every 5 ticks (roughly 12 times per second at 60 TPS)
-      const flashAlpha = (Math.floor(player.flashTimer / 5) % 2 === 0) ? 1 : 0.3;
+      const flashAlpha = (Math.floor(player.flashTimer / 5) % 2 === 0) ? 1 : 0;
       ctx.globalAlpha = flashAlpha;
     } else {
       ctx.globalAlpha = 1;
