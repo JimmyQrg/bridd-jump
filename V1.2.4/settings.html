@@ -379,6 +379,22 @@
     
     <div class="preset-info">Warning: Ultra++ and Highest presets may cause significant lag</div>
 
+    <div class="settings-section">
+      <div class="section-title">VOLUME</div>
+      
+      <label for="masterVolume">Master Volume:</label>
+      <input type="range" id="masterVolume" min="0" max="100" value="100" step="1">
+      <div class="range-value" id="masterVolumeValue">100%</div>
+      
+      <label for="musicVolume">Music Volume:</label>
+      <input type="range" id="musicVolume" min="0" max="100" value="50" step="1">
+      <div class="range-value" id="musicVolumeValue">50%</div>
+      
+      <label for="soundEffectsVolume">Sound Effects Volume:</label>
+      <input type="range" id="soundEffectsVolume" min="0" max="100" value="100" step="1">
+      <div class="range-value" id="soundEffectsVolumeValue">100%</div>
+    </div>
+
     <label for="fps">Max FPS:</label>
     <select id="fps">
       <option value="0">Unlimited</option>
@@ -424,24 +440,6 @@
       <option>Ultra++</option>
       <option>Highest</option>
     </select>
-
-    <hr style="margin: 20px 0; border-color: var(--accent);">
-
-    <h3 style="color: var(--accent); margin: 20px 0 10px 0; font-size: 12px;">AUDIO SETTINGS</h3>
-
-    <label for="masterVolume">Master Volume:</label>
-    <input type="range" id="masterVolume" min="0" max="100" value="100">
-    <div class="range-value" id="masterVolumeValue">100%</div>
-
-    <label for="musicVolume">Music Volume (Background):</label>
-    <input type="range" id="musicVolume" min="0" max="100" value="50">
-    <div class="range-value" id="musicVolumeValue">50%</div>
-
-    <label for="soundEffectsVolume">Sound Effects Volume:</label>
-    <input type="range" id="soundEffectsVolume" min="0" max="100" value="70">
-    <div class="range-value" id="soundEffectsVolumeValue">70%</div>
-
-    <hr style="margin: 20px 0; border-color: var(--accent);">
 
     <button id="toggleGeneral">General Effects Settings ▼</button>
     
@@ -704,16 +702,6 @@
           }
         }
         
-        // Set audio settings if they exist
-        if (settings.audio) {
-          document.getElementById("masterVolume").value = settings.audio.masterVolume !== undefined ? settings.audio.masterVolume : 100;
-          document.getElementById("musicVolume").value = settings.audio.musicVolume !== undefined ? settings.audio.musicVolume : 50;
-          document.getElementById("soundEffectsVolume").value = settings.audio.soundEffectsVolume !== undefined ? settings.audio.soundEffectsVolume : 70;
-          updateRangeValue("masterVolume");
-          updateRangeValue("musicVolume");
-          updateRangeValue("soundEffectsVolume");
-        }
-        
         // Set basic effects if they exist
         if (settings.quality) {
           // Block texture is now a checkbox - convert numeric to boolean
@@ -825,12 +813,33 @@
     // Update range value display
     function updateRangeValue(id) {
       const input = document.getElementById(id);
-      // Volume sliders use "Value" suffix, others use "Val"
-      const display = document.getElementById(id + "Value") || document.getElementById(id + "Val");
+      const display = document.getElementById(id + "Val");
       if (input && display) {
         display.textContent = input.value + "%";
       }
+      // Handle volume sliders with different display IDs
+      if (id === "masterVolume") {
+        const display = document.getElementById("masterVolumeValue");
+        if (display) display.textContent = input.value + "%";
+      } else if (id === "musicVolume") {
+        const display = document.getElementById("musicVolumeValue");
+        if (display) display.textContent = input.value + "%";
+      } else if (id === "soundEffectsVolume") {
+        const display = document.getElementById("soundEffectsVolumeValue");
+        if (display) display.textContent = input.value + "%";
+      }
     }
+    
+    // Add event listeners for volume sliders
+    document.getElementById("masterVolume").addEventListener("input", function() {
+      updateRangeValue("masterVolume");
+    });
+    document.getElementById("musicVolume").addEventListener("input", function() {
+      updateRangeValue("musicVolume");
+    });
+    document.getElementById("soundEffectsVolume").addEventListener("input", function() {
+      updateRangeValue("soundEffectsVolume");
+    });
 
     // Quality presets mapping (updated with all 20+ effects)
     const qualityPresets = {
@@ -1102,9 +1111,6 @@
 
     // Setup event listeners for range inputs
     const allRangeIds = [
-      // Audio settings
-      "masterVolume", "musicVolume", "soundEffectsVolume",
-      
       // Basic effects
       "jumpEffect", "walkEffect", "dieEffect", "horizontalLines", 
       "trail", "glow",
@@ -1252,10 +1258,10 @@
         maxFPS: parseInt(document.getElementById("fps").value) || 0,
         qualityPreset: document.getElementById("quality").value === "Custom" ? "Extreme+" : document.getElementById("quality").value,
         showKeyboard: document.getElementById("showKeyboard") ? document.getElementById("showKeyboard").checked : true,
-        audio: {
-          masterVolume: parseInt(document.getElementById("masterVolume").value) || 100,
-          musicVolume: parseInt(document.getElementById("musicVolume").value) || 50,
-          soundEffectsVolume: parseInt(document.getElementById("soundEffectsVolume").value) || 70
+        volume: {
+          master: parseInt(document.getElementById("masterVolume").value) || 100,
+          music: parseInt(document.getElementById("musicVolume").value) || 50,
+          soundEffects: parseInt(document.getElementById("soundEffectsVolume").value) || 100
         },
         quality: {
           blockTexture: document.getElementById("blockTexture").checked ? 100 : 0,

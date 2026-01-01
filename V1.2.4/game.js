@@ -21,9 +21,8 @@ const sounds = {
 // Set background music to loop
 sounds.background.loop = true;
 
-// Base volumes (0-1 range, will be multiplied by master and specific volume settings)
+// Base volumes (0-1 range, will be multiplied by volume settings)
 const baseVolumes = {
-  background: 0.5,
   firstJump: 0.7,
   secondJump: 0.7,
   triggerDrop: 0.6,
@@ -32,51 +31,40 @@ const baseVolumes = {
   collectGem: 0.7,
   startChooseVersion: 0.6,
   applySave: 0.6,
-  menuClick: 0.5
+  menuClick: 0.5,
+  background: 0.5
 };
 
 // Function to update all sound volumes based on settings
 function updateSoundVolumes() {
-  const savedSettings = localStorage.getItem('briddSettings');
-  let audioSettings = {
-    masterVolume: 100,
-    musicVolume: 50,
-    soundEffectsVolume: 70
-  };
+  const currentSettings = readSettings();
+  const volumeSettings = currentSettings.volume || { master: 100, music: 50, soundEffects: 100 };
   
-  if (savedSettings) {
-    try {
-      const settings = JSON.parse(savedSettings);
-      if (settings.audio) {
-        audioSettings = settings.audio;
-      }
-    } catch(e) {
-      console.log('Error parsing audio settings:', e);
-    }
-  }
+  // Master volume multiplier (0-1)
+  const masterMul = volumeSettings.master / 100;
   
-  // Convert percentage to 0-1 range
-  const masterVol = audioSettings.masterVolume / 100;
-  const musicVol = audioSettings.musicVolume / 100;
-  const sfxVol = audioSettings.soundEffectsVolume / 100;
+  // Music volume multiplier (0-1)
+  const musicMul = volumeSettings.music / 100;
   
-  // Apply volumes: base volume * master volume * specific volume
-  sounds.background.volume = baseVolumes.background * masterVol * musicVol;
+  // Sound effects volume multiplier (0-1)
+  const soundEffectsMul = volumeSettings.soundEffects / 100;
   
-  // Apply to all sound effects
-  sounds.firstJump.volume = baseVolumes.firstJump * masterVol * sfxVol;
-  sounds.secondJump.volume = baseVolumes.secondJump * masterVol * sfxVol;
-  sounds.triggerDrop.volume = baseVolumes.triggerDrop * masterVol * sfxVol;
-  sounds.land.volume = baseVolumes.land * masterVol * sfxVol;
-  sounds.die.volume = baseVolumes.die * masterVol * sfxVol;
-  sounds.collectGem.volume = baseVolumes.collectGem * masterVol * sfxVol;
-  sounds.startChooseVersion.volume = baseVolumes.startChooseVersion * masterVol * sfxVol;
-  sounds.applySave.volume = baseVolumes.applySave * masterVol * sfxVol;
-  sounds.menuClick.volume = baseVolumes.menuClick * masterVol * sfxVol;
+  // Update background music
+  sounds.background.volume = baseVolumes.background * masterMul * musicMul;
+  
+  // Update all sound effects
+  sounds.firstJump.volume = baseVolumes.firstJump * masterMul * soundEffectsMul;
+  sounds.secondJump.volume = baseVolumes.secondJump * masterMul * soundEffectsMul;
+  sounds.triggerDrop.volume = baseVolumes.triggerDrop * masterMul * soundEffectsMul;
+  sounds.land.volume = baseVolumes.land * masterMul * soundEffectsMul;
+  sounds.die.volume = baseVolumes.die * masterMul * soundEffectsMul;
+  sounds.collectGem.volume = baseVolumes.collectGem * masterMul * soundEffectsMul;
+  sounds.startChooseVersion.volume = baseVolumes.startChooseVersion * masterMul * soundEffectsMul;
+  sounds.applySave.volume = baseVolumes.applySave * masterMul * soundEffectsMul;
+  sounds.menuClick.volume = baseVolumes.menuClick * masterMul * soundEffectsMul;
 }
 
-// Initialize volumes
-updateSoundVolumes();
+// Initialize volumes - called after settings initialization (see line 3716)
 
 // Check if sound is enabled (set by the button that opens V1.2.3)
 const soundEnabled = localStorage.getItem('soundEnabled') === 'true';
@@ -187,7 +175,7 @@ let player = {
   color: "#0ff", hitboxScale: 0.6, jumpsLeft: 2, onGround:false, visible:true,
   horizMultiplier:1, vertMultiplier:1, accountEmail: "player@example.com",
   isDropping: false, // Track if player is actively dropping
-  dropPressedOnGround: false // Track if drop was pressed while on ground
+  wasDroppingInAir: false // Track if player was dropping while in the air (not on ground)
 };
 
 /* world arrays - EXPANDED WITH 20+ NEW EFFECTS */
@@ -429,6 +417,7 @@ function readSettings(){
     if(parsed.showKeyboard !== undefined) merged.showKeyboard = parsed.showKeyboard;
     if(parsed.quality) merged.quality = {...merged.quality, ...parsed.quality};
     if(parsed.advanced) merged.advanced = {...merged.advanced, ...parsed.advanced};
+    if(parsed.volume) merged.volume = parsed.volume;
     return merged;
   } catch(e) {
     console.warn("Failed to read settings:", e);
@@ -539,8 +528,6 @@ let runtime = {
 
 function applySettings(s){
   settings = s || settings;
-  // Update sound volumes when settings are applied
-  updateSoundVolumes();
   // FPS
   if(!settings.maxFPS || settings.maxFPS === 0 || settings.maxFPS === "Unlimited"){
     runtime.minFrameTime = 0;
@@ -551,6 +538,9 @@ function applySettings(s){
   
   // Update keyboard visualization visibility
   updateKeyboardVisualization();
+  
+  // Update sound volumes
+  updateSoundVolumes();
 
   const preset = qualityPresets[settings.qualityPreset] || {};
   const pct = (v) => (Number(v) || 0) / 100;
@@ -693,10 +683,7 @@ function resetWorld(){
   player.visible = true;
   player.horizMultiplier = 1; player.vertMultiplier = 1;
   player.isDropping = false; // Reset drop state
-  player.dropPressedOnGround = false; // Reset flag
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:696',message:'resetWorld() initialized dropPressedOnGround',data:{dropPressedOnGround:player.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-  // #endregion
+  player.wasDroppingInAir = false; // Reset drop-in-air flag
   playerDeathY = null; // Reset death position
 
   // Reset input flags
@@ -2443,17 +2430,11 @@ window.addEventListener('touchend', () => {
 });
 
 function jump(){
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2442',message:'jump() entry',data:{player_exists:typeof player !== 'undefined',player_visible:player?.visible,player_dropPressedOnGround:player?.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
   if(!player.visible) return;
   if(cheats.infiniteJump || player.jumpsLeft > 0){
     player.vy = JUMP_SPEED;
     player.isDropping = false; // Stop dropping when jumping
-    player.dropPressedOnGround = false; // Reset flag when jumping
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2447',message:'jump() reset flags',data:{dropPressedOnGround:player.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
+    player.wasDroppingInAir = false; // Reset drop-in-air flag when jumping
     spawnParticlesEarly(player.x + player.width/2, player.y + player.height, 
                        player.jumpsLeft === 2 ? "jump" : "double", 
                        runtime.effects.jumpEffectMul);
@@ -2484,42 +2465,20 @@ function jump(){
 }
 
 function drop(){
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2477',message:'drop() entry',data:{player_exists:typeof player !== 'undefined',player_visible:player?.visible,player_onGround:player?.onGround,player_isDropping:player?.isDropping,player_dropPressedOnGround:player?.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   if(!player.visible) return;
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2481',message:'drop() before condition check',data:{isDropping:player.isDropping,onGround:player.onGround,dropPressedOnGround:player.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-  
-  // Only play trigger-drop sound when player is NOT on ground
-  if(!player.isDropping && !player.onGround) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2482',message:'drop() branch: dropping in air',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
-    playSound('triggerDrop');
-    player.dropPressedOnGround = false; // Reset flag since we're dropping in air
-  } else if(player.onGround) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2485',message:'drop() branch: on ground',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
-    // Drop was pressed while on ground - set flag to prevent land sound
-    player.dropPressedOnGround = true;
+  if(!player.isDropping) {
+    // Only play sound when starting to drop AND player is not on ground
+    if(!player.onGround) {
+      playSound('triggerDrop');
+      player.wasDroppingInAir = true; // Mark that we started dropping while in the air
+    }
   }
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2489',message:'drop() setting isDropping',data:{dropPressedOnGround:player.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   player.isDropping = true;
   // Set downward velocity for fast drop (calculated as (player.speed/2)*5)
   const DROP_SPEED = (player.speed / 2) * 5;
   if(player.vy < DROP_SPEED) {
     player.vy = DROP_SPEED;
   }
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2495',message:'drop() exit',data:{isDropping:player.isDropping,dropPressedOnGround:player.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
 }
 
 function stopDrop(){
@@ -2777,24 +2736,13 @@ function gameTick() {
           player.onGround = true;
           player.jumpsLeft = 2;
           
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2752',message:'landing collision',data:{isDropping:player.isDropping,dropPressedOnGround:player.dropPressedOnGround,hasProperty:player.hasOwnProperty('dropPressedOnGround')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
-          
-          // Play land sound if landing while dropping AND drop was not pressed while on ground
-          if(player.isDropping && !player.dropPressedOnGround) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2754',message:'playing land sound',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
+          // Play land sound only if player was actually dropping while in the air (not on ground)
+          if(player.wasDroppingInAir) {
             playSound('land');
+            player.wasDroppingInAir = false; // Reset flag after playing sound
           }
           
-          // Reset flags when landing
           player.isDropping = false; // Stop dropping when landing
-          player.dropPressedOnGround = false; // Reset flag
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2760',message:'landing flags reset',data:{dropPressedOnGround:player.dropPressedOnGround},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           spawnParticlesEarly(player.x + player.width/2, player.y + player.height, "land", runtime.effects.walkEffectMul);
           
           // Create impact wave on landing
@@ -3449,13 +3397,13 @@ function mainLoop(now){
   // When FPS is lower than 60, run multiple ticks to catch up
   // Only run ticks if not paused
   if(!isPaused) {
-    const maxTicksPerFrame = 5; // Prevent spiral of death
-    let ticksThisFrame = 0;
-    
-    while(tickAccumulator >= TICK_INTERVAL && ticksThisFrame < maxTicksPerFrame) {
-      gameTick();
-      tickAccumulator -= TICK_INTERVAL;
-      ticksThisFrame++;
+  const maxTicksPerFrame = 5; // Prevent spiral of death
+  let ticksThisFrame = 0;
+  
+  while(tickAccumulator >= TICK_INTERVAL && ticksThisFrame < maxTicksPerFrame) {
+    gameTick();
+    tickAccumulator -= TICK_INTERVAL;
+    ticksThisFrame++;
     }
   }
   
@@ -3773,6 +3721,9 @@ if(!localStorage.getItem(LS_KEY)){
   applySettings(settings);
 }
 
+// Initialize volumes after settings are loaded
+updateSoundVolumes();
+
 // init ground/platforms and show menu
 resetWorld();
 document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
@@ -3782,22 +3733,6 @@ stopSound('background');
 
 // Initialize keyboard visualization
 initKeyboardVisualization();
-
-// Global error handler to catch script breaks
-window.addEventListener('error', (e) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:error-handler',message:'Global error caught',data:{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno,error:e.error?.toString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'ALL'})}).catch(()=>{});
-  // #endregion
-  console.error('Script error:', e);
-});
-
-// Unhandled promise rejection handler
-window.addEventListener('unhandledrejection', (e) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:rejection-handler',message:'Unhandled promise rejection',data:{reason:e.reason?.toString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'ALL'})}).catch(()=>{});
-  // #endregion
-  console.error('Unhandled promise rejection:', e.reason);
-});
 
 // start the RAF loop
 requestAnimationFrame(mainLoop);
