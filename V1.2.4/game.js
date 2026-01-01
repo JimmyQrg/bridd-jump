@@ -3486,7 +3486,7 @@ function mainLoop(now){
   }
   
   // If we're running behind, reset accumulator to prevent lag buildup
-  if(tickAccumulator > TICK_INTERVAL * 10) {
+  if(gameRunning && tickAccumulator > TICK_INTERVAL * 10) {
     tickAccumulator = TICK_INTERVAL; // Keep some buffer
   }
 
@@ -3741,15 +3741,20 @@ function startGame(){
   gameRunning = true;
   isPaused = false; // Ensure not paused when starting
   player.visible = true;
-  // Don't reset lastLoopTime - let it continue from current time to avoid tiny first delta
-  // Initialize tick accumulator to ensure first tick runs immediately
-  tickAccumulator = TICK_INTERVAL * 2; // Initialize to trigger first tick immediately
+  // Reset lastLoopTime to current time to ensure proper delta calculation
+  lastLoopTime = performance.now();
+  // Initialize tick accumulator with enough time to run multiple ticks immediately
+  tickAccumulator = TICK_INTERVAL * 3; // Initialize with enough time for immediate ticks
   // Start background music
   playSound('background');
-  // Run first tick immediately to ensure game starts properly
+  // Run first few ticks immediately to ensure game starts properly
   if(!isPaused && gameRunning) {
-    gameTick();
-    tickAccumulator -= TICK_INTERVAL;
+    let initialTicks = 0;
+    while(tickAccumulator >= TICK_INTERVAL && initialTicks < 3) {
+      gameTick();
+      tickAccumulator -= TICK_INTERVAL;
+      initialTicks++;
+    }
   }
 }
 
