@@ -974,7 +974,13 @@ function checkSpikeCollision(spike){
 function initializeParallaxLayers(){
   if(!runtime.parallaxEnabled) return;
   
-  for(let i = 0; i < Math.floor(5 * runtime.advanced.parallaxLayersMul); i++){
+  // Safety check: ensure parallaxLayersMul is a valid number and not infinite
+  const mul = runtime.advanced.parallaxLayersMul || 0;
+  const layerCount = Math.floor(5 * mul);
+  // Limit to reasonable maximum to prevent infinite loops
+  const maxLayers = Math.min(layerCount, 50);
+  
+  for(let i = 0; i < maxLayers; i++){
     const moveY = Math.random() * (3.00129 - 0.700000) + 0.700000; // Random value between 0.700000~3.00129
     const sizeSpeedFactor = Math.random() * 0.9 + 0.1; // Random value between 0.1~1.0 (lower = larger/faster)
     const baseWidth = 200; // Base width
