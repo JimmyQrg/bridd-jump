@@ -3926,18 +3926,38 @@ function goToMainMenu() {
   
   // Check if current score is higher than best score
   if(score > bestScore) {
-    const shouldSave = confirm(`New High Score: ${Math.floor(score)}!\n\nWould you like to save this as your best score?`);
-    if(shouldSave) {
-      bestScore = Math.floor(score);
-      localStorage.setItem('bestScore', bestScore);
+    // Show best score choice modal
+    const modal = document.getElementById('bestScoreModal');
+    const scoreValue = document.getElementById('bestScoreValue');
+    if(modal && scoreValue) {
+      scoreValue.textContent = Math.floor(score);
+      modal.classList.add('show');
+      
+      // Hide pause screen
+      const pauseScreen = document.getElementById('pauseScreen');
+      if(pauseScreen) {
+        pauseScreen.classList.remove('show');
+      }
+      
+      // Wait for user choice - don't proceed yet
+      return;
     }
   }
   
+  // If no new high score or modal not available, proceed normally
+  proceedToMainMenu();
+}
+
+function proceedToMainMenu() {
   isPaused = false;
   gameRunning = false;
   const pauseScreen = document.getElementById('pauseScreen');
   if(pauseScreen) {
     pauseScreen.classList.remove('show');
+  }
+  const modal = document.getElementById('bestScoreModal');
+  if(modal) {
+    modal.classList.remove('show');
   }
   document.getElementById('menu').style.display = 'flex';
   document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
@@ -3947,6 +3967,17 @@ function goToMainMenu() {
 // Pause screen button handlers
 document.getElementById('continueBtn').addEventListener('click', unpauseGame);
 document.getElementById('mainMenuBtn').addEventListener('click', goToMainMenu);
+
+// Best score modal button handlers
+document.getElementById('keepBestScoreBtn').addEventListener('click', () => {
+  bestScore = Math.floor(score);
+  localStorage.setItem('bestScore', bestScore);
+  proceedToMainMenu();
+});
+
+document.getElementById('dontKeepBestScoreBtn').addEventListener('click', () => {
+  proceedToMainMenu();
+});
 
 // ESC key to pause/unpause
 window.addEventListener('keydown', (e) => {

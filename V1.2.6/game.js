@@ -151,9 +151,28 @@ function lerpColor(c1,c2,t){
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// Fixed canvas size - doesn't scale with window
+// UI will scale but game canvas stays fixed
+const fixedWidth = 1450; // Fixed game width
+const fixedHeight = 812.5; // Fixed game heigh
+
 function resize(){
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  canvas.width = fixedWidth;
+  canvas.height = fixedHeight;
+  
+  // Scale canvas to fit window while maintaining aspect ratio
+  const windowAspect = window.innerWidth / window.innerHeight;
+  const canvasAspect = fixedWidth / fixedHeight;
+  
+  if(windowAspect > canvasAspect) {
+    // Window is wider - fit to height
+    canvas.style.width = (window.innerHeight * canvasAspect) + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+  } else {
+    // Window is taller - fit to width
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = (window.innerWidth / canvasAspect) + 'px';
+  }
 }
 window.addEventListener('resize', resize);
 resize();
@@ -180,11 +199,20 @@ let player = {
   color: "#0ff", hitboxScale: 0.6, jumpsLeft: 2, onGround:false, visible:true,
   horizMultiplier:1, vertMultiplier:1, accountEmail: "player@example.com",
   isDropping: false, // Track if player is actively dropping
-  wasDroppingInAir: false // Track if player was dropping while in the air (not on ground)
+  wasDroppingInAir: false, // Track if player was dropping while in the air (not on ground)
+  maxHP: 1, // Maximum HP
+  currentHP: 1, // Current HP
+  immunityTime: 0, // Immunity timer (in ticks)
+  isImmune: false, // Whether player is currently immune
+  flashTimer: 0, // Timer for flashing effect during immunity
+  startingSpeed: 11, // Store starting speed for reset
+  hasShield: false, // Whether player has a shield
+  jumperTimer: 0, // Timer for jumper infinite jump (in ticks)
+  jumperColor: null // Color to use while jumper is active
 };
 
 /* world arrays - EXPANDED WITH 20+ NEW EFFECTS */
-let platforms = [], spikes = [], gems = [], particles = [], crashPieces = [], trail = [], lines = [];
+let platforms = [], spikes = [], gems = [], bobbles = [], particles = [], crashPieces = [], trail = [], lines = [];
 let shockwaves = [], screenShake = 0, screenFlash = 0, screenDust = [], bloomParticles = [];
 let reflections = [], motionBlurBuffer = [], lightRays = [], chromaticAberration = 0;
 let parallaxLayers = [], velocityStreaks = [], impactWaves = [], platformPulses = [];
@@ -194,12 +222,27 @@ let gravityWaves = [], energyRipples = [], pixelDisplacements = [];
 let starRush = [], nebulaDust = [], warpTunnels = [], boostFlares = [], contrailJets = [];
 let edgeLightnings = [], compressionRings = [];
 let deathImplosions = [], deathGlitches = [], deathVapors = [];
+let respawnParticles = []; // Particles for respawn effect during pause
+let shieldBreakParticles = []; // Particles for shield break effect
+let shieldBreakBursts = []; // Burst effect for shield break
 
 /* gameplay */
 let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
 let gameRunning = false;
 let isPaused = false;
 let cameraX = 0, cameraY = 0;
+let voidDamagePause = false; // Pause state for void damage
+let voidPauseTimer = 0; // Timer for void damage pause (in ticks)
+let voidPauseDuration = 3 * TICKS_PER_SECOND; // 3 seconds in ticks
+let shouldExtendImmunity = false; // Whether to extend immunity after void pause ends
+
+// Bobble spawning timers (in seconds)
+let bobbleSpawnTimer = 0; // Current timer for regular bobbles
+let bobbleSpawnTarget = 20 + Math.random() * 30; // Target time (20-50 seconds) for regular bobbles
+let speedUpSpawnTimer = 0; // Current timer for speedUp bobbles
+let speedUpSpawnTarget = 10 + Math.random() * 40; // Target time (10-50 seconds) for speedUp bobbles
+let minusSpawnTimer = 0; // Current timer for minus bobbles
+let minusSpawnTarget = 10 + Math.random() * 40; // Target time (10-50 seconds) for minus bobbles
 
 /* Tick system */
 let tickAccumulator = 0;
@@ -272,7 +315,10 @@ const defaultSettings = {
     compressionRings: 100,
     deathImplode: 100,
     deathGlitch: 100,
-    deathVaporize: 100
+    deathVaporize: 100,
+    respawnEffect: 100,
+    shieldBreakParticles: 100,
+    shieldBreakBurst: 100
   }
 };
 
@@ -286,7 +332,7 @@ const qualityPresets = {
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
     gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0,
     starRush:0, nebulaDust:0, warpTunnel:0, boostFlash:0, contrailJets:0, edgeLightning:0, compressionRings:0,
-    deathImplode:0, deathGlitch:0, deathVaporize:0
+    deathImplode:0, deathGlitch:0, deathVaporize:0, respawnEffect:0, shieldBreakParticles:0, shieldBreakBurst:0
   },
   "Low": {
     blockTexture:1, jumpEffect:5, walkEffect:0, dieEffect:0, horizontalLines:0, trail:0, glow:0, lines:false,
@@ -297,7 +343,7 @@ const qualityPresets = {
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
     gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0,
     starRush:10, nebulaDust:5, warpTunnel:0, boostFlash:0, contrailJets:10, edgeLightning:0, compressionRings:0,
-    deathImplode:5, deathGlitch:5, deathVaporize:5
+    deathImplode:5, deathGlitch:5, deathVaporize:5, respawnEffect:5, shieldBreakParticles:5, shieldBreakBurst:5
   },
   "Medium": {
     blockTexture:1, jumpEffect:10, walkEffect:0, dieEffect:10, horizontalLines:0, trail:0, glow:0, lines:false,
@@ -308,7 +354,7 @@ const qualityPresets = {
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
     gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:0, radialBlur:0,
     starRush:25, nebulaDust:15, warpTunnel:10, boostFlash:10, contrailJets:25, edgeLightning:10, compressionRings:10,
-    deathImplode:15, deathGlitch:15, deathVaporize:15
+    deathImplode:15, deathGlitch:15, deathVaporize:15, respawnEffect:15, shieldBreakParticles:15, shieldBreakBurst:15
   },
   "Medium+": {
     blockTexture:1, jumpEffect:15, walkEffect:15, dieEffect:15, horizontalLines:0, trail:0, glow:0, lines:false,
@@ -319,7 +365,7 @@ const qualityPresets = {
     screenTear:0, dynamicFog:10, heatDistortion:10, starbursts:10, afterImages:10,
     gravityWaves:0, energyRipples:0, pixelDisplacement:0, ambientOcclusion:10, radialBlur:10,
     starRush:50, nebulaDust:35, warpTunnel:25, boostFlash:25, contrailJets:50, edgeLightning:25, compressionRings:25,
-    deathImplode:25, deathGlitch:25, deathVaporize:25
+    deathImplode:25, deathGlitch:25, deathVaporize:25, respawnEffect:25, shieldBreakParticles:25, shieldBreakBurst:25
   },
   "High": {
     blockTexture:1, jumpEffect:15, walkEffect:15, dieEffect:15, horizontalLines:15, trail:0, glow:0, lines:true,
@@ -330,7 +376,7 @@ const qualityPresets = {
     screenTear:10, dynamicFog:25, heatDistortion:25, starbursts:25, afterImages:25,
     gravityWaves:10, energyRipples:10, pixelDisplacement:10, ambientOcclusion:25, radialBlur:25,
     starRush:75, nebulaDust:50, warpTunnel:50, boostFlash:50, contrailJets:75, edgeLightning:50, compressionRings:50,
-    deathImplode:50, deathGlitch:50, deathVaporize:50
+    deathImplode:50, deathGlitch:50, deathVaporize:50, respawnEffect:50, shieldBreakParticles:50, shieldBreakBurst:50
   },
   "High+": {
     blockTexture:1, jumpEffect:33, walkEffect:33, dieEffect:33, horizontalLines:33, trail:0, glow:0, lines:true,
@@ -341,7 +387,7 @@ const qualityPresets = {
     screenTear:25, dynamicFog:50, heatDistortion:50, starbursts:50, afterImages:50,
     gravityWaves:25, energyRipples:25, pixelDisplacement:25, ambientOcclusion:50, radialBlur:50,
     starRush:100, nebulaDust:75, warpTunnel:75, boostFlash:75, contrailJets:100, edgeLightning:75, compressionRings:75,
-    deathImplode:75, deathGlitch:75, deathVaporize:75
+    deathImplode:75, deathGlitch:75, deathVaporize:75, respawnEffect:75, shieldBreakParticles:75, shieldBreakBurst:75
   },
   "Extreme": {
     blockTexture:1, jumpEffect:60, walkEffect:60, dieEffect:60, horizontalLines:60, trail:0, glow:0, lines:true,
@@ -352,7 +398,7 @@ const qualityPresets = {
     screenTear:50, dynamicFog:75, heatDistortion:75, starbursts:75, afterImages:75,
     gravityWaves:50, energyRipples:50, pixelDisplacement:50, ambientOcclusion:75, radialBlur:75,
     starRush:125, nebulaDust:100, warpTunnel:100, boostFlash:100, contrailJets:125, edgeLightning:100, compressionRings:100,
-    deathImplode:100, deathGlitch:100, deathVaporize:100
+    deathImplode:100, deathGlitch:100, deathVaporize:100, respawnEffect:100, shieldBreakParticles:100, shieldBreakBurst:100
   },
   "Extreme+": {
     blockTexture:1, jumpEffect:64, walkEffect:64, dieEffect:64, horizontalLines:64, trail:1, glow:1, lines:true,
@@ -363,7 +409,7 @@ const qualityPresets = {
     screenTear:75, dynamicFog:100, heatDistortion:100, starbursts:100, afterImages:100,
     gravityWaves:75, energyRipples:75, pixelDisplacement:75, ambientOcclusion:100, radialBlur:100,
     starRush:150, nebulaDust:125, warpTunnel:125, boostFlash:125, contrailJets:150, edgeLightning:125, compressionRings:125,
-    deathImplode:125, deathGlitch:125, deathVaporize:125
+    deathImplode:125, deathGlitch:125, deathVaporize:125, respawnEffect:125, shieldBreakParticles:125, shieldBreakBurst:125
   },
   "Ultra": {
     blockTexture:1, jumpEffect:100, walkEffect:100, dieEffect:100, horizontalLines:100, trail:0, glow:1, lines:true,
@@ -374,7 +420,7 @@ const qualityPresets = {
     screenTear:100, dynamicFog:125, heatDistortion:125, starbursts:125, afterImages:125,
     gravityWaves:100, energyRipples:100, pixelDisplacement:100, ambientOcclusion:125, radialBlur:125,
     starRush:175, nebulaDust:150, warpTunnel:150, boostFlash:150, contrailJets:175, edgeLightning:150, compressionRings:150,
-    deathImplode:150, deathGlitch:150, deathVaporize:150
+    deathImplode:150, deathGlitch:150, deathVaporize:150, respawnEffect:150, shieldBreakParticles:150, shieldBreakBurst:150
   },
   "Ultra+": {
     blockTexture:1, jumpEffect:120, walkEffect:120, dieEffect:120, horizontalLines:120, trail:1, glow:1, lines:true,
@@ -385,7 +431,7 @@ const qualityPresets = {
     screenTear:125, dynamicFog:150, heatDistortion:150, starbursts:150, afterImages:150,
     gravityWaves:125, energyRipples:125, pixelDisplacement:125, ambientOcclusion:150, radialBlur:150,
     starRush:200, nebulaDust:175, warpTunnel:175, boostFlash:175, contrailJets:200, edgeLightning:175, compressionRings:175,
-    deathImplode:175, deathGlitch:175, deathVaporize:175
+    deathImplode:175, deathGlitch:175, deathVaporize:175, respawnEffect:175, shieldBreakParticles:175, shieldBreakBurst:175
   },
   "Ultra++": {
     blockTexture:1, jumpEffect:200, walkEffect:200, dieEffect:200, horizontalLines:200, trail:1, glow:1.5, lines:true,
@@ -396,7 +442,7 @@ const qualityPresets = {
     screenTear:150, dynamicFog:175, heatDistortion:175, starbursts:175, afterImages:175,
     gravityWaves:150, energyRipples:150, pixelDisplacement:150, ambientOcclusion:175, radialBlur:175,
     starRush:225, nebulaDust:200, warpTunnel:200, boostFlash:200, contrailJets:225, edgeLightning:200, compressionRings:200,
-    deathImplode:200, deathGlitch:200, deathVaporize:200
+    deathImplode:200, deathGlitch:200, deathVaporize:200, respawnEffect:200, shieldBreakParticles:200, shieldBreakBurst:200
   },
   "Highest": {
     blockTexture:1, jumpEffect:200, walkEffect:200, dieEffect:200, horizontalLines:200, trail:1, glow:2, lines:true,
@@ -407,7 +453,7 @@ const qualityPresets = {
     screenTear:200, dynamicFog:200, heatDistortion:200, starbursts:200, afterImages:200,
     gravityWaves:200, energyRipples:200, pixelDisplacement:200, ambientOcclusion:200, radialBlur:200,
     starRush:250, nebulaDust:225, warpTunnel:225, boostFlash:225, contrailJets:250, edgeLightning:225, compressionRings:225,
-    deathImplode:225, deathGlitch:225, deathVaporize:225
+    deathImplode:225, deathGlitch:225, deathVaporize:225, respawnEffect:225, shieldBreakParticles:225, shieldBreakBurst:225
   }
 };
 
@@ -605,6 +651,9 @@ function applySettings(s){
   runtime.advanced.deathImplodeMul = pct(settings.advanced.deathImplode) || (preset.deathImplode ? preset.deathImplode/100 : 0);
   runtime.advanced.deathGlitchMul = pct(settings.advanced.deathGlitch) || (preset.deathGlitch ? preset.deathGlitch/100 : 0);
   runtime.advanced.deathVaporizeMul = pct(settings.advanced.deathVaporize) || (preset.deathVaporize ? preset.deathVaporize/100 : 0);
+  runtime.advanced.respawnEffectMul = pct(settings.advanced.respawnEffect) || (preset.respawnEffect ? preset.respawnEffect/100 : 0);
+  runtime.advanced.shieldBreakParticlesMul = pct(settings.advanced.shieldBreakParticles) || (preset.shieldBreakParticles ? preset.shieldBreakParticles/100 : 0);
+  runtime.advanced.shieldBreakBurstMul = pct(settings.advanced.shieldBreakBurst) || (preset.shieldBreakBurst ? preset.shieldBreakBurst/100 : 0);
 
   // Enable/disable based on settings
   runtime.glowEnabled = (settings.quality && settings.quality.glow !== undefined) ? (settings.quality.glow > 0) : (preset.glow !== undefined ? preset.glow > 0 : true);
@@ -650,6 +699,8 @@ function applySettings(s){
   runtime.deathImplodeEnabled = runtime.advanced.deathImplodeMul > 0;
   runtime.deathGlitchEnabled = runtime.advanced.deathGlitchMul > 0;
   runtime.deathVaporizeEnabled = runtime.advanced.deathVaporizeMul > 0;
+  runtime.shieldBreakParticlesEnabled = runtime.advanced.shieldBreakParticlesMul > 0;
+  runtime.shieldBreakBurstEnabled = runtime.advanced.shieldBreakBurstMul > 0;
 
   // save canonical
   writeSettings(settings);
@@ -665,7 +716,7 @@ let lastPlatformHadStrikes = false; // Track if previous platform had strikes
 
 function resetWorld(){
   // clear ALL arrays
-  platforms = []; spikes = []; gems = []; particles = []; crashPieces = []; trail = []; lines = [];
+  platforms = []; spikes = []; gems = []; bobbles = []; particles = []; crashPieces = []; trail = []; lines = [];
   shockwaves = []; screenDust = []; bloomParticles = []; reflections = []; motionBlurBuffer = [];
   lightRays = []; parallaxLayers = []; velocityStreaks = []; impactWaves = []; platformPulses = [];
   windParticles = []; speedLines = []; lensFlares = []; screenTears = []; dynamicFog = [];
@@ -673,6 +724,9 @@ function resetWorld(){
   pixelDisplacements = []; starRush = []; nebulaDust = []; warpTunnels = []; boostFlares = [];
   contrailJets = []; edgeLightnings = []; compressionRings = [];
   deathImplosions = []; deathGlitches = []; deathVapors = [];
+  respawnParticles = []; // Clear respawn particles
+  shieldBreakParticles = []; // Clear shield break particles
+  shieldBreakBursts = []; // Clear shield break bursts
   
   screenShake = 0;
   screenFlash = 0;
@@ -690,6 +744,25 @@ function resetWorld(){
   player.isDropping = false; // Reset drop state
   player.wasDroppingInAir = false; // Reset drop-in-air flag
   playerDeathY = null; // Reset death position
+  player.currentHP = player.maxHP; // Reset HP
+  player.immunityTime = 0; // Reset immunity
+  player.isImmune = false; // Reset immunity flag
+  player.flashTimer = 0; // Reset flash timer
+  player.startingSpeed = 11; // Store starting speed
+  player.hasShield = false; // Reset shield
+  player.jumperTimer = 0; // Reset jumper timer
+  player.jumperColor = null; // Reset jumper color
+  voidDamagePause = false; // Reset void pause
+  voidPauseTimer = 0; // Reset void pause timer
+  shouldExtendImmunity = false; // Reset immunity extension flag
+  
+  // Reset bobble spawn timers
+  bobbleSpawnTimer = 0;
+  bobbleSpawnTarget = 20 + Math.random() * 30;
+  speedUpSpawnTimer = 0;
+  speedUpSpawnTarget = 10 + Math.random() * 40;
+  minusSpawnTimer = 0;
+  minusSpawnTarget = 10 + Math.random() * 40;
 
   // Reset input flags
   jumpKeyPressed = false;
@@ -883,6 +956,46 @@ function generateBlockPlatform(lastX, lastY){
         rotationSpeed: (Math.random() - 0.5) * 0.1
       });
     }
+  }
+  
+  // bobbles are now spawned time-based in gameTick(), not per-platform
+}
+
+/* ---------- Bobble spawning function ---------- */
+function spawnBobble(types) {
+  if(platforms.length === 0) return;
+  
+  // Choose a random platform
+  const plat = platforms[Math.floor(Math.random() * platforms.length)];
+  if(!plat) return;
+  
+  // Choose random type from allowed types
+  const type = types[Math.floor(Math.random() * types.length)];
+  
+  // Calculate spawn position (above the platform)
+  const bobbleX = plat.x + Math.random() * plat.width;
+  const bobbleY = plat.y - BLOCK_SIZE * 1.5;
+  
+  // Check if position is safe (not on spikes or gems)
+  let safe = true;
+  for(let s of spikes) { 
+    if(Math.abs(bobbleX - s.x) < BLOCK_SIZE * 2) safe = false; 
+  }
+  for(let g of gems) { 
+    if(Math.abs(bobbleX - g.x) < BLOCK_SIZE && Math.abs(bobbleY - g.y) < BLOCK_SIZE) safe = false; 
+  }
+  
+  if(safe) {
+    bobbles.push({
+      x: bobbleX,
+      y: bobbleY,
+      size: BLOCK_SIZE, // Make bobbles as large as one block
+      type: type,
+      collected: false,
+      floatOffset: Math.random() * Math.PI * 2,
+      rotation: Math.random() * Math.PI * 2,
+      rotationSpeed: (Math.random() - 0.5) * 0.1
+    });
   }
 
   return { x: x + blockCount*BLOCK_SIZE, y };
@@ -1580,6 +1693,121 @@ function drawLensFlares(){
     ctx.fillStyle = gradient;
     ctx.beginPath();
     ctx.arc(flare.x - cameraX, flare.y - cameraY, flare.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* SHIELD BREAK EFFECTS */
+/* 1. Shield Break Particles - Yellow particles exploding outward */
+function createShieldBreakParticles(x, y, intensity = 1){
+  if(!runtime.shieldBreakParticlesEnabled) return;
+  
+  const particleCount = Math.floor(15 * intensity * runtime.advanced.shieldBreakParticlesMul);
+  for(let i = 0; i < particleCount; i++){
+    const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.5;
+    const speed = 3 + Math.random() * 4;
+    shieldBreakParticles.push({
+      x: x,
+      y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 30,
+      maxLife: 30,
+      size: 4 + Math.random() * 4,
+      color: '#ffff00',
+      alpha: 1
+    });
+  }
+}
+
+function updateShieldBreakParticles(){
+  if(!runtime.shieldBreakParticlesEnabled) return;
+  
+  for(let i = shieldBreakParticles.length - 1; i >= 0; i--){
+    const p = shieldBreakParticles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.95;
+    p.vy *= 0.95;
+    p.life--;
+    p.alpha = p.life / p.maxLife;
+    
+    if(p.life <= 0){
+      shieldBreakParticles.splice(i, 1);
+    }
+  }
+}
+
+function drawShieldBreakParticles(){
+  if(!runtime.shieldBreakParticlesEnabled || shieldBreakParticles.length === 0) return;
+  
+  ctx.save();
+  for(let p of shieldBreakParticles){
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = p.color;
+    if(runtime.glowEnabled){
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 10;
+    }
+    ctx.beginPath();
+    ctx.arc(p.x - cameraX, p.y - cameraY, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  ctx.shadowBlur = 0;
+}
+
+/* 2. Shield Break Burst - Bright flash/burst effect */
+function createShieldBreakBurst(x, y, intensity = 1){
+  if(!runtime.shieldBreakBurstEnabled) return;
+  
+  shieldBreakBursts.push({
+    x: x,
+    y: y,
+    radius: 0,
+    maxRadius: 100 * intensity * runtime.advanced.shieldBreakBurstMul,
+    speed: 8 * runtime.advanced.shieldBreakBurstMul,
+    life: 1,
+    color: '#ffff00',
+    alpha: 1
+  });
+}
+
+function updateShieldBreakBursts(){
+  if(!runtime.shieldBreakBurstEnabled) return;
+  
+  for(let i = shieldBreakBursts.length - 1; i >= 0; i--){
+    const burst = shieldBreakBursts[i];
+    burst.radius += burst.speed;
+    burst.life = 1 - (burst.radius / burst.maxRadius);
+    burst.alpha = burst.life;
+    
+    if(burst.radius >= burst.maxRadius || burst.life <= 0){
+      shieldBreakBursts.splice(i, 1);
+    }
+  }
+}
+
+function drawShieldBreakBursts(){
+  if(!runtime.shieldBreakBurstEnabled || shieldBreakBursts.length === 0) return;
+  
+  ctx.save();
+  for(let burst of shieldBreakBursts){
+    ctx.globalAlpha = burst.alpha * 0.6;
+    
+    // Create radial gradient for burst
+    const gradient = ctx.createRadialGradient(
+      burst.x - cameraX, burst.y - cameraY, 0,
+      burst.x - cameraX, burst.y - cameraY, burst.radius
+    );
+    gradient.addColorStop(0, 'rgba(255, 255, 0, 0.8)');
+    gradient.addColorStop(0.5, 'rgba(255, 255, 0, 0.4)');
+    gradient.addColorStop(1, 'rgba(255, 255, 0, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(burst.x - cameraX, burst.y - cameraY, burst.radius, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
@@ -2436,7 +2664,9 @@ window.addEventListener('touchend', () => {
 
 function jump(){
   if(!player.visible) return;
-  if(cheats.infiniteJump || player.jumpsLeft > 0){
+  // Check for jumper infinite jump (separate from cheat)
+  const hasJumperJump = player.jumperTimer > 0;
+  if(cheats.infiniteJump || hasJumperJump || player.jumpsLeft > 0){
     player.vy = JUMP_SPEED;
     player.isDropping = false; // Stop dropping when jumping
     player.wasDroppingInAir = false; // Reset drop-in-air flag when jumping
@@ -2451,7 +2681,8 @@ function jump(){
       playSound('secondJump');
     }
     
-    if(!cheats.infiniteJump) player.jumpsLeft--;
+    // Only decrease jumpsLeft if not using infinite jump (cheat or jumper)
+    if(!cheats.infiniteJump && !hasJumperJump) player.jumpsLeft--;
     
     // Create velocity streaks
     createVelocityStreaks();
@@ -2515,6 +2746,22 @@ function cleanupOffScreenObjects() {
   for(let i = gems.length - 1; i >= 0; i--) {
     if(gems[i].x + 20 < deleteThreshold) {
       gems.splice(i, 1);
+    }
+  }
+  
+  // Clean up bobbles
+  for(let i = bobbles.length - 1; i >= 0; i--) {
+    if(bobbles[i].x + 20 < deleteThreshold) {
+      bobbles.splice(i, 1);
+    }
+  }
+  
+  // Remove all minus bobbles if score < 10
+  if(score < 10) {
+    for(let i = bobbles.length - 1; i >= 0; i--) {
+      if(bobbles[i].type === 'minus') {
+        bobbles.splice(i, 1);
+      }
     }
   }
   
@@ -2693,8 +2940,128 @@ function cleanupOffScreenObjects() {
 
 /* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
 function gameTick() {
-  // Skip if paused
-  if(isPaused) return;
+  // Skip if paused (regular pause) or void damage pause
+  if(isPaused || voidDamagePause) {
+    // Update void pause timer and respawn effect
+    if(voidDamagePause) {
+      voidPauseTimer--;
+      
+      // Create respawn particles during pause (if respawn effect is enabled)
+      if(player.visible && voidPauseTimer > 0 && runtime.advanced.respawnEffectMul > 0) {
+        const centerX = player.x + player.width / 2;
+        const centerY = player.y + player.height / 2;
+        const progress = 1 - (voidPauseTimer / voidPauseDuration); // 0 to 1
+        const radius = 30 + progress * 50; // Expanding radius
+        
+        // Spawn particles in a circle around player (intensity based on setting)
+        const spawnChance = 0.3 * runtime.advanced.respawnEffectMul; // Scale by setting
+        if(Math.random() < spawnChance) {
+          const particleCount = Math.max(1, Math.floor(3 * runtime.advanced.respawnEffectMul)); // More particles at higher settings
+          for(let i = 0; i < particleCount; i++) {
+            const angle = (Math.PI * 2 * i / particleCount) + (progress * Math.PI * 2);
+            respawnParticles.push({
+              x: centerX + Math.cos(angle) * radius,
+              y: centerY + Math.sin(angle) * radius,
+              vx: Math.cos(angle) * 2 * runtime.advanced.respawnEffectMul,
+              vy: Math.sin(angle) * 2 * runtime.advanced.respawnEffectMul,
+              life: 30,
+              maxLife: 30,
+              size: 4 * runtime.advanced.respawnEffectMul,
+              color: player.color
+            });
+          }
+        }
+      }
+      
+      // Update respawn particles
+      for(let i = respawnParticles.length - 1; i >= 0; i--) {
+        const p = respawnParticles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.95;
+        p.vy *= 0.95;
+        p.life--;
+        if(p.life <= 0) {
+          respawnParticles.splice(i, 1);
+        }
+      }
+      
+      if(voidPauseTimer <= 0) {
+        voidDamagePause = false;
+        respawnParticles = []; // Clear respawn particles when pause ends
+        // Start immunity after pause ends only if shouldExtendImmunity is true
+        if(shouldExtendImmunity) {
+          player.immunityTime = 3 * TICKS_PER_SECOND; // 3 seconds
+          player.isImmune = true;
+          player.flashTimer = 0;
+          trail = []; // Clear all trails when entering immunity
+        }
+        shouldExtendImmunity = false; // Reset flag
+      }
+    }
+    return;
+  }
+  
+  // Update immunity timer
+  if(player.isImmune) {
+    player.immunityTime--;
+    player.flashTimer++;
+    
+    if(player.immunityTime <= 0) {
+      player.isImmune = false;
+      player.flashTimer = 0;
+      // Ensure player is at 100% opacity when immunity ends
+      if(player.alpha !== undefined) player.alpha = 1;
+    }
+  }
+  
+  // Update jumper timer
+  if(player.jumperTimer > 0) {
+    player.jumperTimer--;
+    if(player.jumperTimer <= 0) {
+      player.jumperColor = null; // Reset color when jumper expires
+    }
+  }
+  
+  // Update bobble spawn timers (increment in seconds)
+  if(gameRunning && player.visible) {
+    bobbleSpawnTimer += 1 / TICKS_PER_SECOND;
+    speedUpSpawnTimer += 1 / TICKS_PER_SECOND;
+    minusSpawnTimer += 1 / TICKS_PER_SECOND;
+  }
+  
+  // Time-based bobble spawning
+  if(gameRunning && player.visible && platforms.length > 0) {
+    // Spawn regular bobbles (20-50 seconds)
+    if(bobbleSpawnTimer >= bobbleSpawnTarget) {
+      spawnBobble(['healer', 'extremeHealer', 'healthIncreaser', 'shield', 'jumper']);
+      bobbleSpawnTimer = 0; // Reset timer
+      bobbleSpawnTarget = 20 + Math.random() * 30; // Set new target (20-50 seconds)
+    }
+    
+    // Spawn speedUp bobbles (10-50 seconds)
+    if(speedUpSpawnTimer >= speedUpSpawnTarget) {
+      spawnBobble(['speedUp']);
+      speedUpSpawnTimer = 0; // Reset timer
+      speedUpSpawnTarget = 10 + Math.random() * 40; // Set new target (10-50 seconds)
+    }
+    
+    // Spawn minus bobbles (10-50 seconds, only if score >= 10)
+    if(score >= 10 && minusSpawnTimer >= minusSpawnTarget) {
+      spawnBobble(['minus']);
+      minusSpawnTimer = 0; // Reset timer
+      minusSpawnTarget = 10 + Math.random() * 40; // Set new target (10-50 seconds)
+    }
+  }
+  
+  // Remove all minus bobbles if score < 10
+  if(score < 10) {
+    for(let i = bobbles.length - 1; i >= 0; i--) {
+      if(bobbles[i].type === 'minus') {
+        bobbles.splice(i, 1);
+      }
+    }
+  }
   
   // Continue running effects even when gameRunning is false (for death animations)
   // Only skip if game hasn't started yet
@@ -2777,13 +3144,18 @@ function gameTick() {
     }
 
     if(player.y > canvas.height + 300){
-      player.jumpsLeft = 1;
-      tryDie();
+      // Void damage - only if not immune
+      if(!player.isImmune) {
+        takeVoidDamage();
+      }
     }
 
     // spikes
     for(let s of spikes){
-      if(checkSpikeCollision(s)) tryDie(s);
+      if(checkSpikeCollision(s)) {
+        takeSpikeDamage(s);
+        break; // Only take damage once per frame
+      }
       if(!s.passed && player.x > s.x + s.width){
         score += 1; s.passed = true;
       }
@@ -2810,6 +3182,76 @@ function gameTick() {
         }
         
         // Screen shake on gem collect
+        if(runtime.screenShakeEnabled) {
+          screenShake = 8 * runtime.advanced.screenShakeMul;
+        }
+      }
+    }
+
+    // bobbles (collectibles)
+    for(let b of bobbles){
+      if(!b.collected && player.x + player.width > b.x && player.x < b.x + b.size && player.y + player.height > b.y && player.y < b.y + b.size){
+        b.collected = true;
+        playSound('collectGem'); // Use same sound for now
+        
+        // Handle different bobble types
+        switch(b.type) {
+          case 'healer':
+            // Heal 1 HP (don't heal if already max HP)
+            if(player.currentHP < player.maxHP) {
+              player.currentHP = Math.min(player.currentHP + 1, player.maxHP);
+            }
+            spawnParticlesEarly(b.x + b.size/2, b.y + b.size/2, "gem", runtime.effects.jumpEffectMul);
+            break;
+            
+          case 'extremeHealer':
+            // Full HP
+            player.currentHP = player.maxHP;
+            spawnParticlesEarly(b.x + b.size/2, b.y + b.size/2, "gem", runtime.effects.jumpEffectMul);
+            break;
+            
+          case 'healthIncreaser':
+            // Increase max HP by 1, don't heal
+            player.maxHP += 1;
+            // Don't change currentHP, so if 2/2, becomes 2/3
+            spawnParticlesEarly(b.x + b.size/2, b.y + b.size/2, "gem", runtime.effects.jumpEffectMul);
+            break;
+            
+          case 'shield':
+            // Give player a shield
+            player.hasShield = true;
+            spawnParticlesEarly(b.x + b.size/2, b.y + b.size/2, "gem", runtime.effects.jumpEffectMul);
+            break;
+            
+          case 'minus':
+            // Minus score by 10
+            score = Math.max(0, score - 10);
+            spawnParticlesEarly(b.x + b.size/2, b.y + b.size/2, "gem", runtime.effects.jumpEffectMul);
+            break;
+            
+          case 'speedUp':
+            // Increase speed by 3
+            player.speed += 3;
+            spawnParticlesEarly(b.x + b.size/2, b.y + b.size/2, "gem", runtime.effects.jumpEffectMul);
+            break;
+            
+          case 'jumper':
+            // Give 10s infinite jump (600 ticks at 60 TPS)
+            player.jumperTimer = 10 * TICKS_PER_SECOND;
+            // Set jumper color based on bobble color
+            const jumperData = getBobbleData('jumper');
+            player.jumperColor = jumperData.color;
+            spawnParticlesEarly(b.x + b.size/2, b.y + b.size/2, "gem", runtime.effects.jumpEffectMul);
+            break;
+        }
+        
+        // Create effects on collect
+        if(runtime.lensFlareEnabled) {
+          createLensFlare(b.x + b.size/2, b.y + b.size/2, 0.5);
+        }
+        if(runtime.energyRipplesEnabled) {
+          createEnergyRipple(b.x + b.size/2, b.y + b.size/2, 0.5);
+        }
         if(runtime.screenShakeEnabled) {
           screenShake = 8 * runtime.advanced.screenShakeMul;
         }
@@ -2850,6 +3292,8 @@ function gameTick() {
   updatePlatformPulse();
   updateImpactWaves();
   updateLensFlares();
+  updateShieldBreakParticles();
+  updateShieldBreakBursts();
   updateDynamicFog();
   updateStarbursts();
   updateAfterImages();
@@ -2972,21 +3416,88 @@ function gameTick() {
   cleanupOffScreenObjects();
 }
 
+/* ---------- Helper Functions ---------- */
+// Get bobble color and icon data
+function getBobbleData(type) {
+  const data = {
+    healer: { color: "#00ff00", icon: "+" },
+    extremeHealer: { color: "#00ffff", icon: "++" },
+    healthIncreaser: { color: "#ff00ff", icon: "↑" },
+    shield: { color: "#ffff00", icon: "◊" },
+    minus: { color: "#ff0000", icon: "-" },
+    speedUp: { color: "#ff8800", icon: "→" },
+    jumper: { color: "#8800ff", icon: "↑↑" }
+  };
+  return data[type] || { color: "#ffffff", icon: "?" };
+}
+
 /* ---------- Death / tryDie ---------- */
-function tryDie(spike){
+// Function to find nearest safe ground (platform)
+function findNearestSafeGround() {
+  let nearestPlatform = null;
+  let minDistance = Infinity;
+  
+  for(let plat of platforms) {
+    // Check if platform is below player and within reasonable horizontal distance
+    if(plat.y > player.y && plat.x <= player.x + player.width && plat.x + plat.width >= player.x) {
+      const distance = plat.y - player.y;
+      if(distance < minDistance) {
+        minDistance = distance;
+        nearestPlatform = plat;
+      }
+    }
+  }
+  
+  // If no platform found below, find the closest one
+  if(!nearestPlatform) {
+    for(let plat of platforms) {
+      const distance = Math.sqrt(Math.pow(plat.x - player.x, 2) + Math.pow(plat.y - player.y, 2));
+      if(distance < minDistance) {
+        minDistance = distance;
+        nearestPlatform = plat;
+      }
+    }
+  }
+  
+  return nearestPlatform;
+}
+
+// Function to handle spike damage
+function takeSpikeDamage(spike) {
   if(!player.visible) return;
   if(cheats.invincible) return;
-  if(player.onGround || player.vy > 0){
+  if(player.isImmune) return; // Immune during immunity period
+  
+  // Shield blocks spike damage
+  if(player.hasShield) {
+    const centerX = player.x + player.width / 2;
+    const centerY = player.y + player.height / 2;
+    
+    // Create shield break effects
+    createShieldBreakParticles(centerX, centerY, 1);
+    createShieldBreakBurst(centerX, centerY, 1);
+    
+    player.hasShield = false; // Break shield
+    spikes = []; // Clear all spikes
+    player.speed = player.startingSpeed; // Reset speed
+    voidDamagePause = true; // Start 3s pause
+    voidPauseTimer = voidPauseDuration; // 3 seconds
+    shouldExtendImmunity = true; // Will start immunity after pause ends
+    return; // Shield blocked the damage
+  }
+  
+  // If player has only 1 HP left, just die immediately
+  if(player.currentHP === 1) {
     player.visible = false;
-    playerDeathY = player.y; // Store death position for crash piece cleanup
+    playerDeathY = player.y;
     if(spike) spike.hit = false;
     playSound('die');
-    stopSound('background'); // Stop background music on death
+    stopSound('background');
     createCrashEarly(runtime.effects.dieEffectMul);
     createDeathImplosion(runtime.advanced.deathImplodeMul);
     createDeathGlitch(runtime.advanced.deathGlitchMul);
     createDeathVaporize(runtime.advanced.deathVaporizeMul);
-    gameRunning = false; // This stops new game actions but effects continue
+    gameRunning = false;
     if(score > bestScore){
       bestScore = Math.floor(score);
       localStorage.setItem('bestScore', bestScore);
@@ -2994,8 +3505,123 @@ function tryDie(spike){
     setTimeout(()=> {
       document.getElementById('menu').style.display = 'flex';
       document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
-      stopSound('background'); // Stop background music when menu appears
+      stopSound('background');
     }, 1200);
+    return;
+  }
+  
+  // Clear all spikes
+  spikes = [];
+  
+  // Reduce HP
+  player.currentHP -= 1;
+  
+  // Start pause timer (3 seconds)
+  voidDamagePause = true;
+  voidPauseTimer = voidPauseDuration; // 3 seconds
+  shouldExtendImmunity = true; // Will start immunity after pause ends
+  
+  // Don't start immunity immediately - it will start after pause ends
+}
+
+// Function to handle void damage
+function takeVoidDamage() {
+  if(!player.visible) return;
+  if(cheats.invincible) return;
+  
+  // If player is immune (from spike or void damage), teleport/pause/reset but don't extend immunity
+  if(player.isImmune) {
+    // Teleport to nearest safe ground
+    const safeGround = findNearestSafeGround();
+    if(safeGround) {
+      player.x = safeGround.x + safeGround.width / 2 - player.width / 2;
+      player.y = safeGround.y - player.height;
+      player.vy = 0;
+      player.onGround = true;
+      player.jumpsLeft = 2;
+    } else {
+      // If no safe ground found, reset to starting position
+      player.x = 100;
+      player.y = canvas.height/2 - player.height;
+      player.vy = 0;
+    }
+    
+    // Reset speed to starting speed
+    player.speed = player.startingSpeed;
+    
+    // Start pause timer (3 seconds) but don't extend immunity
+    voidDamagePause = true;
+    voidPauseTimer = voidPauseDuration; // 3 seconds
+    shouldExtendImmunity = false; // Don't extend immunity
+    
+    return;
+  }
+  
+  // If player has only 1 HP left, just die immediately
+  if(player.currentHP === 1) {
+    player.visible = false;
+    playerDeathY = player.y;
+    playSound('die');
+    stopSound('background');
+    createCrashEarly(runtime.effects.dieEffectMul);
+    createDeathImplosion(runtime.advanced.deathImplodeMul);
+    createDeathGlitch(runtime.advanced.deathGlitchMul);
+    createDeathVaporize(runtime.advanced.deathVaporizeMul);
+    gameRunning = false;
+    if(score > bestScore){
+      bestScore = Math.floor(score);
+      localStorage.setItem('bestScore', bestScore);
+    }
+    setTimeout(()=> {
+      document.getElementById('menu').style.display = 'flex';
+      document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
+      stopSound('background');
+    }, 1200);
+    return;
+  }
+  
+  // Reduce HP
+  player.currentHP -= 1;
+  
+  // Teleport to nearest safe ground
+  const safeGround = findNearestSafeGround();
+  if(safeGround) {
+    player.x = safeGround.x + safeGround.width / 2 - player.width / 2;
+    player.y = safeGround.y - player.height;
+    player.vy = 0;
+    player.onGround = true;
+    player.jumpsLeft = 2;
+  } else {
+    // If no safe ground found, reset to starting position
+    player.x = 100;
+    player.y = canvas.height/2 - player.height;
+    player.vy = 0;
+  }
+  
+  // Clear all spikes
+  spikes = [];
+  
+  // Reset speed to starting speed
+  player.speed = player.startingSpeed;
+  
+  // Start pause timer (3 seconds)
+  voidDamagePause = true;
+  voidPauseTimer = voidPauseDuration; // 3 seconds
+  shouldExtendImmunity = true; // Will extend immunity after pause ends
+}
+
+// Legacy function for compatibility (now uses HP system)
+function tryDie(spike){
+  if(!player.visible) return;
+  if(cheats.invincible) return;
+  if(player.isImmune) return; // Don't die if immune
+  
+  // Determine if this is spike or void damage
+  if(spike) {
+    takeSpikeDamage(spike);
+  } else {
+    // Void damage (falling off screen)
+    takeVoidDamage();
   }
 }
 
@@ -3168,6 +3794,36 @@ function draw(){
     ctx.shadowBlur = 0;
   }
 
+  // bobbles (collectibles)
+  for(let b of bobbles){
+    if(b.collected) continue;
+    b.floatOffset = b.floatOffset || Math.random()*Math.PI*2;
+    let floatY = Math.sin(globalTime*3 + b.floatOffset) * 5;
+    ctx.save();
+    ctx.translate(b.x + b.size/2 - cameraX, b.y + b.size/2 - cameraY + floatY);
+    ctx.rotate(b.rotation || 0);
+    
+    // Get color and icon for bobble type
+    const bobbleData = getBobbleData(b.type);
+    ctx.fillStyle = bobbleData.color;
+    if(runtime.glowEnabled){ ctx.shadowColor = bobbleData.color; ctx.shadowBlur = 20 + 10 * Math.sin(globalTime*5); }
+    
+    // Draw bobble as a circle (bubble-like)
+    ctx.beginPath();
+    ctx.arc(0, 0, b.size/2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw icon inside bobble (black for visibility)
+    ctx.fillStyle = "black";
+    ctx.font = `${b.size * 0.6}px Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(bobbleData.icon, 0, 0);
+    
+    ctx.restore();
+    ctx.shadowBlur = 0;
+  }
+
   // Draw heat distortion
   drawHeatDistortion();
   
@@ -3192,12 +3848,16 @@ function draw(){
   // Draw lens flares
   drawLensFlares();
   
+  // Draw shield break effects
+  drawShieldBreakParticles();
+  drawShieldBreakBursts();
+  
   // Draw after images
   drawAfterImages();
 
   /* ---------- TRAIL EFFECT ---------- */
-  if(player.visible && runtime.trailEnabled){
-    // Add new trail position
+  if(player.visible && runtime.trailEnabled && !player.isImmune){
+    // Add new trail position (don't generate trails during immunity)
     trail.push({ 
       x: player.x, 
       y: player.y, 
@@ -3257,7 +3917,8 @@ function draw(){
       ctx.restore();
     }
     ctx.globalAlpha = 1;
-  } else {
+  } else if(player.isImmune) {
+    // Clear all trails during immunity
     trail = [];
   }
 
@@ -3347,13 +4008,63 @@ function draw(){
   // Apply radial blur effect
   applyRadialBlur();
 
+  // Draw respawn particles (during pause)
+  if(respawnParticles.length > 0) {
+    ctx.save();
+    for(let p of respawnParticles) {
+      const alpha = p.life / p.maxLife;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      if(runtime.glowEnabled) {
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 10;
+      }
+      ctx.fillRect(p.x - cameraX - p.size/2, p.y - cameraY - p.size/2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+  
   // player
   if(player.visible){
+    // Flash effect during immunity - opacity jumps from 0% to 100%
+    if(player.isImmune) {
+      // Flash every 5 ticks (roughly 12 times per second at 60 TPS)
+      const flashAlpha = (Math.floor(player.flashTimer / 5) % 2 === 0) ? 1 : 0;
+      ctx.globalAlpha = flashAlpha;
+    } else {
+      ctx.globalAlpha = 1;
+    }
+    
     if(runtime.glowEnabled){ ctx.shadowColor = "#0ff"; ctx.shadowBlur = 20; }
-    ctx.fillStyle = player.color;
+    // Use jumper color if jumper is active, otherwise use normal player color
+    const playerColor = player.jumperTimer > 0 && player.jumperColor ? player.jumperColor : player.color;
+    ctx.fillStyle = playerColor;
     ctx.fillRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
     if(runtime.glowEnabled) ctx.shadowBlur = 0;
     ctx.strokeStyle = "#0ff"; ctx.lineWidth = 6; ctx.strokeRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
+    
+    // Draw shield overlay if player has shield (more visible)
+    if(player.hasShield) {
+      ctx.save();
+      // Draw filled background with high opacity
+      ctx.fillStyle = "rgba(255, 255, 0, 0.3)";
+      ctx.fillRect(player.x - cameraX - 8, player.y - cameraY - 8, player.width + 16, player.height + 16);
+      // Draw bright yellow border
+      ctx.strokeStyle = "#ffff00";
+      ctx.lineWidth = 6;
+      ctx.globalAlpha = 1;
+      ctx.strokeRect(player.x - cameraX - 8, player.y - cameraY - 8, player.width + 16, player.height + 16);
+      // Draw inner glow
+      ctx.strokeStyle = "#ffffaa";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(player.x - cameraX - 4, player.y - cameraY - 4, player.width + 8, player.height + 8);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+    
+    ctx.globalAlpha = 1; // Reset alpha
   }
   
   // Apply screen tear effect
@@ -3361,9 +4072,35 @@ function draw(){
   
   ctx.restore(); // Restore from screen shake transform
 
-  // HUD
-  const hudScore = document.getElementById('scoreHUD');
-  hudScore.innerText = 'Score: ' + Math.floor(score);
+  // HP Display
+  const hpDisplay = document.getElementById('hpDisplay');
+  hpDisplay.innerHTML = ''; // Clear existing squares
+  for(let i = 0; i < player.maxHP; i++) {
+    const square = document.createElement('div');
+    square.className = 'hpSquare';
+    if(i < player.currentHP) {
+      square.classList.add('full');
+    } else {
+      square.classList.add('empty');
+    }
+    hpDisplay.appendChild(square);
+  }
+  
+  // Score Display
+  const scoreDisplay = document.getElementById('scoreDisplay');
+  if(scoreDisplay) {
+    scoreDisplay.textContent = Math.floor(score).toString();
+  }
+  
+  // Pause Timer Display
+  const pauseTimer = document.getElementById('pauseTimer');
+  if(voidDamagePause && voidPauseTimer > 0) {
+    const seconds = Math.ceil(voidPauseTimer / TICKS_PER_SECOND);
+    pauseTimer.textContent = seconds.toString();
+    pauseTimer.style.display = 'block';
+  } else {
+    pauseTimer.style.display = 'none';
+  }
   
   // FPS counter
   frameCount++;
@@ -3391,7 +4128,13 @@ function mainLoop(now){
   if(now - lastFpsDisplayUpdate > 500){
     const fpsLabel = document.getElementById('fpsLabel');
     const maxFPSText = settings.maxFPS === 0 ? 'Unlimited' : settings.maxFPS;
-    fpsLabel.innerText = `FPS: ${Math.round(fps)} / ${maxFPSText} — Quality: ${settings.qualityPreset}`;
+    fpsLabel.innerText = `FPS: ${Math.round(fps)} / ${maxFPSText}`;
+    
+    // Update score display
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    if(scoreDisplay) {
+      scoreDisplay.innerText = Math.floor(score).toString();
+    }
     lastFpsDisplayUpdate = now;
     frameCount = 0;
   }
@@ -3580,6 +4323,12 @@ function unpauseGame() {
   if(!isPaused) return; // Don't unpause if not paused
   playSound('menuClick');
   isPaused = false;
+  
+  // Reset time tracking to prevent lag when resuming
+  lastLoopTime = performance.now();
+  accumulated = 0;
+  tickAccumulator = 0;
+  
   const pauseScreen = document.getElementById('pauseScreen');
   if(pauseScreen) {
     pauseScreen.classList.remove('show');
@@ -3660,6 +4409,11 @@ window.addEventListener('keydown', (e) => {
 document.addEventListener('visibilitychange', () => {
   if(document.hidden && gameRunning && !isPaused) {
     pauseGame();
+  } else if(!document.hidden && isPaused) {
+    // Reset time tracking when tab becomes visible to prevent lag
+    lastLoopTime = performance.now();
+    accumulated = 0;
+    tickAccumulator = 0;
   }
 });
 
