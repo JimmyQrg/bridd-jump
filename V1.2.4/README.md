@@ -3,6 +3,7 @@
 
 <p>Updates:</p>
 <ol>
-    <li>More settings</li>
-    <li>Fix sounds</li>
+    <li>Sound settings</li>
+    <li>Fix landing & trigger drop sound effects</li>
+    <li>Better settings</li>
 </ol>

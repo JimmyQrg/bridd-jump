@@ -4,4 +4,5 @@
 <p>Updates:</p>
 <ol>
     <li>Add sounds</li>
+    <li>Add pause screen</li>
 </ol>

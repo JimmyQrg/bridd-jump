@@ -529,10 +529,6 @@
         <input type="range" id="screenShake" min="0" max="400" value="100">
         <div class="range-value" id="screenShakeVal">100%</div>
         
-        <label>Motion Blur Intensity</label>
-        <input type="range" id="motionBlur" min="0" max="100" value="0">
-        <div class="range-value" id="motionBlurVal">0%</div>
-        
         <label>Expanding Rings</label>
         <input type="range" id="shockwaves" min="0" max="200" value="100">
         <div class="range-value" id="shockwavesVal">100%</div>
@@ -769,7 +765,6 @@
           document.getElementById("particleCount").value = settings.advanced.particleCount !== undefined ? settings.advanced.particleCount : 100;
           document.getElementById("trailLength").value = settings.advanced.trailLength !== undefined ? settings.advanced.trailLength : 100;
           document.getElementById("screenReflections").value = settings.advanced.screenReflections !== undefined ? settings.advanced.screenReflections : 100;
-          document.getElementById("motionBlur").value = settings.advanced.motionBlur !== undefined ? settings.advanced.motionBlur : 0;
           document.getElementById("lightRays").value = settings.advanced.lightRays !== undefined ? settings.advanced.lightRays : 100;
           
           // Forward motion effects
@@ -820,7 +815,6 @@
           document.getElementById("particleCount").value = 100;
           document.getElementById("trailLength").value = 100;
           document.getElementById("screenReflections").value = 100;
-          document.getElementById("motionBlur").value = 0;
           document.getElementById("lightRays").value = 100;
           document.getElementById("parallaxLayers").value = 100;
           document.getElementById("velocityStreaks").value = 100;
@@ -875,7 +869,7 @@
         // Original advanced
         "shockwaves", "screenShake", "bloomParticles", "particleTrails", 
         "screenDistortion", "particleCount", "trailLength", "screenReflections",
-        "motionBlur", "lightRays",
+        "lightRays",
         
         // Forward motion effects
         "parallaxLayers", "velocityStreaks", "windParticles", "speedLines",
@@ -939,7 +933,7 @@
           shockwaves: 0, screenShake: 0, bloomParticles: 0, 
           particleTrails: 0, screenDistortion: 0,
           particleCount: 10, trailLength: 10, screenReflections: 0,
-          motionBlur: 0, lightRays: 0, parallaxLayers: 0,
+          lightRays: 0, parallaxLayers: 0,
           velocityStreaks: 0, windParticles: 0, speedLines: 0,
           radialBlur: 0, platformPulse: 0, impactWaves: 0,
           colorBleed: 0, depthOfField: 0, timeDilation: 0,
@@ -961,7 +955,7 @@
           shockwaves: 0, screenShake: 0, bloomParticles: 0, 
           particleTrails: 0, screenDistortion: 0,
           particleCount: 25, trailLength: 25, screenReflections: 0,
-          motionBlur: 0, lightRays: 0, parallaxLayers: 10,
+          lightRays: 0, parallaxLayers: 10,
           velocityStreaks: 0, windParticles: 10, speedLines: 10,
           radialBlur: 0, platformPulse: 0, impactWaves: 0,
           colorBleed: 0, depthOfField: 0, timeDilation: 0,
@@ -983,7 +977,7 @@
           shockwaves: 0, screenShake: 0, bloomParticles: 0, 
           particleTrails: 0, screenDistortion: 0,
           particleCount: 50, trailLength: 50, screenReflections: 10,
-          motionBlur: 0, lightRays: 0, parallaxLayers: 25,
+          lightRays: 0, parallaxLayers: 25,
           velocityStreaks: 10, windParticles: 25, speedLines: 25,
           radialBlur: 0, platformPulse: 10, impactWaves: 10,
           colorBleed: 0, depthOfField: 10, timeDilation: 0,
@@ -1005,7 +999,7 @@
           shockwaves: 0, screenShake: 0, bloomParticles: 0, 
           particleTrails: 0, screenDistortion: 0,
           particleCount: 75, trailLength: 75, screenReflections: 25,
-          motionBlur: 10, lightRays: 10, parallaxLayers: 50,
+          lightRays: 10, parallaxLayers: 50,
           velocityStreaks: 25, windParticles: 50, speedLines: 50,
           radialBlur: 10, platformPulse: 25, impactWaves: 25,
           colorBleed: 10, depthOfField: 25, timeDilation: 10,
@@ -1027,7 +1021,7 @@
           shockwaves: 10, screenShake: 10, bloomParticles: 0, 
           particleTrails: 0, screenDistortion: 0,
           particleCount: 100, trailLength: 100, screenReflections: 50,
-          motionBlur: 25, lightRays: 25, parallaxLayers: 75,
+          lightRays: 25, parallaxLayers: 75,
           velocityStreaks: 50, windParticles: 75, speedLines: 75,
           radialBlur: 25, platformPulse: 50, impactWaves: 50,
           colorBleed: 25, depthOfField: 50, timeDilation: 25,
@@ -1049,7 +1043,7 @@
           shockwaves: 25, screenShake: 25, bloomParticles: 10, 
           particleTrails: 10, screenDistortion: 0,
           particleCount: 125, trailLength: 125, screenReflections: 75,
-          motionBlur: 50, lightRays: 50, parallaxLayers: 100,
+          lightRays: 50, parallaxLayers: 100,
           velocityStreaks: 75, windParticles: 100, speedLines: 100,
           radialBlur: 50, platformPulse: 75, impactWaves: 75,
           colorBleed: 50, depthOfField: 75, timeDilation: 50,
@@ -1071,7 +1065,7 @@
           shockwaves: 50, screenShake: 50, bloomParticles: 25, 
           particleTrails: 25, screenDistortion: 10,
           particleCount: 150, trailLength: 150, screenReflections: 100,
-          motionBlur: 75, lightRays: 75, parallaxLayers: 125,
+          lightRays: 75, parallaxLayers: 125,
           velocityStreaks: 100, windParticles: 125, speedLines: 125,
           radialBlur: 75, platformPulse: 100, impactWaves: 100,
           colorBleed: 75, depthOfField: 100, timeDilation: 75,
@@ -1093,7 +1087,7 @@
           shockwaves: 75, screenShake: 75, bloomParticles: 50, 
           particleTrails: 50, screenDistortion: 25,
           particleCount: 175, trailLength: 175, screenReflections: 125,
-          motionBlur: 100, lightRays: 100, parallaxLayers: 150,
+          lightRays: 100, parallaxLayers: 150,
           velocityStreaks: 125, windParticles: 150, speedLines: 150,
           radialBlur: 100, platformPulse: 125, impactWaves: 125,
           colorBleed: 100, depthOfField: 125, timeDilation: 100,
@@ -1115,7 +1109,7 @@
           shockwaves: 100, screenShake: 100, bloomParticles: 75, 
           particleTrails: 75, screenDistortion: 50,
           particleCount: 200, trailLength: 200, screenReflections: 150,
-          motionBlur: 125, lightRays: 125, parallaxLayers: 175,
+          lightRays: 125, parallaxLayers: 175,
           velocityStreaks: 150, windParticles: 175, speedLines: 175,
           radialBlur: 125, platformPulse: 150, impactWaves: 150,
           colorBleed: 125, depthOfField: 150, timeDilation: 125,
@@ -1137,7 +1131,7 @@
           shockwaves: 120, screenShake: 120, bloomParticles: 100, 
           particleTrails: 100, screenDistortion: 75,
           particleCount: 250, trailLength: 250, screenReflections: 175,
-          motionBlur: 150, lightRays: 150, parallaxLayers: 200,
+          lightRays: 150, parallaxLayers: 200,
           velocityStreaks: 175, windParticles: 200, speedLines: 200,
           radialBlur: 150, platformPulse: 175, impactWaves: 175,
           colorBleed: 150, depthOfField: 175, timeDilation: 150,
@@ -1159,7 +1153,7 @@
           shockwaves: 150, screenShake: 150, bloomParticles: 150, 
           particleTrails: 150, screenDistortion: 100,
           particleCount: 300, trailLength: 300, screenReflections: 200,
-          motionBlur: 175, lightRays: 175, parallaxLayers: 225,
+          lightRays: 175, parallaxLayers: 225,
           velocityStreaks: 200, windParticles: 225, speedLines: 225,
           radialBlur: 175, platformPulse: 200, impactWaves: 200,
           colorBleed: 175, depthOfField: 200, timeDilation: 175,
@@ -1181,7 +1175,7 @@
           shockwaves: 200, screenShake: 200, bloomParticles: 200, 
           particleTrails: 200, screenDistortion: 200,
           particleCount: 500, trailLength: 500, screenReflections: 200,
-          motionBlur: 200, lightRays: 200, parallaxLayers: 250,
+          lightRays: 200, parallaxLayers: 250,
           velocityStreaks: 250, windParticles: 250, speedLines: 250,
           radialBlur: 200, platformPulse: 250, impactWaves: 250,
           colorBleed: 200, depthOfField: 250, timeDilation: 200,
@@ -1205,7 +1199,7 @@
       // Original advanced
       "shockwaves", "screenShake", "bloomParticles", "particleTrails", 
       "screenDistortion", "particleCount", "trailLength", "screenReflections",
-      "motionBlur", "lightRays",
+      "lightRays",
       
       // Forward motion effects
         "parallaxLayers", "velocityStreaks", "windParticles", "speedLines",
@@ -1317,10 +1311,9 @@
           }
         }
         
-        // Update advanced effects (except motionBlur, which is not affected by presets)
+        // Update advanced effects
         if (preset.advanced) {
           for (const [key, value] of Object.entries(preset.advanced)) {
-            if (key === 'motionBlur') continue; // Skip motion blur - not affected by presets
             const input = document.getElementById(key);
             if (input) {
               input.value = value;
@@ -1365,7 +1358,6 @@
           particleCount: parseInt(document.getElementById("particleCount").value) || 0,
           trailLength: parseInt(document.getElementById("trailLength").value) || 0,
           screenReflections: parseInt(document.getElementById("screenReflections").value) || 0,
-          motionBlur: parseInt(document.getElementById("motionBlur").value) || 0,
           lightRays: parseInt(document.getElementById("lightRays").value) || 0,
           
           // Forward motion effects

@@ -177,6 +177,77 @@ function resize(){
 window.addEventListener('resize', resize);
 resize();
 
+/* ---------- Bobble Images ---------- */
+// Base bobble bubble image
+const bobbleBaseImage = new Image();
+bobbleBaseImage.src = '../images/bobble.png';
+
+// Map bobble types to image files
+const bobbleImageMap = {
+  healer: '../images/healer.png',
+  extremeHealer: '../images/extremeHealer.png',
+  healthIncreaser: '../images/healthIncreaser.png',
+  shield: '../images/shield.png',
+  minus: '../images/minus.png',
+  speedUp: '../images/speed up.png',
+  jumper: '../images/jumper.png'
+};
+
+// Load all bobble images
+const bobbleImages = {};
+let bobbleImagesLoaded = false;
+let bobbleImagesLoading = false;
+
+function loadBobbleImages() {
+  if (bobbleImagesLoading || bobbleImagesLoaded) return;
+  bobbleImagesLoading = true;
+  
+  let loadedCount = 0;
+  const totalImages = Object.keys(bobbleImageMap).length + 1; // +1 for base bobble
+  
+  // Load base bobble
+  bobbleBaseImage.onload = () => {
+    loadedCount++;
+    if (loadedCount === totalImages) {
+      bobbleImagesLoaded = true;
+      bobbleImagesLoading = false;
+    }
+  };
+  bobbleBaseImage.onerror = () => {
+    console.warn('Failed to load bobble base image');
+    loadedCount++;
+    if (loadedCount === totalImages) {
+      bobbleImagesLoaded = true;
+      bobbleImagesLoading = false;
+    }
+  };
+  
+  // Load effect images
+  Object.keys(bobbleImageMap).forEach(type => {
+    const img = new Image();
+    img.onload = () => {
+      loadedCount++;
+      if (loadedCount === totalImages) {
+        bobbleImagesLoaded = true;
+        bobbleImagesLoading = false;
+      }
+    };
+    img.onerror = () => {
+      console.warn(`Failed to load bobble image: ${bobbleImageMap[type]}`);
+      loadedCount++;
+      if (loadedCount === totalImages) {
+        bobbleImagesLoaded = true;
+        bobbleImagesLoading = false;
+      }
+    };
+    img.src = bobbleImageMap[type];
+    bobbleImages[type] = img;
+  });
+}
+
+// Start loading images immediately
+loadBobbleImages();
+
 /* ---------- Constants & state ---------- */
 const BLOCK_SIZE = 50;
 const JUMP_SPEED = -15;
@@ -241,11 +312,11 @@ let shouldExtendImmunity = false; // Whether to extend immunity after void pause
 fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:240',message:'initializing bobble spawn timers',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
 // #endregion
 let bobbleSpawnTimer = 0; // Current timer for regular bobbles
-let bobbleSpawnTarget = 20 + Math.random() * 30; // Target time (20-50 seconds) for regular bobbles
+let bobbleSpawnTarget = 2 + Math.random() * 4; // Target time (2-6 seconds) for regular bobbles
 let speedUpSpawnTimer = 0; // Current timer for speedUp bobbles
-let speedUpSpawnTarget = 10 + Math.random() * 40; // Target time (10-50 seconds) for speedUp bobbles
+let speedUpSpawnTarget = 3 + Math.random() * 7; // Target time (3-10 seconds) for speedUp bobbles
 let minusSpawnTimer = 0; // Current timer for minus bobbles
-let minusSpawnTarget = 10 + Math.random() * 40; // Target time (10-50 seconds) for minus bobbles
+let minusSpawnTarget = 3 + Math.random() * 7; // Target time (3-10 seconds) for minus bobbles
 // #region agent log
 fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:246',message:'bobble spawn timers initialized',data:{bobbleSpawnTarget:bobbleSpawnTarget,speedUpSpawnTarget:speedUpSpawnTarget,minusSpawnTarget:minusSpawnTarget},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
 // #endregion
@@ -624,8 +695,8 @@ function applySettings(s){
   runtime.advanced.particleCountMul = pct(settings.advanced.particleCount) || (preset.particleCount ? preset.particleCount/100 : 0);
   runtime.advanced.trailLengthMul = pct(settings.advanced.trailLength) || (preset.trailLength ? preset.trailLength/100 : 0);
   runtime.advanced.screenReflectionsMul = pct(settings.advanced.screenReflections) || (preset.screenReflections ? preset.screenReflections/100 : 0);
-  // Motion blur: default 0%, not affected by presets
-  runtime.advanced.motionBlurMul = pct(settings.advanced.motionBlur !== undefined ? settings.advanced.motionBlur : 0);
+  // Motion blur: disabled (set to 0)
+  runtime.advanced.motionBlurMul = 0;
   runtime.advanced.lightRaysMul = pct(settings.advanced.lightRays) || (preset.lightRays ? preset.lightRays/100 : 0);
   runtime.advanced.parallaxLayersMul = pct(settings.advanced.parallaxLayers) || (preset.parallaxLayers ? preset.parallaxLayers/100 : 0);
   runtime.advanced.velocityStreaksMul = pct(settings.advanced.velocityStreaks) || (preset.velocityStreaks ? preset.velocityStreaks/100 : 0);
@@ -673,7 +744,7 @@ function applySettings(s){
   runtime.particleTrailsEnabled = runtime.advanced.particleTrailsMul > 0;
   runtime.distortionEnabled = runtime.advanced.screenDistortionMul > 0;
   runtime.reflectionsEnabled = runtime.advanced.screenReflectionsMul > 0;
-  runtime.motionBlurEnabled = runtime.advanced.motionBlurMul > 0;
+  runtime.motionBlurEnabled = false; // Motion blur disabled
   runtime.lightRaysEnabled = runtime.advanced.lightRaysMul > 0;
   runtime.parallaxEnabled = runtime.advanced.parallaxLayersMul > 0;
   runtime.velocityStreaksEnabled = runtime.advanced.velocityStreaksMul > 0;
@@ -764,11 +835,11 @@ function resetWorld(){
   
   // Reset bobble spawn timers
   bobbleSpawnTimer = 0;
-  bobbleSpawnTarget = 20 + Math.random() * 30;
+  bobbleSpawnTarget = 2 + Math.random() * 4;
   speedUpSpawnTimer = 0;
-  speedUpSpawnTarget = 10 + Math.random() * 40;
+  speedUpSpawnTarget = 3 + Math.random() * 7;
   minusSpawnTimer = 0;
-  minusSpawnTarget = 10 + Math.random() * 40;
+  minusSpawnTarget = 3 + Math.random() * 7;
 
   // Reset input flags
   jumpKeyPressed = false;
@@ -982,14 +1053,37 @@ function spawnBobble(types) {
     return;
   }
   
-  // Choose a random platform
-  const plat = platforms[Math.floor(Math.random() * platforms.length)];
+  // Choose a platform that's ahead of the camera (way before it enters the screen)
+  // Camera is typically at player.x - 150, so we want platforms ahead of camera + screen width
+  const aheadDistance = canvas.width * 2; // Spawn 2 screen widths ahead
+  const minSpawnX = cameraX + canvas.width + aheadDistance; // Way ahead of current view
+  
+  // Filter platforms that are ahead of the screen
+  const aheadPlatforms = platforms.filter(plat => 
+    plat && plat.x !== undefined && 
+    plat.x >= minSpawnX && 
+    plat.x < minSpawnX + canvas.width * 3 // Within reasonable range ahead
+  );
+  
+  // If no platforms ahead, try platforms that are at least ahead of camera
+  const candidatePlatforms = aheadPlatforms.length > 0 ? aheadPlatforms : 
+    platforms.filter(plat => plat && plat.x !== undefined && plat.x > cameraX + canvas.width);
+  
+  if(candidatePlatforms.length === 0) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:990',message:'spawnBobble early return - no platforms ahead',data:{cameraX:cameraX,minSpawnX:minSpawnX,platformsLength:platforms.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    return;
+  }
+  
+  // Choose a random platform from candidates
+  const plat = candidatePlatforms[Math.floor(Math.random() * candidatePlatforms.length)];
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:984',message:'spawnBobble - plat selected',data:{platExists:plat !== undefined,platIsNull:plat === null,platHasX:plat && plat.x !== undefined,platformsLength:platforms.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1000',message:'spawnBobble - plat selected',data:{platExists:plat !== undefined,platIsNull:plat === null,platHasX:plat && plat.x !== undefined,platformsLength:platforms.length,candidateCount:candidatePlatforms.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
   // #endregion
   if(!plat || plat.x === undefined || plat.width === undefined || plat.y === undefined) {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:990',message:'spawnBobble early return - plat invalid',data:{plat:plat,hasX:plat && plat.x !== undefined,hasWidth:plat && plat.width !== undefined,hasY:plat && plat.y !== undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1005',message:'spawnBobble early return - plat invalid',data:{plat:plat,hasX:plat && plat.x !== undefined,hasWidth:plat && plat.width !== undefined,hasY:plat && plat.y !== undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
     return;
   }
@@ -1036,9 +1130,8 @@ function spawnBobble(types) {
       size: BLOCK_SIZE, // Make bobbles as large as one block
       type: type,
       collected: false,
-      floatOffset: Math.random() * Math.PI * 2,
-      rotation: Math.random() * Math.PI * 2,
-      rotationSpeed: (Math.random() - 0.5) * 0.1
+      floatOffset: Math.random() * Math.PI * 2
+      // No rotation - icons face forward (upright)
     });
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1000',message:'spawnBobble - bobble created',data:{type:type,x:bobbleX,y:bobbleY},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
@@ -2806,7 +2899,7 @@ function cleanupOffScreenObjects() {
   }
   
   // Remove all minus bobbles if score < 10
-  if(score < 10) {
+  if(score < 25) {
     for(let i = bobbles.length - 1; i >= 0; i--) {
       if(bobbles[i].type === 'minus') {
         bobbles.splice(i, 1);
@@ -3084,25 +3177,25 @@ function gameTick() {
   
   // Time-based bobble spawning
   if(gameRunning && player.visible && platforms.length > 0) {
-    // Spawn regular bobbles (20-50 seconds)
+    // Spawn regular bobbles (2-6 seconds)
     if(bobbleSpawnTimer >= bobbleSpawnTarget) {
       spawnBobble(['healer', 'extremeHealer', 'healthIncreaser', 'shield', 'jumper']);
       bobbleSpawnTimer = 0; // Reset timer
-      bobbleSpawnTarget = 20 + Math.random() * 30; // Set new target (20-50 seconds)
+      bobbleSpawnTarget = 2 + Math.random() * 4; // Set new target (2-6 seconds)
     }
     
-    // Spawn speedUp bobbles (10-50 seconds)
+    // Spawn speedUp bobbles (3-10 seconds)
     if(speedUpSpawnTimer >= speedUpSpawnTarget) {
       spawnBobble(['speedUp']);
       speedUpSpawnTimer = 0; // Reset timer
-      speedUpSpawnTarget = 10 + Math.random() * 40; // Set new target (10-50 seconds)
+      speedUpSpawnTarget = 3 + Math.random() * 7; // Set new target (3-10 seconds)
     }
     
-    // Spawn minus bobbles (10-50 seconds, only if score >= 10)
-    if(score >= 10 && minusSpawnTimer >= minusSpawnTarget) {
+    // Spawn minus bobbles (3-10 seconds, only if score >= 10)
+    if(score >= 25 && minusSpawnTimer >= minusSpawnTarget) {
       spawnBobble(['minus']);
       minusSpawnTimer = 0; // Reset timer
-      minusSpawnTarget = 10 + Math.random() * 40; // Set new target (10-50 seconds)
+      minusSpawnTarget = 3 + Math.random() * 7; // Set new target (3-10 seconds)
     }
   }
   
@@ -3277,7 +3370,7 @@ function gameTick() {
             
           case 'minus':
             // Minus score by 10
-            score = Math.max(0, score - 10);
+            score = Math.max(0, score - 25);
             spawnParticlesEarly(b.x + b.size/2, b.y + b.size/2, "gem", runtime.effects.jumpEffectMul);
             break;
             
@@ -3853,24 +3946,29 @@ function draw(){
     let floatY = Math.sin(globalTime*3 + b.floatOffset) * 5;
     ctx.save();
     ctx.translate(b.x + b.size/2 - cameraX, b.y + b.size/2 - cameraY + floatY);
-    ctx.rotate(b.rotation || 0);
     
-    // Get color and icon for bobble type
+    // No glow effect for bobbles (removed to prevent darkening)
+    ctx.shadowBlur = 0;
+    
+    // Draw base bobble bubble image
     const bobbleData = getBobbleData(b.type);
-    ctx.fillStyle = bobbleData.color;
-    if(runtime.glowEnabled){ ctx.shadowColor = bobbleData.color; ctx.shadowBlur = 20 + 10 * Math.sin(globalTime*5); }
+    if (bobbleBaseImage.complete && bobbleBaseImage.naturalWidth > 0) {
+      ctx.drawImage(bobbleBaseImage, -b.size/2, -b.size/2, b.size, b.size);
+    } else {
+      // Fallback: draw circle if image not loaded
+      ctx.fillStyle = bobbleData.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, b.size/2, 0, Math.PI * 2);
+      ctx.fill();
+    }
     
-    // Draw bobble as a circle (bubble-like)
-    ctx.beginPath();
-    ctx.arc(0, 0, b.size/2, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Draw icon inside bobble (black for visibility)
-    ctx.fillStyle = "black";
-    ctx.font = `${b.size * 0.6}px Arial`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(bobbleData.icon, 0, 0);
+    // Draw effect image on top
+    const bobbleImage = bobbleImages[b.type];
+    if (bobbleImage && bobbleImage.complete && bobbleImage.naturalWidth > 0) {
+      // Draw image (80% of bobble size for padding)
+      const imageSize = b.size * 0.8;
+      ctx.drawImage(bobbleImage, -imageSize/2, -imageSize/2, imageSize, imageSize);
+    }
     
     ctx.restore();
     ctx.shadowBlur = 0;
@@ -4103,13 +4201,13 @@ function draw(){
       // Draw filled background with high opacity
       ctx.fillStyle = "rgba(255, 255, 0, 0.3)";
       ctx.fillRect(player.x - cameraX - 8, player.y - cameraY - 8, player.width + 16, player.height + 16);
-      // Draw bright yellow border
-      ctx.strokeStyle = "#ffff00";
+      // Draw bright white border
+      ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 6;
       ctx.globalAlpha = 1;
       ctx.strokeRect(player.x - cameraX - 8, player.y - cameraY - 8, player.width + 16, player.height + 16);
       // Draw inner glow
-      ctx.strokeStyle = "#ffffaa";
+      ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
       ctx.strokeRect(player.x - cameraX - 4, player.y - cameraY - 4, player.width + 8, player.height + 8);
       ctx.globalAlpha = 1;
