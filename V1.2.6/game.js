@@ -178,10 +178,6 @@ window.addEventListener('resize', resize);
 resize();
 
 /* ---------- Bobble Images ---------- */
-// Base bobble bubble image
-const bobbleBaseImage = new Image();
-bobbleBaseImage.src = '../images/bobble.png';
-
 // Map bobble types to image files
 const bobbleImageMap = {
   healer: '../images/healer.png',
@@ -203,24 +199,7 @@ function loadBobbleImages() {
   bobbleImagesLoading = true;
   
   let loadedCount = 0;
-  const totalImages = Object.keys(bobbleImageMap).length + 1; // +1 for base bobble
-  
-  // Load base bobble
-  bobbleBaseImage.onload = () => {
-    loadedCount++;
-    if (loadedCount === totalImages) {
-      bobbleImagesLoaded = true;
-      bobbleImagesLoading = false;
-    }
-  };
-  bobbleBaseImage.onerror = () => {
-    console.warn('Failed to load bobble base image');
-    loadedCount++;
-    if (loadedCount === totalImages) {
-      bobbleImagesLoaded = true;
-      bobbleImagesLoading = false;
-    }
-  };
+  const totalImages = Object.keys(bobbleImageMap).length;
   
   // Load effect images
   Object.keys(bobbleImageMap).forEach(type => {
@@ -302,6 +281,18 @@ let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseI
 let gameRunning = false;
 let isPaused = false;
 let cameraX = 0, cameraY = 0;
+let spikeDamage = 1; // Damage per spike hit (increases with score)
+let maxMaxHP = Infinity; // Maximum allowed maxHP (decreases with high scores)
+let lastDamageIncreaseScore = 0; // Track last score where damage increased
+let scoreIncreasePerTick = 0; // Score increase per tick (0 = disabled)
+
+// Score-based difficulty tracking
+let platformCount = 0; // Track number of platforms generated
+let platformsWithSpikesInARow = 0; // Track consecutive platforms with spikes
+let lastPlatformHadSpikes = false; // Track if last platform had spikes
+let platformsWithFullSpikes = 0; // Track platforms with width > 1 full of spikes
+let lastPlatformWithFullSpikesIndex = -1; // Track last platform index with full spikes
+let speedLocked = false; // Track if speed is locked at 50000
 let voidDamagePause = false; // Pause state for void damage
 let voidPauseTimer = 0; // Timer for void damage pause (in ticks)
 let voidPauseDuration = 3 * TICKS_PER_SECOND; // 3 seconds in ticks
@@ -311,12 +302,10 @@ let shouldExtendImmunity = false; // Whether to extend immunity after void pause
 // #region agent log
 fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:240',message:'initializing bobble spawn timers',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
 // #endregion
-let bobbleSpawnTimer = 0; // Current timer for regular bobbles
-let bobbleSpawnTarget = 2 + Math.random() * 4; // Target time (2-6 seconds) for regular bobbles
-let speedUpSpawnTimer = 0; // Current timer for speedUp bobbles
-let speedUpSpawnTarget = 3 + Math.random() * 7; // Target time (3-10 seconds) for speedUp bobbles
-let minusSpawnTimer = 0; // Current timer for minus bobbles
-let minusSpawnTarget = 3 + Math.random() * 7; // Target time (3-10 seconds) for minus bobbles
+let bobbleSpawnTimer = 0; // Current timer for good bobbles
+let bobbleSpawnTarget = 2 + Math.random() * 4; // Target time (2-6 seconds) for good bobbles
+let speedUpSpawnTimer = 0; // Current timer for bad bobbles (speedUp and minus)
+let speedUpSpawnTarget = 3 + Math.random() * 7; // Target time (3-10 seconds) for bad bobbles
 // #region agent log
 fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:246',message:'bobble spawn timers initialized',data:{bobbleSpawnTarget:bobbleSpawnTarget,speedUpSpawnTarget:speedUpSpawnTarget,minusSpawnTarget:minusSpawnTarget},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
 // #endregion
@@ -821,6 +810,7 @@ function resetWorld(){
   player.isDropping = false; // Reset drop state
   player.wasDroppingInAir = false; // Reset drop-in-air flag
   playerDeathY = null; // Reset death position
+  player.maxHP = 1; // Reset max HP
   player.currentHP = player.maxHP; // Reset HP
   player.immunityTime = 0; // Reset immunity
   player.isImmune = false; // Reset immunity flag
@@ -838,8 +828,7 @@ function resetWorld(){
   bobbleSpawnTarget = 2 + Math.random() * 4;
   speedUpSpawnTimer = 0;
   speedUpSpawnTarget = 3 + Math.random() * 7;
-  minusSpawnTimer = 0;
-  minusSpawnTarget = 3 + Math.random() * 7;
+  // minusSpawnTimer removed - bad bobbles now use speedUpSpawnTimer
 
   // Reset input flags
   jumpKeyPressed = false;
@@ -854,6 +843,18 @@ function resetWorld(){
   score = 0; colorLerp = 0; globalTime = 0;
   colorIndex = 0; platformColor = {...baseColors[0]}; nextColor = baseColors[1];
   recentPlatformSizes = []; // Reset recent platform sizes tracking
+  
+  // Reset score-based difficulty tracking
+  spikeDamage = 1;
+  maxMaxHP = Infinity;
+  lastDamageIncreaseScore = 0;
+  platformCount = 0;
+  platformsWithSpikesInARow = 0;
+  lastPlatformHadSpikes = false;
+  platformsWithFullSpikes = 0;
+  lastPlatformWithFullSpikesIndex = -1;
+  speedLocked = false;
+  scoreIncreasePerTick = 0; // Reset score increase per tick
   lastPlatformHadStrikes = false; // Reset strike tracking
 
   // Create a guaranteed ground platform
@@ -1040,8 +1041,22 @@ function generateBlockPlatform(lastX, lastY){
   return { x: x + blockCount*BLOCK_SIZE, y };
 }
 
+/* ---------- Helper: Weighted random bobble selection ---------- */
+function getWeightedRandomGoodBobble() {
+  const rand = Math.random() * 100;
+  if(rand < 42.64) return 'healer';
+  if(rand < 42.64 + 22.76) return 'shield';
+  if(rand < 42.64 + 22.76 + 19.72) return 'healthIncreaser';
+  if(rand < 42.64 + 22.76 + 19.72 + 11.45) return 'jumper';
+  return 'extremeHealer'; // 3.63%
+}
+
+function getRandomBadBobble() {
+  return Math.random() < 0.5 ? 'speedUp' : 'minus';
+}
+
 /* ---------- Bobble spawning function ---------- */
-function spawnBobble(types) {
+function spawnBobble(type) {
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:965',message:'spawnBobble called',data:{types:types,platformsLength:platforms.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
   // #endregion
@@ -1088,8 +1103,7 @@ function spawnBobble(types) {
     return;
   }
   
-  // Choose random type from allowed types
-  const type = types[Math.floor(Math.random() * types.length)];
+  // Type is already determined (good or bad bobble)
   
   // Calculate spawn position (above the platform)
   // #region agent log
@@ -3080,8 +3094,103 @@ function cleanupOffScreenObjects() {
   }
 }
 
+/* ---------- Score milestone checking ---------- */
+function checkScoreMilestones() {
+  const currentScore = Math.floor(score);
+  
+  // Damage increase system (3000, 6000, 9000, etc. - every 3000)
+  if(currentScore >= 3000 && currentScore > lastDamageIncreaseScore) {
+    const nextMilestone = Math.floor(currentScore / 3000) * 3000;
+    if(nextMilestone > lastDamageIncreaseScore) {
+      spikeDamage = Math.floor(nextMilestone / 3000) + 1; // 2 at 3000, 3 at 6000, etc.
+      lastDamageIncreaseScore = nextMilestone;
+      // Show damage increased text (will be implemented in draw function)
+      showDamageIncreaseText();
+    }
+  }
+  
+  // MaxHP limits
+  if(currentScore >= 50000) {
+    maxMaxHP = 10;
+  } else if(currentScore >= 40000) {
+    maxMaxHP = 10;
+  } else if(currentScore >= 30000) {
+    maxMaxHP = 12;
+  } else if(currentScore >= 20000) {
+    maxMaxHP = 16;
+  } else if(currentScore >= 10000) {
+    maxMaxHP = 20;
+  }
+  
+  // Apply maxHP limit
+  if(maxMaxHP < Infinity && player.maxHP > maxMaxHP) {
+    player.maxHP = maxMaxHP;
+    if(player.currentHP > maxMaxHP) {
+      player.currentHP = maxMaxHP;
+    }
+  }
+  
+  // Speed lock at 50000
+  if(currentScore >= 50000 && !speedLocked) {
+    speedLocked = true;
+    player.speed = 25;
+    player.startingSpeed = 25;
+    showSpeedLockedText();
+    playSpeedLockedSound();
+  }
+}
+
+// Damage increase text display
+let damageIncreaseText = null;
+function showDamageIncreaseText() {
+  damageIncreaseText = {
+    text: 'DAMAGE INCREASED!!',
+    alpha: 1,
+    y: 100,
+    timer: 0,
+    maxTimer: 3 * TICKS_PER_SECOND // 3 seconds
+  };
+  // Hide score temporarily
+  const scoreDisplay = document.getElementById('scoreDisplay');
+  if(scoreDisplay) {
+    scoreDisplay.style.opacity = '0';
+    setTimeout(() => {
+      scoreDisplay.style.opacity = '1';
+      scoreDisplay.style.transition = 'opacity 0.5s';
+    }, 1000);
+  }
+}
+
+// Speed locked text display
+let speedLockedText = null;
+function showSpeedLockedText() {
+  speedLockedText = {
+    text: 'SPEED LOCKED!!!',
+    alpha: 1,
+    y: 100,
+    timer: 0,
+    maxTimer: 3 * TICKS_PER_SECOND
+  };
+}
+
+// Speed locked sound
+function playSpeedLockedSound() {
+  // Will play speed-up.mp3, then loop speed-up-loop.mp3
+  // Sound files need to be added to sounds object
+}
+
 /* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
 function gameTick() {
+  // Increase score per tick if enabled
+  if(scoreIncreasePerTick > 0 && gameRunning) {
+    score += scoreIncreasePerTick;
+  }
+  
+  // Check score milestones
+  if(gameRunning && player.visible) {
+    checkScoreMilestones();
+  }
+  
   // Skip if paused (regular pause) or void damage pause
   if(isPaused || voidDamagePause) {
     // Update void pause timer and respawn effect
@@ -3171,42 +3280,29 @@ function gameTick() {
     fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3020',message:'updating bobble timers',data:{gameRunning:gameRunning,playerVisible:player.visible,TICKS_PER_SECOND:TICKS_PER_SECOND},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
     bobbleSpawnTimer += 1 / TICKS_PER_SECOND;
-    speedUpSpawnTimer += 1 / TICKS_PER_SECOND;
-    minusSpawnTimer += 1 / TICKS_PER_SECOND;
+    speedUpSpawnTimer += 1 / TICKS_PER_SECOND; // Used for bad bobbles (speedUp and minus)
   }
   
   // Time-based bobble spawning
   if(gameRunning && player.visible && platforms.length > 0) {
-    // Spawn regular bobbles (2-6 seconds)
+    // Spawn good bobbles (2-6 seconds) with weighted random selection
     if(bobbleSpawnTimer >= bobbleSpawnTarget) {
-      spawnBobble(['healer', 'extremeHealer', 'healthIncreaser', 'shield', 'jumper']);
+      const goodBobbleType = getWeightedRandomGoodBobble();
+      spawnBobble(goodBobbleType);
       bobbleSpawnTimer = 0; // Reset timer
       bobbleSpawnTarget = 2 + Math.random() * 4; // Set new target (2-6 seconds)
     }
     
-    // Spawn speedUp bobbles (3-10 seconds)
+    // Spawn bad bobbles (combined timer for speedUp and minus, 3-10 seconds)
+    // Bad bobbles spawn together: 50% speedUp, 50% minus
     if(speedUpSpawnTimer >= speedUpSpawnTarget) {
-      spawnBobble(['speedUp']);
+      const badBobbleType = getRandomBadBobble();
+      spawnBobble(badBobbleType);
       speedUpSpawnTimer = 0; // Reset timer
       speedUpSpawnTarget = 3 + Math.random() * 7; // Set new target (3-10 seconds)
     }
-    
-    // Spawn minus bobbles (3-10 seconds, only if score >= 10)
-    if(score >= 25 && minusSpawnTimer >= minusSpawnTarget) {
-      spawnBobble(['minus']);
-      minusSpawnTimer = 0; // Reset timer
-      minusSpawnTarget = 3 + Math.random() * 7; // Set new target (3-10 seconds)
-    }
   }
   
-  // Remove all minus bobbles if score < 10
-  if(score < 10) {
-    for(let i = bobbles.length - 1; i >= 0; i--) {
-      if(bobbles[i].type === 'minus') {
-        bobbles.splice(i, 1);
-      }
-    }
-  }
   
   // Continue running effects even when gameRunning is false (for death animations)
   // Only skip if game hasn't started yet
@@ -3631,11 +3727,12 @@ function takeSpikeDamage(spike) {
     return; // Shield blocked the damage
   }
   
-  // If player has only 1 HP left, just die immediately
-  if(player.currentHP === 1) {
+  // If player would die from this damage, die immediately
+  if(player.currentHP <= spikeDamage) {
     player.visible = false;
     playerDeathY = player.y;
     if(spike) spike.hit = false;
+    player.maxHP = 1; // Reset max HP on death
     playSound('die');
     stopSound('background');
     createCrashEarly(runtime.effects.dieEffectMul);
@@ -3658,8 +3755,8 @@ function takeSpikeDamage(spike) {
   // Clear all spikes
   spikes = [];
   
-  // Reduce HP
-  player.currentHP -= 1;
+  // Reduce HP by spikeDamage amount
+  player.currentHP -= spikeDamage;
   
   // Start pause timer (3 seconds)
   voidDamagePause = true;
@@ -3702,10 +3799,11 @@ function takeVoidDamage() {
     return;
   }
   
-  // If player has only 1 HP left, just die immediately
-  if(player.currentHP === 1) {
+  // If player would die from this damage, die immediately
+  if(player.currentHP <= spikeDamage) {
     player.visible = false;
     playerDeathY = player.y;
+    player.maxHP = 1; // Reset max HP on death
     playSound('die');
     stopSound('background');
     createCrashEarly(runtime.effects.dieEffectMul);
@@ -3725,8 +3823,8 @@ function takeVoidDamage() {
     return;
   }
   
-  // Reduce HP
-  player.currentHP -= 1;
+  // Reduce HP by spikeDamage amount (void damage also uses spikeDamage)
+  player.currentHP -= spikeDamage;
   
   // Teleport to nearest safe ground
   const safeGround = findNearestSafeGround();
@@ -3950,24 +4048,17 @@ function draw(){
     // No glow effect for bobbles (removed to prevent darkening)
     ctx.shadowBlur = 0;
     
-    // Draw base bobble bubble image
-    const bobbleData = getBobbleData(b.type);
-    if (bobbleBaseImage.complete && bobbleBaseImage.naturalWidth > 0) {
-      ctx.drawImage(bobbleBaseImage, -b.size/2, -b.size/2, b.size, b.size);
+    // Draw bobble image directly (the images themselves are the bobbles)
+    const bobbleImage = bobbleImages[b.type];
+    if (bobbleImage && bobbleImage.complete && bobbleImage.naturalWidth > 0) {
+      ctx.drawImage(bobbleImage, -b.size/2, -b.size/2, b.size, b.size);
     } else {
       // Fallback: draw circle if image not loaded
+      const bobbleData = getBobbleData(b.type);
       ctx.fillStyle = bobbleData.color;
       ctx.beginPath();
       ctx.arc(0, 0, b.size/2, 0, Math.PI * 2);
       ctx.fill();
-    }
-    
-    // Draw effect image on top
-    const bobbleImage = bobbleImages[b.type];
-    if (bobbleImage && bobbleImage.complete && bobbleImage.naturalWidth > 0) {
-      // Draw image (80% of bobble size for padding)
-      const imageSize = b.size * 0.8;
-      ctx.drawImage(bobbleImage, -imageSize/2, -imageSize/2, imageSize, imageSize);
     }
     
     ctx.restore();
@@ -4349,6 +4440,7 @@ function openCommandPrompt() {
   if(command === '/die'){
     if(player.visible){
       player.visible = false;
+      player.maxHP = 1; // Reset max HP on death
       createCrashEarly(runtime.effects.dieEffectMul);
       gameRunning = false;
       if(score>bestScore){ bestScore = Math.floor(score); localStorage.setItem('bestScore', bestScore); }
@@ -4367,7 +4459,15 @@ function openCommandPrompt() {
     } else if(root1 === 'add' && root2 !== undefined){
       const v = Number(root2);
       if(!isNaN(v)) score += v; else alert('Invalid value');
-    } else alert('Usage: /score set <value>  OR  /score add <value>');
+    } else if(root1 === 'it' && root2 === 'hell'){
+      const v = root3 !== undefined ? Number(root3) : 1;
+      if(!isNaN(v)){
+        scoreIncreasePerTick = v;
+        alert(`Score will increase by ${v} every tick. Set to 0 to disable.`);
+      } else {
+        alert('Invalid value');
+      }
+    } else alert('Usage: /score set <value>  OR  /score add <value>  OR  /score it hell [number]');
     return;
   }
 
