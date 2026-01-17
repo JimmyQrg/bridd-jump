@@ -319,9 +319,9 @@ let shouldExtendImmunity = false; // Whether to extend immunity after void pause
 
 // Bobble spawning timers (in seconds)
 let bobbleSpawnTimer = 0; // Current timer for good bobbles
-let bobbleSpawnTarget = 2 + Math.random() * 4; // Target time (2-6 seconds) for good bobbles
+let bobbleSpawnTarget = 1 + Math.random() * 3; // Target time (1-4 seconds) for good bobbles
 let speedUpSpawnTimer = 0; // Current timer for bad bobbles (speedUp and minus)
-let speedUpSpawnTarget = 3 + Math.random() * 7; // Target time (3-10 seconds) for bad bobbles
+let speedUpSpawnTarget = 2 + Math.random() * 4; // Target time (2-6 seconds) for bad bobbles
 
 /* Tick system */
 let tickAccumulator = 0;
@@ -786,6 +786,7 @@ applySettings(settings);
 let lastPlatformX = 0, lastPlatformY = 0;
 let recentPlatformSizes = []; // Track last few platform sizes for consecutive one-block rule
 let lastPlatformHadStrikes = false; // Track if previous platform had strikes
+let recentSpikeQualifiers = []; // Track last two platforms with heavy/full spike coverage
 let platformIndex = 0;
 let platformsSinceDoubleSpike = 0;
 let pendingConsecutiveSpike = false;
@@ -847,9 +848,9 @@ function resetWorld(){
   
   // Reset bobble spawn timers
   bobbleSpawnTimer = 0;
-  bobbleSpawnTarget = 2 + Math.random() * 4;
+  bobbleSpawnTarget = 1 + Math.random() * 3;
   speedUpSpawnTimer = 0;
-  speedUpSpawnTarget = 3 + Math.random() * 7;
+  speedUpSpawnTarget = 2 + Math.random() * 4;
   // minusSpawnTimer removed - bad bobbles now use speedUpSpawnTimer
 
   // Reset input flags
@@ -865,6 +866,7 @@ function resetWorld(){
   score = 0; colorLerp = 0; globalTime = 0;
   colorIndex = 0; platformColor = {...baseColors[0]}; nextColor = baseColors[1];
   recentPlatformSizes = []; // Reset recent platform sizes tracking
+  recentSpikeQualifiers = []; // Reset spike qualifier tracking
   
   // Reset score-based difficulty tracking
   spikeDamage = 1;
@@ -878,6 +880,11 @@ function resetWorld(){
   speedLocked = false;
   scoreIncreasePerTick = 0; // Reset score increase per tick
   lastPlatformHadStrikes = false; // Reset strike tracking
+
+  // Ensure speed-up music is stopped when starting a new run
+  stopSound('speedUp');
+  stopSound('speedUpLoop');
+  if(sounds.speedUp) sounds.speedUp.onended = null;
 
   // Create a guaranteed ground platform
   const groundHeight = BLOCK_SIZE;
@@ -963,6 +970,9 @@ function generateBlockPlatform(lastX, lastY){
   if(forceSpikes) {
     canHaveStrikes = true;
   }
+  if(canHaveStrikes && !forceSpikes && !mustHazardOneBlock) {
+    canHaveStrikes = Math.random() < 0.5;
+  }
   if(longSpikeRule) {
     const indexInWindow = platformIndex % longSpikeRule.window;
     if(indexInWindow < longSpikeRule.count) {
@@ -995,6 +1005,7 @@ function generateBlockPlatform(lastX, lastY){
     });
   }
 
+  const spikesStartIndex = spikes.length;
   // Generate spikes with new logic
   if(canHaveStrikes && blockCount > 0) {
     const maxGroups = blockCount >= minWidthForTwoSpikeGroups ? 2 : 1; // At most 2 groups for larger blocks
@@ -1095,9 +1106,27 @@ function generateBlockPlatform(lastX, lastY){
     }
   }
   
+  // Enforce: no three platforms in a row with >5 spikes or full spike coverage
+  let platformSpikeCount = spikes.length - spikesStartIndex;
+  let platformSpikeQualifies = platformSpikeCount > 5 || platformSpikeCount >= blockCount;
+  if(recentSpikeQualifiers.length >= 2 && recentSpikeQualifiers[0] && recentSpikeQualifiers[1] && platformSpikeQualifies) {
+    spikes.splice(spikesStartIndex);
+    thisPlatformHasStrikes = false;
+    platformSpikeCount = 0;
+    platformSpikeQualifies = false;
+    if(mustHazardOneBlock) {
+      const badType = getRandomBadBobble();
+      spawnBobbleAt(x + BLOCK_SIZE * 0.5, y - BLOCK_SIZE * 1.5, badType);
+    }
+  }
+  
   // Update tracking for next platform
   const prevPlatformHadStrikes = lastPlatformHadStrikes;
   lastPlatformHadStrikes = thisPlatformHasStrikes;
+  if(recentSpikeQualifiers.length >= 2) {
+    recentSpikeQualifiers.shift();
+  }
+  recentSpikeQualifiers.push(platformSpikeQualifies);
   platformsSinceDoubleSpike += 1;
   if(thisPlatformHasStrikes && prevPlatformHadStrikes && allowConsecutiveSpikes) {
     platformsSinceDoubleSpike = 0;
@@ -1141,6 +1170,14 @@ function getWeightedRandomGoodBobble() {
   if(rand < 42.64 + 22.76 + 19.72) return 'healthIncreaser';
   if(rand < 42.64 + 22.76 + 19.72 + 11.45) return 'jumper';
   return 'extremeHealer'; // 3.63%
+}
+
+function getWeightedRandomGoodBobbleNoHeal() {
+  const total = 22.76 + 19.72 + 11.45;
+  const rand = Math.random() * total;
+  if(rand < 22.76) return 'shield';
+  if(rand < 22.76 + 19.72) return 'healthIncreaser';
+  return 'jumper';
 }
 
 function getRandomBadBobble() {
@@ -3173,6 +3210,7 @@ function checkScoreMilestones() {
     if(nextMilestone > lastDamageIncreaseScore) {
       spikeDamage = Math.floor(nextMilestone / 3000) + 1; // 2 at 3000, 3 at 6000, etc.
       lastDamageIncreaseScore = nextMilestone;
+      player.hasShield = true;
       // Show damage increased text (will be implemented in draw function)
       showDamageIncreaseText();
     }
@@ -3472,10 +3510,23 @@ function gameTick() {
   if(gameRunning && player.visible && platforms.length > 0) {
     // Spawn good bobbles (2-6 seconds) with weighted random selection
     if(bobbleSpawnTimer >= bobbleSpawnTarget) {
-      const goodBobbleType = getWeightedRandomGoodBobble();
-      spawnBobble(goodBobbleType);
+      if(player.currentHP >= player.maxHP) {
+        const roll = Math.random();
+        if(roll < 0.01) {
+          // 1% no bobble when HP is full
+        } else if(roll < 0.20) {
+          const badBobbleType = getRandomBadBobble();
+          spawnBobble(badBobbleType);
+        } else {
+          const goodBobbleType = getWeightedRandomGoodBobbleNoHeal();
+          spawnBobble(goodBobbleType);
+        }
+      } else {
+        const goodBobbleType = getWeightedRandomGoodBobble();
+        spawnBobble(goodBobbleType);
+      }
       bobbleSpawnTimer = 0; // Reset timer
-      bobbleSpawnTarget = 2 + Math.random() * 4; // Set new target (2-6 seconds)
+      bobbleSpawnTarget = 1 + Math.random() * 3; // Set new target (1-4 seconds)
     }
     
     // Spawn bad bobbles (combined timer for speedUp and minus, 3-10 seconds)
@@ -3484,7 +3535,7 @@ function gameTick() {
       const badBobbleType = getRandomBadBobble();
       spawnBobble(badBobbleType);
       speedUpSpawnTimer = 0; // Reset timer
-      speedUpSpawnTarget = 3 + Math.random() * 7; // Set new target (3-10 seconds)
+      speedUpSpawnTarget = 2 + Math.random() * 4; // Set new target (2-6 seconds)
     }
   }
   
@@ -3650,8 +3701,8 @@ function gameTick() {
             break;
             
           case 'minus':
-            // Minus score by 10
-            score = Math.max(0, score - 25);
+            // Minus 10% of current score
+            score = Math.max(0, score - Math.floor(score * 0.1));
             spawnParticlesEarly(b.x + b.size/2, b.y + b.size/2, "gem", runtime.effects.jumpEffectMul);
             break;
             
@@ -3849,7 +3900,7 @@ function getBobbleData(type) {
     healer: { color: "#00ff00", icon: "+" },
     extremeHealer: { color: "#00ffff", icon: "++" },
     healthIncreaser: { color: "#ff00ff", icon: "↑" },
-    shield: { color: "#ffff00", icon: "◊" },
+    shield: { color: "#ffffff", icon: "◊" },
     minus: { color: "#ff0000", icon: "-" },
     speedUp: { color: "#ff8800", icon: "→" },
     jumper: { color: "#8800ff", icon: "↑↑" }
@@ -4479,7 +4530,7 @@ function draw(){
     if(player.hasShield) {
       ctx.save();
       // Draw filled background with high opacity
-      ctx.fillStyle = "rgba(255, 255, 0, 0.3)";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
       ctx.fillRect(player.x - cameraX - 8, player.y - cameraY - 8, player.width + 16, player.height + 16);
       ctx.globalAlpha = 1;
       ctx.restore();
