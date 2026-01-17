@@ -92,6 +92,9 @@ const soundEnabled = true;
 // #region agent log
 fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:83',message:'boot sound init',data:{soundEnabled:soundEnabled},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
 // #endregion
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:85',message:'boot sound init (run2)',data:{soundEnabled:soundEnabled},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
+// #endregion
 
 // Function to enable audio context (called on user interaction)
 function enableAudio() {
@@ -351,7 +354,7 @@ let bobbleSpawnTarget = 2 + Math.random() * 4; // Target time (2-6 seconds) for 
 let speedUpSpawnTimer = 0; // Current timer for bad bobbles (speedUp and minus)
 let speedUpSpawnTarget = 3 + Math.random() * 7; // Target time (3-10 seconds) for bad bobbles
 // #region agent log
-fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:246',message:'bobble spawn timers initialized',data:{bobbleSpawnTarget:bobbleSpawnTarget,speedUpSpawnTarget:speedUpSpawnTarget,minusSpawnTarget:minusSpawnTarget},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:246',message:'bobble spawn timers initialized',data:{bobbleSpawnTarget:bobbleSpawnTarget,speedUpSpawnTarget:speedUpSpawnTarget},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
 // #endregion
 
 /* Tick system */
