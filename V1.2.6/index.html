@@ -1005,19 +1005,6 @@
 
   <!-- <script src="../editCode.js"></script> -->
   <script>
-    // #region agent log
-    window.__logGameScript = function(type, detail) {
-      fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1007',message:'game.js script '+type,data:{detail:detail || null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'S'})}).catch(()=>{});
-      fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1008',message:'game.js script '+type+' (run2)',data:{detail:detail || null},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'S'})}).catch(()=>{});
-    };
-    window.addEventListener('error', function(e) {
-      const target = e.target || {};
-      fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1010',message:'window error',data:{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno,targetTag:target.tagName,targetSrc:target.src || target.href},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'T'})}).catch(()=>{});
-    }, true);
-    document.addEventListener('DOMContentLoaded', function() {
-      fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1014',message:'domcontentloaded',data:{readyState:document.readyState},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'U'})}).catch(()=>{});
-    });
-    // #endregion
   </script>
   <script src="game.js" onload="__logGameScript('load', this.src)" onerror="__logGameScript('error', this.src)"></script>
   

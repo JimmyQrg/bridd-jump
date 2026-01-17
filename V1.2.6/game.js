@@ -20,17 +20,6 @@ const sounds = {
   speedUpLoop: new Audio('../sounds/speed-up-loop.mp3')
 };
 
-// #region agent log
-window.addEventListener('error', function(e) {
-  const target = e.target || {};
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:22',message:'EARLY CAPTURE ERROR',data:{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno,targetTag:target.tagName,targetSrc:target.src || target.href},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-}, true);
-Object.entries(sounds).forEach(([name, audio]) => {
-  audio.addEventListener('error', () => {
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:27',message:'audio error',data:{name:name,src:audio.src},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-  });
-});
-// #endregion
 
 // Set background music to loop
 sounds.background.loop = true;
@@ -89,12 +78,6 @@ function updateSoundVolumes() {
 
 // Always enable sound for all input triggers
 const soundEnabled = true;
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:83',message:'boot sound init',data:{soundEnabled:soundEnabled},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-// #endregion
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:85',message:'boot sound init (run2)',data:{soundEnabled:soundEnabled},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
-// #endregion
 
 // Function to enable audio context (called on user interaction)
 function enableAudio() {
@@ -116,11 +99,6 @@ function enableAudio() {
     console.log('Error enabling audio:', err);
   }
 }
-// #region agent log
-window.addEventListener('error', (e) => {
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:104',message:'window error',data:{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-});
-// #endregion
 
 // Function to play sound with error handling
 function playSound(soundName) {
@@ -180,9 +158,6 @@ function lerpColor(c1,c2,t){
 /* ---------- Canvas & resizing ---------- */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:164',message:'canvas init',data:{hasCanvas:!!canvas,hasCtx:!!ctx},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-// #endregion
 
 // Fixed canvas size - doesn't scale with window
 // UI will scale but game canvas stays fixed
@@ -259,9 +234,6 @@ function loadBobbleImages() {
 
 // Start loading images immediately
 loadBobbleImages();
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:244',message:'bobble images start',data:{imageCount:Object.keys(bobbleImageMap).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
-// #endregion
 
 /* ---------- Constants & state ---------- */
 const BLOCK_SIZE = 50;
@@ -346,16 +318,10 @@ let voidPauseDuration = 3 * TICKS_PER_SECOND; // 3 seconds in ticks
 let shouldExtendImmunity = false; // Whether to extend immunity after void pause ends
 
 // Bobble spawning timers (in seconds)
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:240',message:'initializing bobble spawn timers',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-// #endregion
 let bobbleSpawnTimer = 0; // Current timer for good bobbles
 let bobbleSpawnTarget = 2 + Math.random() * 4; // Target time (2-6 seconds) for good bobbles
 let speedUpSpawnTimer = 0; // Current timer for bad bobbles (speedUp and minus)
 let speedUpSpawnTarget = 3 + Math.random() * 7; // Target time (3-10 seconds) for bad bobbles
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:246',message:'bobble spawn timers initialized',data:{bobbleSpawnTarget:bobbleSpawnTarget,speedUpSpawnTarget:speedUpSpawnTarget},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-// #endregion
 
 /* Tick system */
 let tickAccumulator = 0;
@@ -1207,14 +1173,8 @@ function spawnBobbleAt(bobbleX, bobbleY, type) {
 
 /* ---------- Bobble spawning function ---------- */
 function spawnBobble(type) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:965',message:'spawnBobble called',data:{type:type,platformsLength:platforms.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   
   if(platforms.length === 0) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:970',message:'spawnBobble early return - no platforms',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     return;
   }
   
@@ -1235,43 +1195,25 @@ function spawnBobble(type) {
     platforms.filter(plat => plat && plat.x !== undefined && plat.x > cameraX + canvas.width);
   
   if(candidatePlatforms.length === 0) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:990',message:'spawnBobble early return - no platforms ahead',data:{cameraX:cameraX,minSpawnX:minSpawnX,platformsLength:platforms.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     return;
   }
   
   // Choose a random platform from candidates
   const plat = candidatePlatforms[Math.floor(Math.random() * candidatePlatforms.length)];
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1000',message:'spawnBobble - plat selected',data:{platExists:plat !== undefined,platIsNull:plat === null,platHasX:plat && plat.x !== undefined,platformsLength:platforms.length,candidateCount:candidatePlatforms.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-  // #endregion
   if(!plat || plat.x === undefined || plat.width === undefined || plat.y === undefined) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1005',message:'spawnBobble early return - plat invalid',data:{plat:plat,hasX:plat && plat.x !== undefined,hasWidth:plat && plat.width !== undefined,hasY:plat && plat.y !== undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     return;
   }
   
   // Type is already determined (good or bad bobble)
   
   // Calculate spawn position (above the platform)
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:998',message:'spawnBobble - before accessing plat.x',data:{platX:plat.x,platWidth:plat.width,platY:plat.y},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-  // #endregion
   const bobbleX = plat.x + Math.random() * plat.width;
   const bobbleY = plat.y - BLOCK_SIZE * 1.5;
   
   // Check if position is safe (not on spikes or gems)
   if(spawnBobbleAt(bobbleX, bobbleY, type)) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1000',message:'spawnBobble - bobble created',data:{type:type,x:bobbleX,y:bobbleY},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
   }
   
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1025',message:'spawnBobble - function exit',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
 }
 
 /* ---------- Collision helpers ---------- */
@@ -2858,9 +2800,6 @@ window.addEventListener('keydown', e => {
   keys[e.code] = true;
   const isJumpKey = ["KeyW","ArrowUp","Space"].includes(e.code);
   const isDropKey = ["ArrowDown","KeyS"].includes(e.code);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2838',message:'keydown received',data:{code:e.code,isJumpKey:isJumpKey,isDropKey:isDropKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   if(!isJumpKey && !isDropKey) {
     playSound('menuClick');
   }
@@ -3227,11 +3166,6 @@ function cleanupOffScreenObjects() {
 /* ---------- Score milestone checking ---------- */
 function checkScoreMilestones() {
   const currentScore = Math.floor(score);
-  // #region agent log
-  if(currentScore >= 99900) {
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3208',message:'checkScoreMilestones near win',data:{currentScore:currentScore,winActive:winSequence.active},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  }
-  // #endregion
   
   // Damage increase system (3000, 6000, 9000, etc. - every 3000)
   if(currentScore >= 3000 && currentScore > lastDamageIncreaseScore) {
@@ -3360,9 +3294,6 @@ function showWinText() {
   if(winText) {
     winText.classList.add('show');
     winText.classList.remove('fade');
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3334',message:'showWinText',data:{className:winText.className},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
   }
 }
 
@@ -3375,9 +3306,6 @@ function fadeWinText() {
 
 function startWinSequence() {
   if(winSequence.active) return;
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3348',message:'startWinSequence entry',data:{score:Math.floor(score),speed:player.speed},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
   winSequence.active = true;
   winSequence.phase = 'slowdown';
   winSequence.timer = 0;
@@ -3397,9 +3325,6 @@ function startWinSequence() {
 
 function updateWinSequence() {
   if(!winSequence.active) return;
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3368',message:'updateWinSequence tick',data:{phase:winSequence.phase,timer:winSequence.timer,speed:player.speed,zoom:cameraZoom},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   if(winSequence.phase === 'slowdown') {
     player.speed = Math.max(0, player.speed - 0.15);
     player.vy = 0;
@@ -3539,9 +3464,6 @@ function gameTick() {
   
   // Update bobble spawn timers (increment in seconds)
   if(gameRunning && player.visible) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3020',message:'updating bobble timers',data:{gameRunning:gameRunning,playerVisible:player.visible,TICKS_PER_SECOND:TICKS_PER_SECOND},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     bobbleSpawnTimer += 1 / TICKS_PER_SECOND;
     speedUpSpawnTimer += 1 / TICKS_PER_SECOND; // Used for bad bobbles (speedUp and minus)
   }
@@ -4625,16 +4547,6 @@ function mainLoop(now){
   if(!now) now = performance.now();
   if(!debugResourceLogged) {
     debugResourceLogged = true;
-    // #region agent log
-    const resources = (performance.getEntriesByType && performance.getEntriesByType('resource')) ? performance.getEntriesByType('resource') : [];
-    const shortResources = resources.slice(0, 20).map(r => ({name:r.name,initiator:r.initiatorType,transferSize:r.transferSize}));
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:4588',message:'resource entries snapshot',data:{count:resources.length,items:shortResources},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-    // #endregion
-    // #region agent log
-    const assetNodes = Array.from(document.querySelectorAll('script[src],link[href],img[src],audio[src],source[src]')).slice(0, 30)
-      .map(el => ({tag:el.tagName,src:el.src || el.href}));
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:4594',message:'asset nodes snapshot',data:{count:assetNodes.length,items:assetNodes},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
-    // #endregion
   }
   
   const deltaMs = now - lastLoopTime;
@@ -4939,9 +4851,6 @@ document.querySelectorAll('button').forEach((btn) => {
   btn.addEventListener('click', () => {
     if(winSequence.active) {
       fadeWinText();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:4892',message:'button click fadeWinText',data:{buttonId:btn.id,buttonText:btn.textContent,winActive:winSequence.active},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
     }
   });
 });
@@ -5082,21 +4991,12 @@ if(!localStorage.getItem(LS_KEY)){
   settings = readSettings();
   applySettings(settings);
 }
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:5049',message:'settings applied',data:{qualityPreset:settings.qualityPreset,maxFPS:settings.maxFPS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-// #endregion
 
 // Initialize volumes after settings are loaded
 updateSoundVolumes();
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:5054',message:'volumes updated',data:{soundEnabled:soundEnabled},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'M'})}).catch(()=>{});
-// #endregion
 
 // init ground/platforms and show menu
 resetWorld();
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:5058',message:'resetWorld complete',data:{platforms:platforms.length,playerX:player.x,playerY:player.y},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'N'})}).catch(()=>{});
-// #endregion
 document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
 document.getElementById('menu').style.display = 'flex';
 // Stop background music if it's playing
@@ -5107,19 +5007,4 @@ initKeyboardVisualization();
 
 // start the RAF loop
 requestAnimationFrame(mainLoop);
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:5066',message:'init complete',data:{menuVisible:document.getElementById('menu') && document.getElementById('menu').style.display},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-// #endregion
 
-// #region agent log - Global error handlers
-window.addEventListener('error', function(e) {
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:4578',message:'GLOBAL ERROR CAUGHT',data:{message:e.message,filename:e.filename,lineno:e.lineno,error:String(e.error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-});
-window.addEventListener('unhandledrejection', function(e) {
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:4583',message:'UNHANDLED PROMISE REJECTION',data:{reason:String(e.reason)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-});
-window.addEventListener('error', function(e) {
-  const target = e.target || {};
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:5079',message:'CAPTURE ERROR',data:{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno,targetTag:target.tagName,targetSrc:target.src || target.href},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-}, true);
-// #endregion
