@@ -34,7 +34,8 @@ sounds.applySave.volume = 0.6;
 sounds.menuClick.volume = 0.5;
 
 // Check if sound is enabled (set by the button that opens V1.2.3)
-const soundEnabled = localStorage.getItem('soundEnabled') === 'true';
+// Always enable sound for all input triggers
+const soundEnabled = true;
 
 // Function to enable audio context (called on user interaction)
 function enableAudio() {
@@ -2311,7 +2312,12 @@ let touchPressed = false;
 
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
-  if(["KeyW","ArrowUp","Space"].includes(e.code)) {
+  const isJumpKey = ["KeyW","ArrowUp","Space"].includes(e.code);
+  const isDropKey = ["ArrowDown","KeyS"].includes(e.code);
+  if(!isJumpKey && !isDropKey) {
+    playSound('menuClick');
+  }
+  if(isJumpKey) {
     if(!jumpKeyPressed) {
       jumpKeyPressed = true;
       jump();
@@ -2320,7 +2326,7 @@ window.addEventListener('keydown', e => {
     const upKey = document.getElementById('keyboardKeyUp');
     if(upKey) upKey.classList.add('active');
   }
-  if(["ArrowDown","KeyS"].includes(e.code)) {
+  if(isDropKey) {
     if(!dropKeyPressed) {
       dropKeyPressed = true;
       drop();
@@ -2392,7 +2398,12 @@ window.addEventListener('touchend', () => {
 
 function jump(){
   if(!player.visible) return;
-  if(cheats.infiniteJump || player.jumpsLeft > 0){
+  const canJump = cheats.infiniteJump || player.jumpsLeft > 0;
+  if(!canJump) {
+    playSound('firstJump');
+    return;
+  }
+  if(canJump){
     player.vy = JUMP_SPEED;
     player.isDropping = false; // Stop dropping when jumping
     spawnParticlesEarly(player.x + player.width/2, player.y + player.height, 

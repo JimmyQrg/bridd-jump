@@ -129,6 +129,10 @@
     margin: 0; 
     font-size: 28px; 
     color: var(--accent);
+    text-shadow: 
+      0 0 10px var(--accent-glow),
+      0 0 20px var(--accent-glow),
+      0 0 30px var(--accent-glow);
     text-align: center;
     line-height: 1.4;
     letter-spacing: 2px;
@@ -138,6 +142,7 @@
     font-size: 11px; 
     color: var(--muted);
     margin-top: 4px;
+    text-shadow: 0 0 5px rgba(136, 247, 255, 0.5);
   }
   
   .btn {
@@ -212,6 +217,21 @@
   .hpSquare.empty {
     background-color: #000;
   }
+
+  #hpDisplay.hpCapActive .hpSquare.empty {
+    background-color: #300;
+    border-color: #ff0000;
+    box-shadow: none;
+  }
+
+  #hpDisplay.hpText {
+    color: var(--accent);
+    font-size: 24px;
+    text-shadow: 0 0 10px var(--accent-glow);
+    padding: 6px 10px;
+    border: 3px solid var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
   
   #fpsLabel { 
     position: fixed; 
@@ -220,6 +240,7 @@
     z-index: 1100; 
     font-size: 14px; 
     color: var(--muted);
+    text-shadow: 0 0 8px rgba(136, 247, 255, 0.3);
     pointer-events: none;
     font-family: "Press Start 2P", monospace;
     padding: 12px 18px;
@@ -235,6 +256,9 @@
     z-index: 1100;
     font-size: 48px;
     color: var(--accent);
+    text-shadow: 
+      0 0 10px var(--accent-glow),
+      0 0 20px var(--accent-glow);
     pointer-events: none;
     font-family: "Press Start 2P", monospace;
   }
@@ -247,9 +271,35 @@
     z-index: 1200;
     font-size: 72px;
     color: var(--accent);
+    text-shadow: 
+      0 0 30px var(--accent-glow),
+      0 0 60px var(--accent-glow);
     font-family: "Press Start 2P", monospace;
     display: none;
     pointer-events: none;
+  }
+
+  #winText {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1300;
+    font-size: 72px;
+    color: var(--accent);
+    text-shadow: 0 0 30px var(--accent-glow), 0 0 60px var(--accent-glow);
+    font-family: "Press Start 2P", monospace;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    pointer-events: none;
+  }
+
+  #winText.show {
+    opacity: 1;
+  }
+
+  #winText.fade {
+    opacity: 0;
   }
   
   #debugToast { 
@@ -364,6 +414,9 @@
   #howToPlayModal h2 {
     font-size: 18px;
     color: var(--accent);
+    text-shadow: 
+      0 0 10px var(--accent-glow),
+      0 0 20px var(--accent-glow);
     text-align: center;
     margin-bottom: 8px;
   }
@@ -375,6 +428,7 @@
   #howToPlayModal .section-title {
     font-size: 12px;
     color: var(--accent);
+    text-shadow: 0 0 5px var(--accent-glow);
     margin-bottom: 8px;
     text-decoration: underline;
   }
@@ -461,6 +515,7 @@
   #codeEditorHeader h2 {
     font-size: 14px;
     color: var(--accent);
+    text-shadow: 0 0 10px var(--accent-glow);
     margin: 0;
   }
   
@@ -503,6 +558,7 @@
     font-size: 11px;
     color: var(--accent);
     margin: 0 0 8px 0;
+    text-shadow: 0 0 5px var(--accent-glow);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -656,11 +712,17 @@
     padding: 20px 40px;
     text-transform: uppercase;
     letter-spacing: 2px;
+    text-shadow: 
+      0 0 15px var(--accent-glow),
+      0 0 30px var(--accent-glow);
     transition: all 0.2s ease;
   }
 
   .pauseBtn:hover {
     color: var(--muted);
+    text-shadow: 
+      0 0 15px var(--accent-glow),
+      0 0 30px var(--accent-glow);
     transform: scale(1.1);
   }
 
@@ -703,6 +765,9 @@
     font-size: 24px;
     color: var(--accent);
     margin-bottom: 20px;
+    text-shadow: 
+      0 0 15px var(--accent-glow),
+      0 0 30px var(--accent-glow);
   }
 
   .bestScoreValue {
@@ -710,6 +775,9 @@
     font-size: 48px;
     color: var(--accent);
     margin-bottom: 30px;
+    text-shadow: 
+      0 0 20px var(--accent-glow),
+      0 0 40px var(--accent-glow);
   }
 
   .bestScoreQuestion {
@@ -736,6 +804,8 @@
     padding: 16px 32px;
     text-transform: uppercase;
     letter-spacing: 2px;
+    text-shadow: 
+      0 0 10px var(--accent-glow);
     transition: all 0.2s ease;
     min-width: 150px;
   }
@@ -894,6 +964,7 @@
 
   <div id="hpDisplay"></div>
   <div id="scoreDisplay">0</div>
+  <div id="winText">YOU WON!</div>
   <div id="fpsLabel">FPS: -- / --</div>
   <div id="pauseTimer">3</div>
   <div id="debugToast"></div>
@@ -933,7 +1004,21 @@
   </div>
 
   <!-- <script src="../editCode.js"></script> -->
-  <script src="game.js"></script>
+  <script>
+    // #region agent log
+    window.__logGameScript = function(type, detail) {
+      fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1007',message:'game.js script '+type,data:{detail:detail || null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'S'})}).catch(()=>{});
+    };
+    window.addEventListener('error', function(e) {
+      const target = e.target || {};
+      fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1010',message:'window error',data:{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno,targetTag:target.tagName,targetSrc:target.src || target.href},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'T'})}).catch(()=>{});
+    }, true);
+    document.addEventListener('DOMContentLoaded', function() {
+      fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1014',message:'domcontentloaded',data:{readyState:document.readyState},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'U'})}).catch(()=>{});
+    });
+    // #endregion
+  </script>
+  <script src="game.js" onload="__logGameScript('load', this.src)" onerror="__logGameScript('error', this.src)"></script>
   
   <script>
     // Register Service Worker for PWA

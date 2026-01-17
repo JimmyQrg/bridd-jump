@@ -15,8 +15,22 @@ const sounds = {
   startChooseVersion: new Audio('../sounds/start-chooseversion.mp3'),
   applySave: new Audio('../sounds/apply-save.mp3'),
   menuClick: new Audio('../sounds/menu-click.mp3'),
-  background: new Audio('../sounds/background.mp3')
+  background: new Audio('../sounds/background.mp3'),
+  speedUp: new Audio('../sounds/speed-up.mp3'),
+  speedUpLoop: new Audio('../sounds/speed-up-loop.mp3')
 };
+
+// #region agent log
+window.addEventListener('error', function(e) {
+  const target = e.target || {};
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:22',message:'EARLY CAPTURE ERROR',data:{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno,targetTag:target.tagName,targetSrc:target.src || target.href},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+}, true);
+Object.entries(sounds).forEach(([name, audio]) => {
+  audio.addEventListener('error', () => {
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:27',message:'audio error',data:{name:name,src:audio.src},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+  });
+});
+// #endregion
 
 // Set background music to loop
 sounds.background.loop = true;
@@ -32,8 +46,11 @@ const baseVolumes = {
   startChooseVersion: 0.6,
   applySave: 0.6,
   menuClick: 0.5,
-  background: 0.5
+  background: 0.5,
+  speedUp: 0.7,
+  speedUpLoop: 0.6
 };
+
 
 // Function to update all sound volumes based on settings
 function updateSoundVolumes() {
@@ -64,12 +81,17 @@ function updateSoundVolumes() {
   if(sounds.startChooseVersion) sounds.startChooseVersion.volume = baseVolumes.startChooseVersion * masterMul * soundEffectsMul;
   if(sounds.applySave) sounds.applySave.volume = baseVolumes.applySave * masterMul * soundEffectsMul;
   if(sounds.menuClick) sounds.menuClick.volume = baseVolumes.menuClick * masterMul * soundEffectsMul;
+  if(sounds.speedUp) sounds.speedUp.volume = baseVolumes.speedUp * masterMul * soundEffectsMul;
+  if(sounds.speedUpLoop) sounds.speedUpLoop.volume = baseVolumes.speedUpLoop * masterMul * musicMul;
 }
 
 // Initialize volumes - called after settings initialization (see line 3716)
 
-// Check if sound is enabled (set by the button that opens V1.2.3)
-const soundEnabled = localStorage.getItem('soundEnabled') === 'true';
+// Always enable sound for all input triggers
+const soundEnabled = true;
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:83',message:'boot sound init',data:{soundEnabled:soundEnabled},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+// #endregion
 
 // Function to enable audio context (called on user interaction)
 function enableAudio() {
@@ -91,6 +113,11 @@ function enableAudio() {
     console.log('Error enabling audio:', err);
   }
 }
+// #region agent log
+window.addEventListener('error', (e) => {
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:104',message:'window error',data:{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+});
+// #endregion
 
 // Function to play sound with error handling
 function playSound(soundName) {
@@ -150,6 +177,9 @@ function lerpColor(c1,c2,t){
 /* ---------- Canvas & resizing ---------- */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:164',message:'canvas init',data:{hasCanvas:!!canvas,hasCtx:!!ctx},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+// #endregion
 
 // Fixed canvas size - doesn't scale with window
 // UI will scale but game canvas stays fixed
@@ -226,6 +256,9 @@ function loadBobbleImages() {
 
 // Start loading images immediately
 loadBobbleImages();
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:244',message:'bobble images start',data:{imageCount:Object.keys(bobbleImageMap).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+// #endregion
 
 /* ---------- Constants & state ---------- */
 const BLOCK_SIZE = 50;
@@ -261,10 +294,21 @@ let player = {
   jumperColor: null // Color to use while jumper is active
 };
 
+let cameraZoom = 1;
+let cameraTargetOffsetY = 0;
+let winSequence = {
+  active: false,
+  phase: 'none',
+  timer: 0,
+  zoomTarget: 1,
+  winTextShown: false,
+  menuShown: false
+};
+
 /* world arrays - EXPANDED WITH 20+ NEW EFFECTS */
 let platforms = [], spikes = [], gems = [], bobbles = [], particles = [], crashPieces = [], trail = [], lines = [];
 let shockwaves = [], screenShake = 0, screenFlash = 0, screenDust = [], bloomParticles = [];
-let reflections = [], motionBlurBuffer = [], lightRays = [], chromaticAberration = 0;
+let reflections = [], lightRays = [], chromaticAberration = 0;
 let parallaxLayers = [], velocityStreaks = [], impactWaves = [], platformPulses = [];
 let windParticles = [], speedLines = [], lensFlares = [], screenTears = [];
 let dynamicFog = [], heatDistortions = [], starbursts = [], afterImages = [];
@@ -350,7 +394,6 @@ const defaultSettings = {
     particleCount: 100,
     trailLength: 100,
     screenReflections: 100,
-    motionBlur: 0, // Default 0%, not affected by presets
     lightRays: 100,
     parallaxLayers: 100,
     velocityStreaks: 100,
@@ -392,7 +435,7 @@ const qualityPresets = {
   "Potato": {
     blockTexture:1, jumpEffect:0, walkEffect:0, dieEffect:0, horizontalLines:0, trail:0, glow:0, lines:false,
     shockwaves:0, screenShake:0, bloomParticles:0, particleTrails:0, screenDistortion:0,
-    particleCount:10, trailLength:10, screenReflections:0, motionBlur:0, lightRays:0,
+    particleCount:10, trailLength:10, screenReflections:0, lightRays:0,
     parallaxLayers:0, velocityStreaks:0, impactWaves:0, platformPulse:0, colorBleed:0,
     depthOfField:0, windParticles:0, speedLines:0, timeDilation:0, lensFlare:0,
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
@@ -403,7 +446,7 @@ const qualityPresets = {
   "Low": {
     blockTexture:1, jumpEffect:5, walkEffect:0, dieEffect:0, horizontalLines:0, trail:0, glow:0, lines:false,
     shockwaves:0, screenShake:0, bloomParticles:0, particleTrails:0, screenDistortion:0,
-    particleCount:25, trailLength:25, screenReflections:0, motionBlur:0, lightRays:0,
+    particleCount:25, trailLength:25, screenReflections:0, lightRays:0,
     parallaxLayers:10, velocityStreaks:0, impactWaves:0, platformPulse:0, colorBleed:0,
     depthOfField:0, windParticles:10, speedLines:10, timeDilation:0, lensFlare:0,
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
@@ -414,7 +457,7 @@ const qualityPresets = {
   "Medium": {
     blockTexture:1, jumpEffect:10, walkEffect:0, dieEffect:10, horizontalLines:0, trail:0, glow:0, lines:false,
     shockwaves:0, screenShake:0, bloomParticles:0, particleTrails:0, screenDistortion:0,
-    particleCount:50, trailLength:50, screenReflections:10, motionBlur:0, lightRays:0,
+    particleCount:50, trailLength:50, screenReflections:10, lightRays:0,
     parallaxLayers:25, velocityStreaks:10, impactWaves:10, platformPulse:10, colorBleed:0,
     depthOfField:10, windParticles:25, speedLines:25, timeDilation:0, lensFlare:0,
     screenTear:0, dynamicFog:0, heatDistortion:0, starbursts:0, afterImages:0,
@@ -425,7 +468,7 @@ const qualityPresets = {
   "Medium+": {
     blockTexture:1, jumpEffect:15, walkEffect:15, dieEffect:15, horizontalLines:0, trail:0, glow:0, lines:false,
     shockwaves:0, screenShake:0, bloomParticles:0, particleTrails:0, screenDistortion:0,
-    particleCount:75, trailLength:75, screenReflections:25, motionBlur:10, lightRays:10,
+    particleCount:75, trailLength:75, screenReflections:25, lightRays:10,
     parallaxLayers:50, velocityStreaks:25, impactWaves:25, platformPulse:25, colorBleed:10,
     depthOfField:25, windParticles:50, speedLines:50, timeDilation:10, lensFlare:10,
     screenTear:0, dynamicFog:10, heatDistortion:10, starbursts:10, afterImages:10,
@@ -436,7 +479,7 @@ const qualityPresets = {
   "High": {
     blockTexture:1, jumpEffect:15, walkEffect:15, dieEffect:15, horizontalLines:15, trail:0, glow:0, lines:true,
     shockwaves:10, screenShake:10, bloomParticles:0, particleTrails:0, screenDistortion:0,
-    particleCount:100, trailLength:100, screenReflections:50, motionBlur:25, lightRays:25,
+    particleCount:100, trailLength:100, screenReflections:50, lightRays:25,
     parallaxLayers:75, velocityStreaks:50, impactWaves:50, platformPulse:50, colorBleed:25,
     depthOfField:50, windParticles:75, speedLines:75, timeDilation:25, lensFlare:25,
     screenTear:10, dynamicFog:25, heatDistortion:25, starbursts:25, afterImages:25,
@@ -447,7 +490,7 @@ const qualityPresets = {
   "High+": {
     blockTexture:1, jumpEffect:33, walkEffect:33, dieEffect:33, horizontalLines:33, trail:0, glow:0, lines:true,
     shockwaves:25, screenShake:25, bloomParticles:10, particleTrails:10, screenDistortion:0,
-    particleCount:125, trailLength:125, screenReflections:75, motionBlur:50, lightRays:50,
+    particleCount:125, trailLength:125, screenReflections:75, lightRays:50,
     parallaxLayers:100, velocityStreaks:75, impactWaves:75, platformPulse:75, colorBleed:50,
     depthOfField:75, windParticles:100, speedLines:100, timeDilation:50, lensFlare:50,
     screenTear:25, dynamicFog:50, heatDistortion:50, starbursts:50, afterImages:50,
@@ -458,7 +501,7 @@ const qualityPresets = {
   "Extreme": {
     blockTexture:1, jumpEffect:60, walkEffect:60, dieEffect:60, horizontalLines:60, trail:0, glow:0, lines:true,
     shockwaves:50, screenShake:50, bloomParticles:25, particleTrails:25, screenDistortion:10,
-    particleCount:150, trailLength:150, screenReflections:100, motionBlur:75, lightRays:75,
+    particleCount:150, trailLength:150, screenReflections:100, lightRays:75,
     parallaxLayers:125, velocityStreaks:100, impactWaves:100, platformPulse:100, colorBleed:75,
     depthOfField:100, windParticles:125, speedLines:125, timeDilation:75, lensFlare:75,
     screenTear:50, dynamicFog:75, heatDistortion:75, starbursts:75, afterImages:75,
@@ -469,7 +512,7 @@ const qualityPresets = {
   "Extreme+": {
     blockTexture:1, jumpEffect:64, walkEffect:64, dieEffect:64, horizontalLines:64, trail:1, glow:1, lines:true,
     shockwaves:75, screenShake:75, bloomParticles:50, particleTrails:50, screenDistortion:25,
-    particleCount:175, trailLength:175, screenReflections:125, motionBlur:100, lightRays:100,
+    particleCount:175, trailLength:175, screenReflections:125, lightRays:100,
     parallaxLayers:150, velocityStreaks:125, impactWaves:125, platformPulse:125, colorBleed:100,
     depthOfField:125, windParticles:150, speedLines:150, timeDilation:100, lensFlare:100,
     screenTear:75, dynamicFog:100, heatDistortion:100, starbursts:100, afterImages:100,
@@ -480,7 +523,7 @@ const qualityPresets = {
   "Ultra": {
     blockTexture:1, jumpEffect:100, walkEffect:100, dieEffect:100, horizontalLines:100, trail:0, glow:1, lines:true,
     shockwaves:100, screenShake:100, bloomParticles:75, particleTrails:75, screenDistortion:50,
-    particleCount:200, trailLength:200, screenReflections:150, motionBlur:125, lightRays:125,
+    particleCount:200, trailLength:200, screenReflections:150, lightRays:125,
     parallaxLayers:175, velocityStreaks:150, impactWaves:150, platformPulse:150, colorBleed:125,
     depthOfField:150, windParticles:175, speedLines:175, timeDilation:125, lensFlare:125,
     screenTear:100, dynamicFog:125, heatDistortion:125, starbursts:125, afterImages:125,
@@ -491,7 +534,7 @@ const qualityPresets = {
   "Ultra+": {
     blockTexture:1, jumpEffect:120, walkEffect:120, dieEffect:120, horizontalLines:120, trail:1, glow:1, lines:true,
     shockwaves:120, screenShake:120, bloomParticles:100, particleTrails:100, screenDistortion:75,
-    particleCount:250, trailLength:250, screenReflections:175, motionBlur:150, lightRays:150,
+    particleCount:250, trailLength:250, screenReflections:175, lightRays:150,
     parallaxLayers:200, velocityStreaks:175, impactWaves:175, platformPulse:175, colorBleed:150,
     depthOfField:175, windParticles:200, speedLines:200, timeDilation:150, lensFlare:150,
     screenTear:125, dynamicFog:150, heatDistortion:150, starbursts:150, afterImages:150,
@@ -502,7 +545,7 @@ const qualityPresets = {
   "Ultra++": {
     blockTexture:1, jumpEffect:200, walkEffect:200, dieEffect:200, horizontalLines:200, trail:1, glow:1.5, lines:true,
     shockwaves:150, screenShake:150, bloomParticles:150, particleTrails:150, screenDistortion:100,
-    particleCount:300, trailLength:300, screenReflections:200, motionBlur:175, lightRays:175,
+    particleCount:300, trailLength:300, screenReflections:200, lightRays:175,
     parallaxLayers:225, velocityStreaks:200, impactWaves:200, platformPulse:200, colorBleed:175,
     depthOfField:200, windParticles:225, speedLines:225, timeDilation:175, lensFlare:175,
     screenTear:150, dynamicFog:175, heatDistortion:175, starbursts:175, afterImages:175,
@@ -513,7 +556,7 @@ const qualityPresets = {
   "Highest": {
     blockTexture:1, jumpEffect:200, walkEffect:200, dieEffect:200, horizontalLines:200, trail:1, glow:2, lines:true,
     shockwaves:200, screenShake:200, bloomParticles:200, particleTrails:200, screenDistortion:200,
-    particleCount:500, trailLength:500, screenReflections:250, motionBlur:200, lightRays:200,
+    particleCount:500, trailLength:500, screenReflections:250, lightRays:200,
     parallaxLayers:250, velocityStreaks:250, impactWaves:250, platformPulse:250, colorBleed:200,
     depthOfField:250, windParticles:250, speedLines:250, timeDilation:200, lensFlare:200,
     screenTear:200, dynamicFog:200, heatDistortion:200, starbursts:200, afterImages:200,
@@ -567,7 +610,6 @@ let runtime = {
     particleCountMul: 1,
     trailLengthMul: 1,
     screenReflectionsMul: 1,
-    motionBlurMul: 1,
     lightRaysMul: 1,
     parallaxLayersMul: 1,
     velocityStreaksMul: 1,
@@ -609,7 +651,6 @@ let runtime = {
   particleTrailsEnabled: true,
   distortionEnabled: true,
   reflectionsEnabled: true,
-  motionBlurEnabled: true,
   lightRaysEnabled: true,
   parallaxEnabled: true,
   velocityStreaksEnabled: true,
@@ -684,8 +725,6 @@ function applySettings(s){
   runtime.advanced.particleCountMul = pct(settings.advanced.particleCount) || (preset.particleCount ? preset.particleCount/100 : 0);
   runtime.advanced.trailLengthMul = pct(settings.advanced.trailLength) || (preset.trailLength ? preset.trailLength/100 : 0);
   runtime.advanced.screenReflectionsMul = pct(settings.advanced.screenReflections) || (preset.screenReflections ? preset.screenReflections/100 : 0);
-  // Motion blur: disabled (set to 0)
-  runtime.advanced.motionBlurMul = 0;
   runtime.advanced.lightRaysMul = pct(settings.advanced.lightRays) || (preset.lightRays ? preset.lightRays/100 : 0);
   runtime.advanced.parallaxLayersMul = pct(settings.advanced.parallaxLayers) || (preset.parallaxLayers ? preset.parallaxLayers/100 : 0);
   runtime.advanced.velocityStreaksMul = pct(settings.advanced.velocityStreaks) || (preset.velocityStreaks ? preset.velocityStreaks/100 : 0);
@@ -733,7 +772,6 @@ function applySettings(s){
   runtime.particleTrailsEnabled = runtime.advanced.particleTrailsMul > 0;
   runtime.distortionEnabled = runtime.advanced.screenDistortionMul > 0;
   runtime.reflectionsEnabled = runtime.advanced.screenReflectionsMul > 0;
-  runtime.motionBlurEnabled = false; // Motion blur disabled
   runtime.lightRaysEnabled = runtime.advanced.lightRaysMul > 0;
   runtime.parallaxEnabled = runtime.advanced.parallaxLayersMul > 0;
   runtime.velocityStreaksEnabled = runtime.advanced.velocityStreaksMul > 0;
@@ -779,11 +817,14 @@ applySettings(settings);
 let lastPlatformX = 0, lastPlatformY = 0;
 let recentPlatformSizes = []; // Track last few platform sizes for consecutive one-block rule
 let lastPlatformHadStrikes = false; // Track if previous platform had strikes
+let platformIndex = 0;
+let platformsSinceDoubleSpike = 0;
+let pendingConsecutiveSpike = false;
 
 function resetWorld(){
   // clear ALL arrays
   platforms = []; spikes = []; gems = []; bobbles = []; particles = []; crashPieces = []; trail = []; lines = [];
-  shockwaves = []; screenDust = []; bloomParticles = []; reflections = []; motionBlurBuffer = [];
+  shockwaves = []; screenDust = []; bloomParticles = []; reflections = [];
   lightRays = []; parallaxLayers = []; velocityStreaks = []; impactWaves = []; platformPulses = [];
   windParticles = []; speedLines = []; lensFlares = []; screenTears = []; dynamicFog = [];
   heatDistortions = []; starbursts = []; afterImages = []; gravityWaves = []; energyRipples = [];
@@ -822,6 +863,18 @@ function resetWorld(){
   voidDamagePause = false; // Reset void pause
   voidPauseTimer = 0; // Reset void pause timer
   shouldExtendImmunity = false; // Reset immunity extension flag
+  cameraZoom = 1;
+  winSequence.active = false;
+  winSequence.phase = 'none';
+  winSequence.timer = 0;
+  winSequence.zoomTarget = 1;
+  winSequence.winTextShown = false;
+  winSequence.menuShown = false;
+  const winText = document.getElementById('winText');
+  if(winText) {
+    winText.classList.remove('show');
+    winText.classList.remove('fade');
+  }
   
   // Reset bobble spawn timers
   bobbleSpawnTimer = 0;
@@ -885,9 +938,14 @@ function resetWorld(){
 
 /* ---------- Platform generator ---------- */
 function generateBlockPlatform(lastX, lastY){
-  let blockCount = Math.floor(Math.random()*8)+1;
+  platformIndex += 1;
+  const maxPlatformWidth = score >= 1000 ? 6 : 8;
+  let blockCount = Math.floor(Math.random() * maxPlatformWidth) + 1;
   if(Math.random()<0.7) blockCount = Math.min(blockCount,Math.floor(Math.random()*3+1));
-  let gap = Math.floor(Math.random()*5+3) * BLOCK_SIZE;
+  blockCount = Math.max(1, Math.min(blockCount, maxPlatformWidth));
+  const minGapBlocks = score >= 2500 ? 4 : 3;
+  const maxGapBlocks = score >= 2500 ? 9 : 7;
+  let gap = Math.floor(Math.random() * (maxGapBlocks - minGapBlocks + 1) + minGapBlocks) * BLOCK_SIZE;
   let x = lastX + gap;
   let y = lastY + (Math.floor(Math.random()*3)-1) * BLOCK_SIZE;
   y = Math.max(BLOCK_SIZE, Math.min(canvas.height - 3*BLOCK_SIZE, y));
@@ -896,10 +954,31 @@ function generateBlockPlatform(lastX, lastY){
   // Keep only last 2 platforms (to check if current is third in sequence)
   const isOneBlock = blockCount === 1;
   let canHaveStrikes = true;
+  let forceSpikes = false;
+  let forceLongSpike = false;
+  const allowConsecutiveSpikes = score >= 300;
+  const doubleSpikeInterval = score >= 600 ? 5 : (score >= 300 ? 10 : null);
+  const longSpikeRule = score >= 2000 ? { window: 7, count: 2 } :
+    score >= 1500 ? { window: 6, count: 2 } :
+    score >= 900 ? { window: 12, count: 1 } : null;
+  const minWidthForTwoSpikeGroups = score >= 1000 ? 6 : 7;
+  const mustHazardOneBlock = score >= 2300 && isOneBlock;
   
   // Rule: Two platforms with strikes cannot be in a row
-  if(lastPlatformHadStrikes) {
+  if(lastPlatformHadStrikes && !allowConsecutiveSpikes) {
     canHaveStrikes = false;
+  }
+  if(doubleSpikeInterval !== null) {
+    if(pendingConsecutiveSpike) {
+      forceSpikes = true;
+    } else if(platformsSinceDoubleSpike >= doubleSpikeInterval - 1) {
+      if(lastPlatformHadStrikes) {
+        forceSpikes = true;
+      } else {
+        forceSpikes = true;
+        pendingConsecutiveSpike = true;
+      }
+    }
   }
   
   if(isOneBlock && recentPlatformSizes.length >= 2) {
@@ -911,6 +990,18 @@ function generateBlockPlatform(lastX, lastY){
       // Only allow strikes on one of the three - randomly choose
       canHaveStrikes = canHaveStrikes && Math.random() < 0.33; // 33% chance (only one of three gets strikes)
     }
+  }
+  if(forceSpikes) {
+    canHaveStrikes = true;
+  }
+  if(longSpikeRule) {
+    const indexInWindow = platformIndex % longSpikeRule.window;
+    if(indexInWindow < longSpikeRule.count) {
+      forceLongSpike = true;
+    }
+  }
+  if(forceLongSpike) {
+    blockCount = Math.max(blockCount, 4);
   }
   
   // Update recent platform sizes
@@ -937,17 +1028,19 @@ function generateBlockPlatform(lastX, lastY){
 
   // Generate spikes with new logic
   if(canHaveStrikes && blockCount > 0) {
-    const maxGroups = blockCount >= 7 ? 2 : 1; // At most 2 groups for 7+ blocks, 1 group for 1-6 blocks
+    const maxGroups = blockCount >= minWidthForTwoSpikeGroups ? 2 : 1; // At most 2 groups for larger blocks
     const spikeGroups = [];
     let hasThreeStrikeGroup = false; // Track if we already have a group with 3 strikes
     
     // Generate spike groups
     for(let group = 0; group < maxGroups; group++) {
+      const minSpikeSize = forceLongSpike && !hasThreeStrikeGroup ? 4 : 1;
+      const maxSpikeSize = forceLongSpike && !hasThreeStrikeGroup ? Math.min(5, blockCount) : 3;
       const groupSize = hasThreeStrikeGroup ? 
-        Math.floor(Math.random() * 2) + 1 : // 1-2 strikes if we already have a 3-strike group
-        Math.floor(Math.random() * 3) + 1;  // 1-3 strikes otherwise
+        Math.floor(Math.random() * Math.max(1, Math.min(2, maxSpikeSize))) + 1 : // 1-2 strikes if we already have a 3+ strike group
+        Math.max(minSpikeSize, Math.floor(Math.random() * maxSpikeSize) + 1);  // 1-3 strikes otherwise
       
-      if(groupSize === 3) hasThreeStrikeGroup = true;
+      if(groupSize >= 3) hasThreeStrikeGroup = true;
       
       // Find a valid position for this group (adjacent blocks)
       let attempts = 0;
@@ -1013,9 +1106,39 @@ function generateBlockPlatform(lastX, lastY){
       }
     }
   }
+
+  if(mustHazardOneBlock && !thisPlatformHasStrikes) {
+    if(Math.random() < 0.5 && canHaveStrikes) {
+      const spikeX = x + BLOCK_SIZE*0.2;
+      spikes.push({
+        x: spikeX,
+        y: y - BLOCK_SIZE + BLOCK_SIZE*0.2,
+        width: BLOCK_SIZE*0.6,
+        height: BLOCK_SIZE*0.6,
+        baseY: y - BLOCK_SIZE + BLOCK_SIZE*0.2,
+        hit: true,
+        passed: false
+      });
+      thisPlatformHasStrikes = true;
+    } else {
+      const badType = getRandomBadBobble();
+      spawnBobbleAt(x + BLOCK_SIZE * 0.5, y - BLOCK_SIZE * 1.5, badType);
+    }
+  }
   
   // Update tracking for next platform
+  const prevPlatformHadStrikes = lastPlatformHadStrikes;
   lastPlatformHadStrikes = thisPlatformHasStrikes;
+  platformsSinceDoubleSpike += 1;
+  if(thisPlatformHasStrikes && prevPlatformHadStrikes && allowConsecutiveSpikes) {
+    platformsSinceDoubleSpike = 0;
+    pendingConsecutiveSpike = false;
+  } else if(pendingConsecutiveSpike && thisPlatformHasStrikes) {
+    platformsSinceDoubleSpike = 0;
+    pendingConsecutiveSpike = false;
+  } else if(pendingConsecutiveSpike && !thisPlatformHasStrikes) {
+    pendingConsecutiveSpike = false;
+  }
 
   // gems
   for(let i=0;i<blockCount;i++){
@@ -1055,10 +1178,34 @@ function getRandomBadBobble() {
   return Math.random() < 0.5 ? 'speedUp' : 'minus';
 }
 
+function spawnBobbleAt(bobbleX, bobbleY, type) {
+  let safe = true;
+  for(let s of spikes) {
+    if(s && s.x !== undefined) {
+      if(Math.abs(bobbleX - s.x) < BLOCK_SIZE * 2) safe = false;
+    }
+  }
+  for(let g of gems) {
+    if(g && g.x !== undefined && g.y !== undefined) {
+      if(Math.abs(bobbleX - g.x) < BLOCK_SIZE && Math.abs(bobbleY - g.y) < BLOCK_SIZE) safe = false;
+    }
+  }
+  if(!safe) return false;
+  bobbles.push({
+    x: bobbleX,
+    y: bobbleY,
+    size: BLOCK_SIZE, // Make bobbles as large as one block
+    type: type,
+    collected: false,
+    floatOffset: Math.random() * Math.PI * 2
+  });
+  return true;
+}
+
 /* ---------- Bobble spawning function ---------- */
 function spawnBobble(type) {
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:965',message:'spawnBobble called',data:{types:types,platformsLength:platforms.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:965',message:'spawnBobble called',data:{type:type,platformsLength:platforms.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
   // #endregion
   
   if(platforms.length === 0) {
@@ -1113,40 +1260,7 @@ function spawnBobble(type) {
   const bobbleY = plat.y - BLOCK_SIZE * 1.5;
   
   // Check if position is safe (not on spikes or gems)
-  let safe = true;
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1005',message:'spawnBobble - checking spikes',data:{spikesLength:spikes.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-  // #endregion
-  for(let s of spikes) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1007',message:'spawnBobble - checking spike',data:{sExists:s !== undefined,sHasX:s && s.x !== undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
-    if(s && s.x !== undefined) {
-      if(Math.abs(bobbleX - s.x) < BLOCK_SIZE * 2) safe = false;
-    }
-  }
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1013',message:'spawnBobble - checking gems',data:{gemsLength:gems.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-  // #endregion
-  for(let g of gems) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1015',message:'spawnBobble - checking gem',data:{gExists:g !== undefined,gHasX:g && g.x !== undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
-    if(g && g.x !== undefined && g.y !== undefined) {
-      if(Math.abs(bobbleX - g.x) < BLOCK_SIZE && Math.abs(bobbleY - g.y) < BLOCK_SIZE) safe = false;
-    }
-  }
-  
-  if(safe) {
-    bobbles.push({
-      x: bobbleX,
-      y: bobbleY,
-      size: BLOCK_SIZE, // Make bobbles as large as one block
-      type: type,
-      collected: false,
-      floatOffset: Math.random() * Math.PI * 2
-      // No rotation - icons face forward (upright)
-    });
+  if(spawnBobbleAt(bobbleX, bobbleY, type)) {
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:1000',message:'spawnBobble - bobble created',data:{type:type,x:bobbleX,y:bobbleY},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
@@ -2739,7 +2853,15 @@ let touchPressed = false;
 
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
-  if(["KeyW","ArrowUp","Space"].includes(e.code)) {
+  const isJumpKey = ["KeyW","ArrowUp","Space"].includes(e.code);
+  const isDropKey = ["ArrowDown","KeyS"].includes(e.code);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:2838',message:'keydown received',data:{code:e.code,isJumpKey:isJumpKey,isDropKey:isDropKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+  if(!isJumpKey && !isDropKey) {
+    playSound('menuClick');
+  }
+  if(isJumpKey) {
     if(!jumpKeyPressed) {
       jumpKeyPressed = true;
       jump();
@@ -2748,7 +2870,7 @@ window.addEventListener('keydown', e => {
     const upKey = document.getElementById('keyboardKeyUp');
     if(upKey) upKey.classList.add('active');
   }
-  if(["ArrowDown","KeyS"].includes(e.code)) {
+  if(isDropKey) {
     if(!dropKeyPressed) {
       dropKeyPressed = true;
       drop();
@@ -2822,7 +2944,12 @@ function jump(){
   if(!player.visible) return;
   // Check for jumper infinite jump (separate from cheat)
   const hasJumperJump = player.jumperTimer > 0;
-  if(cheats.infiniteJump || hasJumperJump || player.jumpsLeft > 0){
+  const canJump = cheats.infiniteJump || hasJumperJump || player.jumpsLeft > 0;
+  if(!canJump) {
+    playSound('firstJump');
+    return;
+  }
+  if(canJump){
     player.vy = JUMP_SPEED;
     player.isDropping = false; // Stop dropping when jumping
     player.wasDroppingInAir = false; // Reset drop-in-air flag when jumping
@@ -2859,9 +2986,9 @@ function jump(){
 function drop(){
   if(!player.visible) return;
   if(!player.isDropping) {
-    // Only play sound when starting to drop AND player is not on ground
+    // Always play sound when starting to drop
+    playSound('triggerDrop');
     if(!player.onGround) {
-      playSound('triggerDrop');
       player.wasDroppingInAir = true; // Mark that we started dropping while in the air
     }
   }
@@ -3097,6 +3224,11 @@ function cleanupOffScreenObjects() {
 /* ---------- Score milestone checking ---------- */
 function checkScoreMilestones() {
   const currentScore = Math.floor(score);
+  // #region agent log
+  if(currentScore >= 99900) {
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3208',message:'checkScoreMilestones near win',data:{currentScore:currentScore,winActive:winSequence.active},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  }
+  // #endregion
   
   // Damage increase system (3000, 6000, 9000, etc. - every 3000)
   if(currentScore >= 3000 && currentScore > lastDamageIncreaseScore) {
@@ -3138,6 +3270,11 @@ function checkScoreMilestones() {
     showSpeedLockedText();
     playSpeedLockedSound();
   }
+
+  // Win sequence at 100000
+  if(currentScore >= 100000) {
+    startWinSequence();
+  }
 }
 
 // Damage increase text display
@@ -3173,10 +3310,129 @@ function showSpeedLockedText() {
   };
 }
 
+function drawNoticeText(textObj) {
+  if(!textObj) return null;
+  textObj.timer++;
+  let alpha = 1;
+  let y = textObj.y;
+  if(textObj.timer > textObj.maxTimer) {
+    const fadeProgress = (textObj.timer - textObj.maxTimer) / TICKS_PER_SECOND;
+    alpha = Math.max(0, 1 - fadeProgress);
+    y = textObj.y - fadeProgress * 30;
+    if(alpha <= 0) return null;
+  }
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#0ff';
+  ctx.font = '32px "Press Start 2P", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(textObj.text, canvas.width / 2, y);
+  ctx.restore();
+  return textObj;
+}
+
 // Speed locked sound
 function playSpeedLockedSound() {
-  // Will play speed-up.mp3, then loop speed-up-loop.mp3
-  // Sound files need to be added to sounds object
+  if(!soundEnabled) return;
+  updateSoundVolumes();
+  if(sounds.speedUp) {
+    sounds.speedUp.pause();
+    sounds.speedUp.currentTime = 0;
+    sounds.speedUp.loop = false;
+    sounds.speedUp.onended = () => {
+      if(sounds.speedUpLoop) {
+        sounds.speedUpLoop.pause();
+        sounds.speedUpLoop.currentTime = 0;
+        sounds.speedUpLoop.loop = true;
+        sounds.speedUpLoop.play().catch(()=>{});
+      }
+    };
+    sounds.speedUp.play().catch(()=>{});
+  }
+}
+
+function showWinText() {
+  const winText = document.getElementById('winText');
+  if(winText) {
+    winText.classList.add('show');
+    winText.classList.remove('fade');
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3334',message:'showWinText',data:{className:winText.className},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+  }
+}
+
+function fadeWinText() {
+  const winText = document.getElementById('winText');
+  if(winText) {
+    winText.classList.add('fade');
+  }
+}
+
+function startWinSequence() {
+  if(winSequence.active) return;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3348',message:'startWinSequence entry',data:{score:Math.floor(score),speed:player.speed},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
+  winSequence.active = true;
+  winSequence.phase = 'slowdown';
+  winSequence.timer = 0;
+  winSequence.zoomTarget = 1;
+  winSequence.winTextShown = false;
+  winSequence.menuShown = false;
+  player.maxHP = 'WINNER';
+  player.currentHP = 0;
+  stopSound('background');
+  stopSound('speedUp');
+  stopSound('speedUpLoop');
+  createCrashEarly(runtime.effects.dieEffectMul);
+  createDeathImplosion(runtime.advanced.deathImplodeMul);
+  createDeathGlitch(runtime.advanced.deathGlitchMul);
+  createDeathVaporize(runtime.advanced.deathVaporizeMul);
+}
+
+function updateWinSequence() {
+  if(!winSequence.active) return;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:3368',message:'updateWinSequence tick',data:{phase:winSequence.phase,timer:winSequence.timer,speed:player.speed,zoom:cameraZoom},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+  if(winSequence.phase === 'slowdown') {
+    player.speed = Math.max(0, player.speed - 0.15);
+    player.vy = 0;
+    player.isDropping = false;
+    player.onGround = true;
+    player.x += player.speed * player.horizMultiplier;
+    if(player.speed <= 0.05) {
+      player.speed = 0;
+      winSequence.phase = 'zoomIn';
+      winSequence.timer = 0;
+    }
+  } else if(winSequence.phase === 'zoomIn') {
+    winSequence.timer++;
+    cameraZoom += (1.3 - cameraZoom) * 0.08;
+    if(winSequence.timer >= TICKS_PER_SECOND) {
+      winSequence.phase = 'zoomOut';
+      winSequence.timer = 0;
+    }
+  } else if(winSequence.phase === 'zoomOut') {
+    winSequence.timer++;
+    cameraZoom += (0.9 - cameraZoom) * 0.05;
+    if(winSequence.timer >= TICKS_PER_SECOND) {
+      winSequence.phase = 'done';
+      winSequence.timer = 0;
+    }
+  } else if(winSequence.phase === 'done') {
+    if(!winSequence.winTextShown) {
+      showWinText();
+      winSequence.winTextShown = true;
+    }
+    winSequence.timer++;
+    if(winSequence.timer >= 2 * TICKS_PER_SECOND && !winSequence.menuShown) {
+      document.getElementById('menu').style.display = 'flex';
+      winSequence.menuShown = true;
+    }
+  }
 }
 
 /* ---------- Fixed TICK SYSTEM (always 60 TPS internally) ---------- */
@@ -3189,6 +3445,10 @@ function gameTick() {
   // Check score milestones
   if(gameRunning && player.visible) {
     checkScoreMilestones();
+  }
+
+  if(winSequence.active) {
+    updateWinSequence();
   }
   
   // Skip if paused (regular pause) or void damage pause
@@ -3306,11 +3566,11 @@ function gameTick() {
   
   // Continue running effects even when gameRunning is false (for death animations)
   // Only skip if game hasn't started yet
-  if(!gameRunning && crashPieces.length === 0 && deathImplosions.length === 0 && 
+  if(!gameRunning && !winSequence.active && crashPieces.length === 0 && deathImplosions.length === 0 && 
      deathGlitches.length === 0 && deathVapors.length === 0) return;
   
   // Continue running effects even when player is dead, but skip player physics
-  if(player.visible && gameRunning) {
+  if(player.visible && gameRunning && !winSequence.active) {
     // Update background music volume periodically to ensure it stays current
     if(sounds.background && !sounds.background.paused) {
       const currentSettings = readSettings();
@@ -3881,6 +4141,11 @@ function draw(){
   
   ctx.save();
   ctx.translate(shakeX, shakeY);
+  if(cameraZoom !== 1) {
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(cameraZoom, cameraZoom);
+    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+  }
   
   // Apply screen flash
   if(screenFlash > 0) {
@@ -4284,7 +4549,6 @@ function draw(){
     ctx.fillStyle = playerColor;
     ctx.fillRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
     if(runtime.glowEnabled) ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#0ff"; ctx.lineWidth = 6; ctx.strokeRect(player.x - cameraX, player.y - cameraY, player.width, player.height);
     
     // Draw shield overlay if player has shield (more visible)
     if(player.hasShield) {
@@ -4292,15 +4556,6 @@ function draw(){
       // Draw filled background with high opacity
       ctx.fillStyle = "rgba(255, 255, 0, 0.3)";
       ctx.fillRect(player.x - cameraX - 8, player.y - cameraY - 8, player.width + 16, player.height + 16);
-      // Draw bright white border
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 6;
-      ctx.globalAlpha = 1;
-      ctx.strokeRect(player.x - cameraX - 8, player.y - cameraY - 8, player.width + 16, player.height + 16);
-      // Draw inner glow
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(player.x - cameraX - 4, player.y - cameraY - 4, player.width + 8, player.height + 8);
       ctx.globalAlpha = 1;
       ctx.restore();
     }
@@ -4313,18 +4568,28 @@ function draw(){
   
   ctx.restore(); // Restore from screen shake transform
 
+  damageIncreaseText = drawNoticeText(damageIncreaseText);
+  speedLockedText = drawNoticeText(speedLockedText);
+
   // HP Display
   const hpDisplay = document.getElementById('hpDisplay');
   hpDisplay.innerHTML = ''; // Clear existing squares
-  for(let i = 0; i < player.maxHP; i++) {
-    const square = document.createElement('div');
-    square.className = 'hpSquare';
-    if(i < player.currentHP) {
-      square.classList.add('full');
-    } else {
-      square.classList.add('empty');
+  hpDisplay.classList.remove('hpText');
+  if(!Number.isFinite(player.maxHP)) {
+    hpDisplay.classList.add('hpText');
+    hpDisplay.textContent = String(player.maxHP);
+  } else {
+    hpDisplay.classList.toggle('hpCapActive', score >= 10000);
+    for(let i = 0; i < player.maxHP; i++) {
+      const square = document.createElement('div');
+      square.className = 'hpSquare';
+      if(i < player.currentHP) {
+        square.classList.add('full');
+      } else {
+        square.classList.add('empty');
+      }
+      hpDisplay.appendChild(square);
     }
-    hpDisplay.appendChild(square);
   }
   
   // Score Display
@@ -4350,10 +4615,24 @@ function draw(){
 /* ---------- Main loop with proper FPS limiting ---------- */
 let lastLoopTime = performance.now();
 let accumulated = 0;
+let debugResourceLogged = false;
 
 function mainLoop(now){
   requestAnimationFrame(mainLoop);
   if(!now) now = performance.now();
+  if(!debugResourceLogged) {
+    debugResourceLogged = true;
+    // #region agent log
+    const resources = (performance.getEntriesByType && performance.getEntriesByType('resource')) ? performance.getEntriesByType('resource') : [];
+    const shortResources = resources.slice(0, 20).map(r => ({name:r.name,initiator:r.initiatorType,transferSize:r.transferSize}));
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:4588',message:'resource entries snapshot',data:{count:resources.length,items:shortResources},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
+    // #endregion
+    // #region agent log
+    const assetNodes = Array.from(document.querySelectorAll('script[src],link[href],img[src],audio[src],source[src]')).slice(0, 30)
+      .map(el => ({tag:el.tagName,src:el.src || el.href}));
+    fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:4594',message:'asset nodes snapshot',data:{count:assetNodes.length,items:assetNodes},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
+    // #endregion
+  }
   
   const deltaMs = now - lastLoopTime;
   lastLoopTime = now;
@@ -4413,8 +4692,16 @@ function mainLoop(now){
   // Camera smoothing - use actual delta time for smoothness
   // When player is dead, smoothly stop camera movement instead of following
   if(player.visible) {
-    const targetCamX = player.x - 150;
-    const targetCamY = player.y - canvas.height/2 + player.height*1.5;
+    let targetCamX = player.x - 150;
+    let targetCamY = player.y - canvas.height/2 + player.height*1.5;
+    if(winSequence.active) {
+      targetCamX = player.x - canvas.width/2 + player.width/2;
+      if(winSequence.phase === 'zoomOut' || winSequence.phase === 'done') {
+        targetCamY = player.y - canvas.height + player.height + BLOCK_SIZE;
+      } else {
+        targetCamY = player.y - canvas.height/2 + player.height/2;
+      }
+    }
     const smoothingFactor = 0.1 * (cappedDeltaMs / 16.67); // Adjust for frame rate
     cameraX = cameraX * (1 - smoothingFactor) + targetCamX * smoothingFactor;
     cameraY = cameraY * (1 - smoothingFactor) + targetCamY * smoothingFactor;
@@ -4644,6 +4931,18 @@ document.getElementById('dontKeepBestScoreBtn').addEventListener('click', () => 
   proceedToMainMenu();
 });
 
+// Fade win text on any button click after winning
+document.querySelectorAll('button').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    if(winSequence.active) {
+      fadeWinText();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:4892',message:'button click fadeWinText',data:{buttonId:btn.id,buttonText:btn.textContent,winActive:winSequence.active},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
+    }
+  });
+});
+
 // ESC key to pause/unpause
 window.addEventListener('keydown', (e) => {
   if(e.code === 'Escape' && gameRunning) {
@@ -4780,12 +5079,21 @@ if(!localStorage.getItem(LS_KEY)){
   settings = readSettings();
   applySettings(settings);
 }
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:5049',message:'settings applied',data:{qualityPreset:settings.qualityPreset,maxFPS:settings.maxFPS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
+// #endregion
 
 // Initialize volumes after settings are loaded
 updateSoundVolumes();
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:5054',message:'volumes updated',data:{soundEnabled:soundEnabled},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'M'})}).catch(()=>{});
+// #endregion
 
 // init ground/platforms and show menu
 resetWorld();
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:5058',message:'resetWorld complete',data:{platforms:platforms.length,playerX:player.x,playerY:player.y},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'N'})}).catch(()=>{});
+// #endregion
 document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
 document.getElementById('menu').style.display = 'flex';
 // Stop background music if it's playing
@@ -4796,6 +5104,9 @@ initKeyboardVisualization();
 
 // start the RAF loop
 requestAnimationFrame(mainLoop);
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:5066',message:'init complete',data:{menuVisible:document.getElementById('menu') && document.getElementById('menu').style.display},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+// #endregion
 
 // #region agent log - Global error handlers
 window.addEventListener('error', function(e) {
@@ -4804,4 +5115,8 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
   fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:4583',message:'UNHANDLED PROMISE REJECTION',data:{reason:String(e.reason)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
 });
+window.addEventListener('error', function(e) {
+  const target = e.target || {};
+  fetch('http://127.0.0.1:7242/ingest/89286150-3a84-4bf8-904e-b85e62b239f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game.js:5079',message:'CAPTURE ERROR',data:{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno,targetTag:target.tagName,targetSrc:target.src || target.href},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+}, true);
 // #endregion
