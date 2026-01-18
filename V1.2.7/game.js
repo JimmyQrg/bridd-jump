@@ -346,6 +346,7 @@ let shieldBreakBursts = []; // Burst effect for shield break
 
 /* gameplay */
 let keys = {}, score = 0, bestScore = localStorage.getItem("bestScore") ? parseInt(localStorage.getItem("bestScore")) : 0;
+let bestScoreWinner = localStorage.getItem("bestScoreWinner") === "true";
 let gameRunning = false;
 let isPaused = false;
 let cameraX = 0, cameraY = 0;
@@ -3382,6 +3383,16 @@ function showWinText() {
   }
 }
 
+function updateBestScoreDisplay() {
+  const bestScoreEl = document.getElementById('bestScore');
+  if(!bestScoreEl) return;
+  if(bestScoreWinner) {
+    bestScoreEl.innerText = 'Best Score: WINNER';
+  } else {
+    bestScoreEl.innerText = 'Best Score: ' + bestScore;
+  }
+}
+
 function fadeWinText() {
   const winText = document.getElementById('winText');
   if(winText) {
@@ -3399,6 +3410,9 @@ function startWinSequence() {
   winSequence.menuShown = false;
   player.maxHP = 'WINNER';
   player.currentHP = 0;
+  bestScoreWinner = true;
+  localStorage.setItem('bestScoreWinner', 'true');
+  updateBestScoreDisplay();
   stopSound('background');
   stopSound('speedUp');
   stopSound('speedUpLoop');
@@ -4033,13 +4047,13 @@ function takeSpikeDamage(spike) {
     createDeathGlitch(runtime.advanced.deathGlitchMul);
     createDeathVaporize(runtime.advanced.deathVaporizeMul);
     gameRunning = false;
-    if(score > bestScore){
+    if(!bestScoreWinner && score > bestScore){
       bestScore = Math.floor(score);
       localStorage.setItem('bestScore', bestScore);
     }
     setTimeout(()=> {
       document.getElementById('menu').style.display = 'flex';
-      document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
+      updateBestScoreDisplay();
       stopSound('background');
     }, 1200);
     return;
@@ -4104,13 +4118,13 @@ function takeVoidDamage() {
     createDeathGlitch(runtime.advanced.deathGlitchMul);
     createDeathVaporize(runtime.advanced.deathVaporizeMul);
     gameRunning = false;
-    if(score > bestScore){
+    if(!bestScoreWinner && score > bestScore){
       bestScore = Math.floor(score);
       localStorage.setItem('bestScore', bestScore);
     }
     setTimeout(()=> {
       document.getElementById('menu').style.display = 'flex';
-      document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
+      updateBestScoreDisplay();
       stopSound('background');
     }, 1200);
     return;
@@ -4753,7 +4767,7 @@ function openCommandPrompt() {
       player.maxHP = 1; // Reset max HP on death
       createCrashEarly(runtime.effects.dieEffectMul);
       gameRunning = false;
-      if(score>bestScore){ bestScore = Math.floor(score); localStorage.setItem('bestScore', bestScore); }
+      if(!bestScoreWinner && score>bestScore){ bestScore = Math.floor(score); localStorage.setItem('bestScore', bestScore); }
       setTimeout(()=> { 
         document.getElementById('menu').style.display = 'flex';
         stopSound('background'); // Stop background music when menu appears
@@ -4784,7 +4798,9 @@ function openCommandPrompt() {
   if(command === '/clear' && root1 === 'bestScore'){
     bestScore = 0;
     localStorage.setItem('bestScore', 0);
-    document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
+    bestScoreWinner = false;
+    localStorage.removeItem('bestScoreWinner');
+    updateBestScoreDisplay();
     alert('Best score cleared.');
     return;
   }
@@ -4900,7 +4916,7 @@ function goToMainMenu() {
   stopSound('background'); // Stop background music when going to menu
   
   // Check if current score is higher than best score
-  if(score > bestScore) {
+    if(!bestScoreWinner && score > bestScore) {
     // Show best score choice modal
     const modal = document.getElementById('bestScoreModal');
     const scoreValue = document.getElementById('bestScoreValue');
@@ -4935,7 +4951,7 @@ function proceedToMainMenu() {
     modal.classList.remove('show');
   }
   document.getElementById('menu').style.display = 'flex';
-  document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
+  updateBestScoreDisplay();
   resetWorld();
 }
 
@@ -4945,8 +4961,10 @@ document.getElementById('mainMenuBtn').addEventListener('click', goToMainMenu);
 
 // Best score modal button handlers
 document.getElementById('keepBestScoreBtn').addEventListener('click', () => {
-  bestScore = Math.floor(score);
-  localStorage.setItem('bestScore', bestScore);
+  if(!bestScoreWinner) {
+    bestScore = Math.floor(score);
+    localStorage.setItem('bestScore', bestScore);
+  }
   proceedToMainMenu();
 });
 
@@ -5105,7 +5123,7 @@ updateSoundVolumes();
 
 // init ground/platforms and show menu
 resetWorld();
-document.getElementById('bestScore').innerText = 'Best Score: ' + bestScore;
+updateBestScoreDisplay();
 document.getElementById('menu').style.display = 'flex';
 // Stop background music if it's playing
 stopSound('background');
