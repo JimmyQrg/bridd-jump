@@ -16,8 +16,8 @@ const sounds = {
   applySave: new Audio('../sounds/apply-save.mp3'),
   menuClick: new Audio('../sounds/menu-click.mp3'),
   background: new Audio('../sounds/background.mp3'),
-  speedUp: new Audio('../sounds/speed-up.mp3'),
-  speedUpLoop: new Audio('../sounds/speed-up-loop.mp3')
+  speedUp: new Audio('../sounds/speed-up-music.mp3'),
+  speedUpLoop: new Audio('../sounds/speed-up-music-loop.mp3')
 };
 
 
